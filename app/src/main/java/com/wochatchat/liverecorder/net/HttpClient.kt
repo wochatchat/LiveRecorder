@@ -10,7 +10,6 @@ import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.net.Proxy
 import java.net.InetSocketAddress
-import java.net.ProxySelector
 import java.security.SecureRandom
 import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
@@ -136,8 +135,8 @@ class LiveHttpClient(
 
         private fun buildClient(proxyAddr: String?, trustAll: Boolean, timeoutSec: Long): OkHttpClient {
             val builder = OkHttpClient.Builder()
-                // 默认禁用系统代理（对齐上游 no_proxy opener；per-client proxy 由构造参数控制）
-                .proxySelector(ProxySelector.of(null))
+                // 默认禁用系统代理（对齐上游 no_proxy opener；ProxySelector.of 是 JDK9+ API，Android 不可用）
+                .proxy(proxyAddr?.let { parseProxy(it) } ?: Proxy.NO_PROXY)
                 .connectTimeout(timeoutSec, TimeUnit.SECONDS)
                 .readTimeout(timeoutSec, TimeUnit.SECONDS)
                 .callTimeout(timeoutSec, TimeUnit.SECONDS)
