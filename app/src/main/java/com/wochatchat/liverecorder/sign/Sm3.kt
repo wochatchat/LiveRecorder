@@ -39,7 +39,7 @@ object Sm3 {
         val paddedLen = ((data.size + 9 + 63) / 64) * 64
         val out = ByteArray(paddedLen)
         data.copyInto(out)
-        out[data.size] = 0x80
+        out[data.size] = 0x80.toByte()
         for (i in 0 until 8) {
             out[paddedLen - 8 + i] = ((bitLength ushr (8 * (7 - i))) and 0xFF).toByte()
         }
