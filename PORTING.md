@@ -217,3 +217,4 @@
 | 日期 | 轮次 | 内容 |
 |---|---|---|
 | 2026-09-13 | R0 | 完成源码盘点与可行性评估；架构映射、C 组件边界（QuickJS+ffmpeg 必要，SM3 不必要）、平台矩阵、六阶段计划定稿 |
+| 2026-09-13 | R1 | **Phase 0 完成**：仓库 wochatchat/LiveRecorder；脚手架（Compose 主页+监控列表+添加对话框+DataStore）；4 workflow CI（build/build-test/compile-check/cleanup）；build.sh 版本自增；keystore 生成（keypass=storepass 教训）；v0.1.1 签名 APK 归档 + Release 产物齐；两次 CI 失败修复（缺 viewmodel-compose 依赖 / PKCS12 keypass） |
