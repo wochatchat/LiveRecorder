@@ -97,4 +97,6 @@ dependencies {
     // Networking (Phase 1: spider HTTP layer + stream download)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
+
+    testImplementation(libs.junit)
 }
