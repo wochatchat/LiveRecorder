@@ -107,7 +107,7 @@ object Sm3 {
         if (j < 16) x xor y xor z else (x and y) or (x.inv() and z)
 
     private val IV = intArrayOf(
-        0x7380166F, 0x4914B2B9, 0x172442D7, 0xDA8A0600,
-        0xA96F30BC, 0x163138AA, 0xE38DEE4D, 0xB0FB0E4E,
+        0x7380166F.toInt(), 0x4914B2B9.toInt(), 0x172442D7.toInt(), 0xDA8A0600.toInt(),
+        0xA96F30BC.toInt(), 0x163138AA.toInt(), 0xE38DEE4D.toInt(), 0xB0FB0E4E.toInt(),
     )
 }
