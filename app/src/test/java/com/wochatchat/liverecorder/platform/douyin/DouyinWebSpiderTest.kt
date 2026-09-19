@@ -1,5 +1,6 @@
 package com.wochatchat.liverecorder.platform.douyin
 
+import com.wochatchat.liverecorder.net.LiveHttpClient
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -30,30 +31,35 @@ class DouyinWebSpiderTest {
         assertEquals("5f47977714", spider.extractWebRid("https://live.douyin.com/5f47977714?show_type=live_cover"))
     }
 
-    @Test fun `extractWebRid - v dot douyin share link`() {
-        assertEquals("", spider.extractWebRid("https://v.douyin.com/abc123"))
+    // v.douyin.com / user 链接由调用方路由到 app 路径（main.py 分流），
+    // extractWebRid 本身语义与上游 Python split 一致：无 live.douyin.com/ 分隔符时返回原串
+    @Test fun `extractWebRid - v douyin share link returns whole url as upstream`() {
+        assertEquals("https://v.douyin.com/abc123", spider.extractWebRid("https://v.douyin.com/abc123"))
     }
 
-    @Test fun `extractWebRid - user profile URL`() {
-        assertEquals("", spider.extractWebRid("https://www.douyin.com/user/MS4wLjABAAAAxxx"))
+    @Test fun `extractWebRid - user profile URL returns whole url as upstream`() {
+        assertEquals(
+            "https://www.douyin.com/user/MS4wLjABAAAAxxx",
+            spider.extractWebRid("https://www.douyin.com/user/MS4wLjABAAAAxxx")
+        )
     }
 
     // ---------------------------------------------------------------------------
     // a_bogus 向量（固定 timeMs=1725000000000，与 AbSignTest 向量时间一致）
     // ---------------------------------------------------------------------------
     @Test fun `buildApiUrl - fixed time produces deterministic a_bogus`() {
-        // a_bogus 长度固定 108 字符 + "=" 尾缀（ab_Sign resultEncrypt 输出 s4 模式）
-        // 由 AbSignTest 1c 向量保证 abSign() 本身的正确性
-        val url = spider.buildApiUrl("5f47977714",
-            "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) " +
-                "Chrome/116.0.58.45.97 Safari/537.36 Core/1.116.567.400 QQBrowser/19.7.6764.400",
-            timeMs = 1725000000000L
+        // 沙箱 Python 原版 ab_sign 固定 timeMs=1725000000000 输出（web_rid=547977714661）
+        val expectedABogus =
+            "E7mhBmg6mEVNgf6X5V5LfY3q6-Z3YIhj0HViMD2fyVvw7g39HMYD9exo0XivZ/WjN4/" +
+                "kIeYjy4hbO3xprQAjM36UHWwEUdQ2mgWkKl5Q5I0j53iruyRDntmF4vj3SFlm5XNAEOk0y75rKb70Woqe-vIlO62-zo0/9R8="
+        val url = spider.buildApiUrl("547977714661", LiveHttpClient.DEFAULT_UA, timeMs = 1725000000000L)
+        val expectedQuery = "aid=6383&app_name=douyin_web&live_id=1&device_platform=web" +
+            "&language=zh-CN&browser_language=zh-CN&browser_platform=Win32&browser_name=Chrome" +
+            "&browser_version=116.0.0.0&web_rid=547977714661&msToken="
+        assertEquals(
+            "https://live.douyin.com/webcast/room/web/enter/?$expectedQuery&a_bogus=$expectedABogus",
+            url
         )
-        assertTrue("a_bogus must be present", url.contains("a_bogus="))
-        val aBogus = url.substringAfter("a_bogus=")
-        assertTrue("a_bogus should not contain &", !aBogus.contains("&"))
-        // s4 模式 resultEncrypt 输出是 base64 变体，末尾固定 "+" 或 "-"（url-safe）
-        assertTrue("a_bogus length around 109", aBogus.length in 108..112)
     }
 
     // ---------------------------------------------------------------------------
@@ -118,20 +124,21 @@ class DouyinWebSpiderTest {
     // ---------------------------------------------------------------------------
     // 异常兜底（对齐上游语义）
     // ---------------------------------------------------------------------------
-    @Test fun `parseRoomJson - empty array throws`() {
+    // parseRoomJson 不做兜底（catch 在 fetch 层），对齐上游：异常抛给外层
+    @Test(expected = RuntimeException::class)
+    fun `parseRoomJson - empty data array throws`() {
         val json = JSONObject().apply {
             put("data", JSONObject().apply {
                 put("data", org.json.JSONArray())
                 put("user", JSONObject().put("nickname", "test"))
             })
         }.toString()
-        val room = spider.parseRoomJson(json, "https://live.douyin.com/999")
-        assertEquals("", room.anchorName) // 外层 catch 兜底
+        spider.parseRoomJson(json, "https://live.douyin.com/999")
     }
 
-    @Test fun `parseRoomJson - invalid json throws`() {
-        val room = spider.parseRoomJson("not json {{{", "https://live.douyin.com/999")
-        assertEquals("", room.anchorName) // 外层 catch 兜底
+    @Test(expected = org.json.JSONException::class)
+    fun `parseRoomJson - invalid json throws`() {
+        spider.parseRoomJson("not json {{{", "https://live.douyin.com/999")
     }
 
     // ---------------------------------------------------------------------------
