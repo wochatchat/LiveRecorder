@@ -103,61 +103,7 @@ class DouyinWebSpider(
 
         // status==2 但 stream_url 不存在 → 上游抛出 RuntimeError，被外层 catch → 空结果
         val streamUrl = room.getJSONObject("stream_url")
-
-        // 提取 pull_datas / live_core_sdk_data
-        val liveCore = streamUrl.optJSONObject("live_core_sdk_data")
-        val pullDatas = streamUrl.optJSONObject("pull_datas")
-
-        val streamDataJson = when {
-            pullDatas != null && pullDatas.length() > 0 -> {
-                val key = pullDatas.keys().next()
-                pullDatas.getJSONObject(key).getString("stream_data")
-            }
-            liveCore != null -> {
-                liveCore.getJSONObject("pull_data").getString("stream_data")
-            }
-            else -> throw RuntimeException(
-                "The live streaming type or gameplay is not supported on the computer side yet, " +
-                    "please use the app to share the link for recording."
-            )
-        }
-
-        val parsed = JSONObject(streamDataJson)
-
-        // 读原始画质 map
-        val flvMap = mutableMapOf<String, String>()
-        val hlsMap = mutableMapOf<String, String>()
-
-        streamUrl.optJSONObject("flv_pull_url")?.let { obj ->
-            obj.keys().forEach { flvMap[it] = obj.getString(it) }
-        }
-        streamUrl.optJSONObject("hls_pull_url_map")?.let { obj ->
-            obj.keys().forEach { hlsMap[it] = obj.getString(it) }
-        }
-
-        // origin 优先合并（ORIGIN 档插到 map 最前；若已有同名 key 则保持原值）
-        if (parsed.getJSONObject("data").has("origin")) {
-            // origin_data 必须从 live_core_sdk_data.pull_data.stream_data 解析（不是 pull_datas）
-            val originStreamData = liveCore!!
-                .getJSONObject("pull_data").getString("stream_data")
-            val originJson = JSONObject(originStreamData)
-            val originMain = originJson.getJSONObject("data")
-                .getJSONObject("origin").getJSONObject("main")
-            val sdkParams = JSONObject(originMain.getString("sdk_params"))
-            val codec = sdkParams.optString("VCodec", "")
-            val codecSuffix = if (codec.isNotEmpty()) "&codec=$codec" else ""
-
-            // {**origin_m3u8, **hls_pull_url_map}：ORIGIN 优先（若已有同名 key 则保持原值）
-            val mergedFlv = mutableMapOf<String, String>()
-            val mergedHls = mutableMapOf<String, String>()
-            mergedFlv["ORIGIN"] = originMain.getString("flv") + codecSuffix
-            mergedHls["ORIGIN"] = originMain.getString("hls") + codecSuffix
-            mergedFlv.putAll(flvMap)
-            mergedHls.putAll(hlsMap)
-            flvMap.clear(); flvMap.putAll(mergedFlv)
-            hlsMap.clear(); hlsMap.putAll(mergedHls)
-        }
-
+        val (flvMap, hlsMap) = DouyinRoomStreams.parseQualityMaps(streamUrl)
         return DouyinWebRoom(anchorName, status, title, flvMap, hlsMap)
     }
 
