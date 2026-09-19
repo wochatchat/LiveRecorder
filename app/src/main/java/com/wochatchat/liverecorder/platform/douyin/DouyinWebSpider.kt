@@ -147,12 +147,15 @@ class DouyinWebSpider(
             val codec = sdkParams.optString("VCodec", "")
             val codecSuffix = if (codec.isNotEmpty()) "&codec=$codec" else ""
 
-            val originFlvEntry = "ORIGIN" to (originMain.getString("flv") + codecSuffix)
-            val originHlsEntry = "ORIGIN" to (originMain.getString("hls") + codecSuffix)
-
-            // {**origin_m3u8, **hls_pull_url_map}：ORIGIN 优先
-            flvMap = mutableMapOf(originFlvEntry).apply { putAll(flvMap) }
-            hlsMap = mutableMapOf(originHlsEntry).apply { putAll(hlsMap) }
+            // {**origin_m3u8, **hls_pull_url_map}：ORIGIN 优先（若已有同名 key 则保持原值）
+            val mergedFlv = mutableMapOf<String, String>()
+            val mergedHls = mutableMapOf<String, String>()
+            mergedFlv["ORIGIN"] = originMain.getString("flv") + codecSuffix
+            mergedHls["ORIGIN"] = originMain.getString("hls") + codecSuffix
+            mergedFlv.putAll(flvMap)
+            mergedHls.putAll(hlsMap)
+            flvMap.clear(); flvMap.putAll(mergedFlv)
+            hlsMap.clear(); hlsMap.putAll(mergedHls)
         }
 
         return DouyinWebRoom(anchorName, status, title, flvMap, hlsMap)
