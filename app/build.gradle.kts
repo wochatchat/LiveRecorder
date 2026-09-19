@@ -99,4 +99,6 @@ dependencies {
     implementation(libs.okhttp.logging)
 
     testImplementation(libs.junit)
+    // org.json: 纯 Java 实现，单元测试时 org.json 在 JVM 上可用（生产代码走 Android Framework）
+    testImplementation("org.json:json:20240303")
 }
