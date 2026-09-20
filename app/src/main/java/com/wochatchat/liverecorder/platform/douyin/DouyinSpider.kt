@@ -30,11 +30,12 @@ class DouyinSpider(
     }
 
     /**
-     * 路由选择（上游 main.py:583 分流）：
-     * 非 v.douyin.com 且非 /user/ → web；否则 app（app 内部再按 live.douyin.com 分流）。
+     * 路由选择（上游 main.py:583 分流，嵌套在 record_url 含 douyin.com/ 之内）：
+     * 含 douyin.com/ 且非 v.douyin.com 非 /user/ → web；否则（含非抖音链接）→ app。
      */
     internal fun route(url: String): DouyinRoute =
-        if (url.contains("v.douyin.com") || url.contains("/user/")) DouyinRoute.APP else DouyinRoute.WEB
+        if (url.contains("douyin.com/") && !url.contains("v.douyin.com") && !url.contains("/user/"))
+            DouyinRoute.WEB else DouyinRoute.APP
 
     internal enum class DouyinRoute { WEB, APP }
 }
