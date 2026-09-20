@@ -101,4 +101,6 @@ dependencies {
     testImplementation(libs.junit)
     // org.json: 纯 Java 实现，单元测试时 org.json 在 JVM 上可用（生产代码走 Android Framework）
     testImplementation("org.json:json:20240303")
+    // MockWebServer: StreamDownloader 的 JVM 单测（流式写文件 / 非 200 / 中途取消）
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }

@@ -1,0 +1,87 @@
+package com.wochatchat.liverecorder.recorder
+
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.io.File
+import java.util.concurrent.TimeUnit
+
+/**
+ * 路径 A 流下载器（对照上游 main.py:385 direct_download_stream）：
+ * OkHttp 流式 GET → 16KB 分块写文件。
+ *
+ * 上游语义：
+ * - httpx.Client(timeout=None)：读超时不限（长连接直播流）；仅保留 20s 连接超时防死等
+ * - follow_redirects=True（OkHttp 默认）
+ * - 非 200 → 失败
+ * - 中断（协程取消 = 上游 exit_recording / url_comments）→ 失败并**保留半截文件**（上游同语义）
+ * - 返回 true = 正常下载到流结束（直播流通常由服务端断开而结束）
+ */
+class StreamDownloader(
+    private val client: OkHttpClient = defaultClient(),
+) {
+    /** 下载单个分块字节数（上游 chunk_size = 1024 * 16）。 */
+    companion object {
+        const val CHUNK_SIZE = 16 * 1024
+
+        fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(0, TimeUnit.MILLISECONDS)
+            .callTimeout(0, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .followSslRedirects(true)
+            .build()
+    }
+
+    /**
+     * 流式下载 [sourceUrl] 到 [saveFile]（父目录自动创建）。
+     * @param onProgress 每收到一个 chunk 回调一次（累计字节数，IO 线程）
+     * @return true=下载到流结束；false=非 200 / 网络异常
+     * @throws kotlinx.coroutines.CancellationException 协程被取消（停止录制）
+     */
+    suspend fun download(
+        sourceUrl: String,
+        saveFile: File,
+        headers: Map<String, String> = emptyMap(),
+        onProgress: suspend (bytes: Long) -> Unit = {},
+    ): Boolean = withContext(Dispatchers.IO) {
+        val requestBuilder = Request.Builder().url(sourceUrl)
+        headers.forEach { (k, v) -> requestBuilder.header(k, v) }
+        val call = client.newCall(requestBuilder.build())
+
+        try {
+            saveFile.parentFile?.mkdirs()
+            call.execute().use { response ->
+                if (response.code != 200) return@withContext false
+                val body = response.body ?: return@withContext false
+                var downloaded = 0L
+                body.byteStream().use { input ->
+                    saveFile.outputStream().use { output ->
+                        val buffer = ByteArray(CHUNK_SIZE)
+                        while (true) {
+                            currentCoroutineContext().ensureActive()
+                            val n = input.read(buffer)
+                            if (n == -1) break
+                            if (n > 0) {
+                                output.write(buffer, 0, n)
+                                downloaded += n
+                                onProgress(downloaded)
+                            }
+                        }
+                    }
+                    true
+                }
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        } finally {
+            call.cancel()
+        }
+    }
+}

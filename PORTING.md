@@ -160,7 +160,7 @@
 - [ ] OkHttp 客户端层（HTTP/2、UA 伪装、per-platform header）
 - [ ] ab_sign Kotlin 重写（SM3+RC4，国标测试向量验证）
 - [ ] 抖音 web + app 双路径爬虫 → 直播源解析 → 画质选择
-- [ ] **路径 A 直播流下载**（OkHttp 流式写文件，FLV/m3u8）
+- [x] **路径 A 直播流下载**（OkHttp 流式写文件，FLV 直下；m3u8/HLS 需 ffmpeg，延至 Phase 3）
 - [ ] 行为对照验证：同一抖音房间 URL，Python 原版 vs App 解析结果一致
 - 交付：App 可录制抖音直播（原始流落盘）
 
@@ -218,3 +218,4 @@
 |---|---|---|
 | 2026-09-13 | R0 | 完成源码盘点与可行性评估；架构映射、C 组件边界（QuickJS+ffmpeg 必要，SM3 不必要）、平台矩阵、六阶段计划定稿 |
 | 2026-09-13 | R1 | **Phase 0 完成**：仓库 wochatchat/LiveRecorder；脚手架（Compose 主页+监控列表+添加对话框+DataStore）；4 workflow CI（build/build-test/compile-check/cleanup）；build.sh 版本自增；keystore 生成（keypass=storepass 教训）；v0.1.1 签名 APK 归档 + Release 产物齐；两次 CI 失败修复（缺 viewmodel-compose 依赖 / PKCS12 keypass） |
+| 2026-09-21 | R8 | **Phase 1-1g：路径 A 流下载 + 录制 UI 最小版**。新增 `recorder/` 模块：RecordSource（select_source_url / get_record_headers / clean_name 移植，Kotlin JVM 输出与 Python 上游 11 组用例逐行一致）、StreamDownloader（direct_download_stream → OkHttp 流式 16KB 分块写盘，取消保留半截文件）、RecordController（url→状态机 StateFlow，文件命名 {downloads}/抖音直播/{主播}/{主播}_{ts}.flv）；RecorderApp 进程级单例；监控列表加录制/停止按钮+状态行。与上游差异：无监控轮询（Phase 2）、HLS 需 ffmpeg（Phase 3，h265-only 房间报不支持）。MockWebServer 5 测 + RecordSource 14 测 |

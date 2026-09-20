@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -38,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.ui.MonitorViewModel
 
 class MainActivity : ComponentActivity() {
@@ -56,6 +59,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     val urls by viewModel.urls.collectAsState()
+    val recordStates by viewModel.recordStates.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -77,7 +81,14 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(urls, key = { it }) { url ->
-                    MonitorItem(url = url, onRemove = { viewModel.remove(url) })
+                    val state = recordStates[url]
+                    MonitorItem(
+                        url = url,
+                        recordState = state,
+                        onRemove = { viewModel.remove(url) },
+                        onStart = { viewModel.startRecord(url) },
+                        onStop = { viewModel.stopRecord(url) },
+                    )
                 }
             }
         }
@@ -114,7 +125,15 @@ private fun EmptyState(padding: PaddingValues) {
 }
 
 @Composable
-private fun MonitorItem(url: String, onRemove: () -> Unit) {
+private fun MonitorItem(
+    url: String,
+    recordState: RecordController.RecordState?,
+    onRemove: () -> Unit,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+) {
+    val recording = recordState is RecordController.RecordState.Resolving ||
+        recordState is RecordController.RecordState.Recording
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -124,15 +143,39 @@ private fun MonitorItem(url: String, onRemove: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text(url, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
             Text(
-                "未监控",
+                describeState(recordState),
                 style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = when (recordState) {
+                    is RecordController.RecordState.Recording -> MaterialTheme.colorScheme.error
+                    is RecordController.RecordState.Failed -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+            )
+        }
+        IconButton(onClick = if (recordState is RecordController.RecordState.Recording) onStop else onStart) {
+            Icon(
+                if (recordState is RecordController.RecordState.Recording) Icons.Default.Stop
+                else Icons.Default.PlayArrow,
+                contentDescription = if (recordState is RecordController.RecordState.Recording) "停止" else "录制",
+                tint = if (recordState is RecordController.RecordState.Recording)
+                    MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
             )
         }
         IconButton(onClick = onRemove) {
             Icon(Icons.Default.Close, contentDescription = "删除", tint = MaterialTheme.colorScheme.outline)
         }
     }
+}
+
+private fun describeState(state: RecordController.RecordState?): String = when (state) {
+    null -> "未监控"
+    is RecordController.RecordState.Resolving -> "解析直播源…"
+    is RecordController.RecordState.Recording ->
+        "录制中 · ${state.bytes / 1024 / 1024} MB · ${state.savePath.substringAfterLast('/')}"
+    is RecordController.RecordState.Finished ->
+        if (state.completed) "完成 · ${state.bytes / 1024 / 1024} MB · ${state.savePath.substringAfterLast('/')}"
+        else "已停止 · ${state.bytes / 1024 / 1024} MB"
+    is RecordController.RecordState.Failed -> "失败: ${state.message}"
 }
 
 @Composable
