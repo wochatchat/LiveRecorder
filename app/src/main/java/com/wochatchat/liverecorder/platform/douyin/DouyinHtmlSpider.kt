@@ -126,10 +126,11 @@ class DouyinHtmlSpider(
         private val REGEX_NICKNAME = Regex(""""nickname":"(.*?)","avatar_thumb"""")
 
         // ORIGIN 所在 common 脚本块（开引号在组外，同上游 findall）
-        private val REGEX_ORIGIN_BLOCKS = Regex(""""(\\{\\"common\\":.*?)"]\\)</script><script nonce="""")
+        // JVM Pattern 严格转义：`\{`、`\)` 必须带反斜杠，`\\` 才是字面反斜杠（Python re 更宽容）
+        private val REGEX_ORIGIN_BLOCKS = Regex(""""(\{\\"common\\":.*?)"]\)</script><script nonce="""")
 
         // 全页清洗后的 ORIGIN 回落正则（上游 match_json_str3）
-        private val REGEX_ORIGIN_FALLBACK = Regex(""""origin":\\{"main":(.*?),"dash"""")
+        private val REGEX_ORIGIN_FALLBACK = Regex(""""origin":\{"main":(.*?),"dash"""")
 
         // 上游 get_douyin_stream_data 专用：PC Firefox UA + 长 Cookie
         private const val HTML_COOKIE =

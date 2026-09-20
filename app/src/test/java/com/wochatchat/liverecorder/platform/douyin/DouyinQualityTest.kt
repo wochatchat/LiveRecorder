@@ -128,11 +128,12 @@ class DouyinQualityTest {
     }
 
     @Test fun `no probe - takes url directly and record_url is m3u8`() {
+        // room2 两档 pad 到 5 后，HD(=2) 与 LD 一样取补齐的末档（上游 while len<5: append last）
         val info = runBlocking { DouyinQuality.resolveStream(room2, "HD", client = null) }
         assertEquals(true, info.isLive)
-        assertEquals("hls://a", info.m3u8Url)
-        assertEquals("flv://a", info.flvUrl)
-        assertEquals("hls://a", info.recordUrl)
+        assertEquals("hls://b", info.m3u8Url)
+        assertEquals("flv://b", info.flvUrl)
+        assertEquals("hls://b", info.recordUrl)
         assertEquals("HD", info.quality)
         assertEquals("测试主播", info.anchorName)
     }
