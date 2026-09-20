@@ -96,7 +96,7 @@ object DouyinQuality {
         }
 
         val q = quality.uppercase()
-        if (q.isDigit()) {
+        if (q.all { it.isDigit() }) {
             // 上游：按键序 list(QUALITY_MAPPING.keys()) 取名字（含 BD）再查 index；
             // 越界数字上游抛 IndexError → trace_error_decorator 兜空结果，这里同语义抛出
             val index = q.getOrNull(0)?.digitToInt()
@@ -109,17 +109,17 @@ object DouyinQuality {
         return q to (QUALITY_MAPPING[q] ?: 0)
     }
 
-    /** index → 质量名（数字画质参数按键序取名，同 upstream list(QUALITY_MAPPING.keys())）。 */
-    private val QUALITY_KEYS = QUALITY_MAPPING.keys.toList()
-
-    /** 质量名 → index（同 upstream QUALITY_MAPPING）。 */
-    private val QUALITY_MAPPING = mapOf(
+    /** 质量名 → index（同 upstream QUALITY_MAPPING，LinkedHashMap 保序）。 */
+    private val QUALITY_MAPPING = linkedMapOf(
         "OD" to 0, "BD" to 0,   // 原画/超清都用 index=0
         "UHD" to 1,
         "HD" to 2,
         "SD" to 3,
         "LD" to 4,
     )
+
+    /** index → 质量名（数字画质参数按键序取名，同 upstream list(QUALITY_MAPPING.keys())）。 */
+    private val QUALITY_KEYS = QUALITY_MAPPING.keys.toList()
 }
 
 /**
