@@ -118,7 +118,7 @@ class RecordController(
             )
         } catch (e: CancellationException) {
             // 用户主动停止：半截文件保留（上游同语义）
-            setState(url, RecordState.Finished(currentPath(url), currentBytes(url), completed = false))
+            setState(url, RecordState.Finished(currentPath(url) ?: "", currentBytes(url), completed = false))
             throw e
         } catch (e: Exception) {
             setState(url, RecordState.Failed("录制异常: ${e.message}"))
