@@ -31,13 +31,19 @@ class DouyinHtmlSpiderTest {
 
     @Test fun `parseHtml - ORIGIN urls match real captured values`() {
         val room = spider.parseHtml(rawHtml)
+        // 真实抓取值：ORIGIN hls 带 ?expire=&sign=... 查询串，&codec=h264 由实现追加在末尾
         assertEquals(
-            "http://pull-hls-f11.douyinliving.com/media/stream-408346413405832018.m3u8",
+            "http://pull-hls-f11.douyinliving.com/media/stream-408346413405832018.m3u8" +
+                "?expire=1790476012&sign=f1a25712fdcd9f18bba36d65376479b0&arch_hrchy=s2" +
+                "&major_anchor_level=vip&s_anchor=1&t_id=037-20260920102651EF94948B22A86D502C80-ijOfNY",
             room.hlsPullUrlMap["ORIGIN"]!!.substringBefore("&codec")
         )
         assertEquals(
-            "http://pull-flv-f11.douyinliving.com/media/stream-408346413405832018.f",
-            room.flvPullUrl["ORIGIN"]!!.substringBefore("&codec").take(64)
+            "http://pull-flv-f11.douyinliving.com/media/stream-408346413405832018.flv" +
+                "?expire=1790476012&sign=9588fe1831c8cd75bfe03f2a3aaafab8&s_anchor=1" +
+                "&arch_hrchy=s2&major_anchor_level=vip&unique_id=stream-408346413405832018_850_flv" +
+                "&t_id=037-20260920102651EF94948B22A86D502C80-ijOfNY",
+            room.flvPullUrl["ORIGIN"]!!.substringBefore("&codec")
         )
     }
 

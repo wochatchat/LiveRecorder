@@ -67,7 +67,7 @@ class DouyinHtmlSpider(
         val orientation = streamUrl.optInt("stream_orientation")
         val originMain = extractOriginMain(html, orientation)
 
-        val (flvMap, hlsMap) = plainQualityMaps(streamUrl)
+        val (flvMap, hlsMap) = plainQualityMaps(roomJson)
         if (originMain != null) {
             // 上游 HTML 路径：&codec= 无条件追加（codec 空串也加），{**origin, **原表} = ORIGIN 优先
             val mergedFlv = linkedMapOf("ORIGIN" to originMain.flv + "&codec=" + originMain.vCodec)
@@ -121,11 +121,21 @@ class DouyinHtmlSpider(
      * 上游 HTML 路径不解析 stream_data（ORIGIN 来自脚本块，非 stream_data），
      * 与 web/app API 路径的 DouyinRoomStreams.parseQualityMaps 语义不同。
      */
-    private fun plainQualityMaps(streamUrl: JSONObject): Pair<Map<String, String>, Map<String, String>> {
+    /**
+     * HTML 路径专用：直接读 stream_url 下的 flv_pull_url / hls_pull_url_map。
+     * 上游 HTML 路径不解析 stream_data（ORIGIN 来自脚本块，非 stream_data），
+     * 与 web/app API 路径的 DouyinRoomStreams.parseQualityMaps 语义不同。
+     *
+     * 用正则按 JSON 文档序提取（org.json JSONObject 走 HashMap，keys() 无序，
+     * 丢掉上游 Python dict 的插入序 → ORIGIN 后的画质档序错乱）。
+     */
+    private fun plainQualityMaps(roomJson: String): Pair<Map<String, String>, Map<String, String>> {
         fun plain(key: String): Map<String, String> {
             val out = linkedMapOf<String, String>()
-            streamUrl.optJSONObject(key)?.let { obj ->
-                obj.keys().forEach { k -> out[k] = obj.getString(k) }
+            val mapBody = Regex(""""$key":\{([^{}]*)\}""").find(roomJson)?.groupValues?.get(1)
+                ?: return out
+            for (m in REGEX_MAP_PAIR.findAll(mapBody)) {
+                out[m.groupValues[1]] = m.groupValues[2]
             }
             return out
         }
@@ -155,6 +165,10 @@ class DouyinHtmlSpider(
         private val REGEX_FLVAL = Regex(""""flv":"([^"]+)"""")
         private val REGEX_HLSVAL = Regex(""""hls":"([^"]+)"""")
         private val REGEX_SDK_VCODEC = Regex(""""VCodec":"([^"]+)"""")
+
+        private val REGEX_SDK_VCODEC = Regex(""""VCodec":"([^"]+)"""")
+        // 画质表键值对（"KEY":"url"，URL 无引号，安全）；文档序保序
+        private val REGEX_MAP_PAIR = Regex(""""([^"]+)":"([^"]+)"""")
 
         // 上游 get_douyin_stream_data 专用：PC Firefox UA + 长 Cookie
         private const val HTML_COOKIE =
