@@ -37,3 +37,12 @@ jobs:
       # 单测（Phase 1 起逐轮补齐；含网络类测试，失败会暴露而非静默）
       - name: Unit tests
         run: ./gradlew :app:testReleaseUnitTest --no-daemon
+
+      # 失败时上传完整测试报告（含断言 expected/actual 详情），方便远程排查
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: app/build/reports/tests/testReleaseUnitTest/
+          retention-days: 7

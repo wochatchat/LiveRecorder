@@ -139,14 +139,15 @@ class DouyinHtmlSpider(
         private val REGEX_ROOM_STORE = Regex(""""roomStore":(.*?),"linkmicStore"""")
 
         // nickname 截取（上游 DOTALL）
-        private val REGEX_NICKNAME = Regex(""""nickname":"(.*?)","avatar_thumb"""")
+        private val REGEX_NICKNAME = Regex(""""nickname":"(.*?)","avatar_thumb""", RegexOption.DOT_MATCHES_ALL)
 
         // ORIGIN 所在 common 脚本块（开引号在组外，同上游 findall）
-        // JVM Pattern 严格转义：`\{`、`\)` 必须带反斜杠，`\\` 才是字面反斜杠（Python re 更宽容）
-        private val REGEX_ORIGIN_BLOCKS = Regex(""""(\{\\"common\\":.*?)"]\)</script><script nonce="""")
+        // 注意：raw string 内容以 `=` 结尾时闭合引号必须恰好 3 个——多写一个 `"` 会被
+        // Kotlin 的"最大引号串"规则吞进正则（nonce=" ≠ 上游 nonce=），导致 0 命中
+        private val REGEX_ORIGIN_BLOCKS = Regex(""""(\{\\"common\\":.*?)"]\)</script><script nonce=""")
 
         // 全页清洗后的 ORIGIN 回落正则（上游 match_json_str3）
-        private val REGEX_ORIGIN_FALLBACK = Regex(""""origin":\{"main":(.*?),"dash"""")
+        private val REGEX_ORIGIN_FALLBACK = Regex(""""origin":\{"main":(.*?),"dash""", RegexOption.DOT_MATCHES_ALL)
 
         // 上游 get_douyin_stream_data 专用：PC Firefox UA + 长 Cookie
         private const val HTML_COOKIE =
