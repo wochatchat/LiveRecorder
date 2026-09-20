@@ -1,7 +1,5 @@
 package com.wochatchat.liverecorder.platform.douyin
 
-package com.wochatchat.liverecorder.platform.douyin
-
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
