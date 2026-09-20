@@ -166,7 +166,6 @@ class DouyinHtmlSpider(
         private val REGEX_HLSVAL = Regex(""""hls":"([^"]+)"""")
         private val REGEX_SDK_VCODEC = Regex(""""VCodec":"([^"]+)"""")
 
-        private val REGEX_SDK_VCODEC = Regex(""""VCodec":"([^"]+)"""")
         // 画质表键值对（"KEY":"url"，URL 无引号，安全）；文档序保序
         private val REGEX_MAP_PAIR = Regex(""""([^"]+)":"([^"]+)"""")
 
