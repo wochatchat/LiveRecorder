@@ -111,7 +111,7 @@ class DouyinQualityTest {
         val info = runBlocking { DouyinQuality.resolveStream(room2, "LD", probe = { true }) }
         assertEquals("hls://b", info.m3u8Url)
         assertEquals("flv://b", info.flvUrl)
- высокого    }
+    }
 
     @Test fun `probe fail - falls back to next index`() {
         // index 0 探测失败 → 用 index 1（quality_index+1）
