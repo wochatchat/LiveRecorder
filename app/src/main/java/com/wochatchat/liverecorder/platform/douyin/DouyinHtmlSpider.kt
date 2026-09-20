@@ -70,9 +70,8 @@ class DouyinHtmlSpider(
         val (flvMap, hlsMap) = plainQualityMaps(streamUrl)
         if (originMain != null) {
             // 上游 HTML 路径：&codec= 无条件追加（codec 空串也加），{**origin, **原表} = ORIGIN 优先
-            val codec = sdkVCodec(originMain)
-            val mergedFlv = linkedMapOf("ORIGIN" to originMain.getString("flv") + "&codec=$codec")
-            val mergedHls = linkedMapOf<String, String>("ORIGIN" to originMain.getString("hls") + "&codec=$codec")
+            val mergedFlv = linkedMapOf("ORIGIN" to originMain.flv + "&codec=" + originMain.vCodec)
+            val mergedHls = linkedMapOf<String, String>("ORIGIN" to originMain.hls + "&codec=" + originMain.vCodec)
             mergedFlv.putAll(flvMap)
             mergedHls.putAll(hlsMap)
             return DouyinWebRoom(anchorName, status, title, mergedFlv, mergedHls)
@@ -84,37 +83,38 @@ class DouyinHtmlSpider(
      * ORIGIN 原画档提取（上游 match_json_str2 / match_json_str3 两路）：
      * - common 脚本块存在 → 按 stream_orientation 选块（1→[0]，否则 [1]，越界上游 IndexError 兜底）
      * - 不存在 → 全页清洗后 `"origin":{"main":...,"dash"` 回落正则
+     *
+     * 不用 JSONObject 解析：fixture 里 nested sdk_params JSON 做了 HTML 层转义
+     * （`\"` → `\\\"`），全量 `}"` → `}` 替换会误删嵌套 string value 中的闭合 `}`，
+     * 导致 org.json（严格）解析失败。Python json 库更宽容，故直接正则提取目标字段，
+     * 同时对齐上游语义（只取 flv/hls/sdk_params.VCodec）。
      */
-    private fun extractOriginMain(html: String, orientation: Int): JSONObject? {
+    private fun extractOriginMain(html: String, orientation: Int): OriginMain? {
         val blocks = REGEX_ORIGIN_BLOCKS.findAll(html).map { it.groupValues[1] }.toList()
         if (blocks.isNotEmpty()) {
             val idx = if (orientation == 1) 0 else 1
             if (idx >= blocks.size) throw IndexOutOfBoundsException("origin block index $idx")
-            val json2 = JSONObject(
-                blocks[idx].replace("\\", "")
-                    .replace("\"{", "{").replace("\"}", "}")
-                    .replace("u0026", "&")
-            )
-            val data = json2.optJSONObject("data") ?: return null
-            if (data.has("origin")) {
-                return data.getJSONObject("origin").getJSONObject("main")
-            }
-            return null
+            val cleaned = blocks[idx].replace("\\", "").replace("u0026", "&")
+            val main = REGEX_ORIGIN_MAIN.find(cleaned) ?: return null
+            return parseMainInner(main.groupValues[1])
         }
         val cleanedHtml = html.replace("\\", "").replace("u0026", "&")
         val m3 = REGEX_ORIGIN_FALLBACK.find(cleanedHtml) ?: return null
-        return JSONObject(m3.groupValues[1] + "}")
+        // 回落路径：group1 即 main 对象内容（上游 json.loads(group1 + '}')），直接解析字段
+        return parseMainInner(m3.groupValues[1] + "}")
     }
 
-    /** 上游：sdk_params.get('VCodec') or ''（HTML 路径 sdk_params 为对象；字符串时容错解析）。 */
-    private fun sdkVCodec(originMain: JSONObject): String {
-        val sp = originMain.opt("sdk_params") ?: return ""
-        val obj = when (sp) {
-            is JSONObject -> sp
-            else -> runCatching { JSONObject(sp.toString()) }.getOrNull() ?: return ""
-        }
-        return obj.optString("VCodec", "")
+    /** 从 main 对象内容（`{"flv":...,"hls":...,"sdk_params":...}`）提取三字段。 */
+    private fun parseMainInner(inner: String): OriginMain? {
+        val flv = REGEX_FLVAL.find(inner)?.groupValues?.get(1) ?: return null
+        val hls = REGEX_HLSVAL.find(inner)?.groupValues?.get(1) ?: return null
+        // VCodec 只在 origin.main.sdk_params 里取（块内其他画质档也有 VCodec，必须限定 main 子块）
+        val vCodec = REGEX_SDK_VCODEC.find(inner)?.groupValues?.get(1) ?: ""
+        return OriginMain(flv, hls, vCodec)
     }
+
+    /** origin.main 三个字段的容器（减少 intermediate JSONObject 依赖）。 */
+    private data class OriginMain(val flv: String, val hls: String, val vCodec: String)
 
     /**
      * HTML 路径专用：直接读 stream_url 下的 flv_pull_url / hls_pull_url_map。
@@ -148,6 +148,13 @@ class DouyinHtmlSpider(
 
         // 全页清洗后的 ORIGIN 回落正则（上游 match_json_str3）
         private val REGEX_ORIGIN_FALLBACK = Regex(""""origin":\{"main":(.*?),"dash""", RegexOption.DOT_MATCHES_ALL)
+
+        // 解析 blocks[idx] 清洗后字符串（绕 org.json 严格解析）：提取 origin.main 子块
+        // upstream json.loads 宽容，这里用正则对齐语义，只取 flv/hls/sdk_params.VCodec
+        private val REGEX_ORIGIN_MAIN = Regex(""""origin":\{"main":(\{.*?\})"?,?\}""", RegexOption.DOT_MATCHES_ALL)
+        private val REGEX_FLVAL = Regex(""""flv":"([^"]+)"""")
+        private val REGEX_HLSVAL = Regex(""""hls":"([^"]+)"""")
+        private val REGEX_SDK_VCODEC = Regex(""""VCodec":"([^"]+)"""")
 
         // 上游 get_douyin_stream_data 专用：PC Firefox UA + 长 Cookie
         private const val HTML_COOKIE =
