@@ -17,8 +17,8 @@ internal class DouyinUnsupportedUrlException(message: String) : Exception(messag
  * 1. URL 含 live.douyin.com/（? 前部分）→ 直接委托 web 路径（DouyinWebSpider）
  * 2. 否则短链解析：GET 跟随重定向 → 最终 URL 含 reflow/ → 提取 room_id + sec_user_id
  *    → webcast.amemv.com/webcast/room/reflow/info/（a_bogus 签名，UA=Edge）
- * 3. 重定向后非 reflow（如主播主页链接）→ get_unique_id 取抖音号 → web 路径兜底
- *    （上游兜底走 get_douyin_stream_data，spider.py:230，在 1f 源分发时对齐）
+ * 3. 重定向后非 reflow（如主播主页链接）→ get_unique_id 取抖音号 → HTML 路径兜底
+ *    （DouyinHtmlSpider，对照上游 spider.py:230 get_douyin_stream_data；其自身失败再回落 app→web 链）
  *
  * 失败语义与上游一致：整体 catch 返回 [DouyinWebRoom.empty]。
  * app 路径返回的 room_data 与 web 路径同构，复用 [DouyinWebRoom]。
@@ -27,6 +27,7 @@ class DouyinAppSpider(
     private val client: LiveHttpClient = LiveHttpClient(),
     private val cookie: String? = null,
     private val webSpider: DouyinWebSpider = DouyinWebSpider(client, cookie),
+    private val htmlSpider: DouyinHtmlSpider = DouyinHtmlSpider(client, cookie),
 ) {
 
     suspend fun fetch(url: String): DouyinWebRoom = withContext(Dispatchers.IO) {
@@ -40,9 +41,9 @@ class DouyinAppSpider(
                 fetchAppRoom(roomId, secUid)
             } catch (e: DouyinUnsupportedUrlException) {
                 // 上游：get_unique_id → get_douyin_stream_data(live.douyin.com/<unique_id>)
-                // get_douyin_stream_data 在 1f 源分发子任务实现，暂以 web 路径同接口兜底
+                // （spider.py:230 HTML 路径，1f 实现）；其自身失败再回落 app→web 链
                 val uniqueId = getUniqueId(url)
-                webSpider.fetch("https://live.douyin.com/$uniqueId")
+                htmlSpider.fetch("https://live.douyin.com/$uniqueId")
             }
         } catch (e: Exception) {
             DouyinWebRoom.empty("Douyin app data fetch error, because ${e.message}.")

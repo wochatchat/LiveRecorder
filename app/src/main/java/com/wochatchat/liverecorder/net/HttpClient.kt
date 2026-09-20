@@ -55,6 +55,24 @@ class LiveHttpClient(
         execute(request, timeoutSec)
     }
 
+    /** HEAD 探测（对齐上游 get_response_status：follow redirects，10s 超时，异常/非 200 均为 false）。 */
+    suspend fun head(
+        url: String,
+        headers: Map<String, String> = emptyMap(),
+        timeoutSec: Long = 10L,
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url(url)
+                .headers(headers.toOkHttpHeaders())
+                .head()
+                .build()
+            execute(request, timeoutSec).code == 200
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     /** POST 表单（对齐上游 sync_req data=urlencode 语义）。 */
     suspend fun postForm(
         url: String,

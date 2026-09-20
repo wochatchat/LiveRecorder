@@ -1,0 +1,40 @@
+package com.wochatchat.liverecorder.platform.douyin
+
+import com.wochatchat.liverecorder.net.LiveHttpClient
+
+/**
+ * 抖音源分发 facade（对照上游 main.py:580 抖音分支 + stream.get_douyin_stream_url 组合）。
+ *
+ * 分发规则（main.py:584）：
+ * - URL 含 douyin.com/ 且非 v.douyin.com 非 /user/ → web 路径（DouyinWebSpider）
+ * - 其余（v.douyin.com 短链 / /user/ 主页）→ app 路径（DouyinAppSpider，
+ *   内部再按 live.douyin.com 前缀委托 web、reflow 解析、UnsupportedUrl 时 HTML 兜底）
+ *
+ * 失败语义：爬虫层整体 catch 返回空结果；画质越界同样兜底 isLive=false。
+ * 录制模块（1g）只需调 [fetchStreamInfo] 拿 record_url。
+ */
+class DouyinSpider(
+    private val client: LiveHttpClient = LiveHttpClient(),
+    private val cookie: String? = null,
+) {
+    private val webSpider = DouyinWebSpider(client, cookie)
+    private val appSpider = DouyinAppSpider(client, cookie, webSpider)
+
+    /** 源分发 + 画质映射，一步到位。 */
+    suspend fun fetchStreamInfo(url: String, quality: String? = null): DouyinStreamInfo {
+        val room = when (route(url)) {
+            DouyinRoute.WEB -> webSpider.fetch(url)
+            DouyinRoute.APP -> appSpider.fetch(url)
+        }
+        return DouyinQuality.resolveStream(room, quality, client)
+    }
+
+    /**
+     * 路由选择（上游 main.py:583 分流）：
+     * 非 v.douyin.com 且非 /user/ → web；否则 app（app 内部再按 live.douyin.com 分流）。
+     */
+    internal fun route(url: String): DouyinRoute =
+        if (url.contains("v.douyin.com") || url.contains("/user/")) DouyinRoute.APP else DouyinRoute.WEB
+
+    internal enum class DouyinRoute { WEB, APP }
+}
