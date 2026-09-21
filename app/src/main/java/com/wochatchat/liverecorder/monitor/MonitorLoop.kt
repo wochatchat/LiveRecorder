@@ -30,6 +30,8 @@ import kotlin.random.Random
  *   （防主播卡顿少录，上游 record_finished 同语义），之后回归正常间隔
  * - 开播检测（且未在录制、未被抑制）时回调 [onLive] 触发录制；用户手动停止后进入
  *   抑制集，直到该房间转为未开播才恢复自动启动
+ * - 开播/关播事件（2e）：状态切换时分别回调 [onLiveEvent]/[onOfflineEvent]（开播
+ *   事件在抑制中也触发，通知不受抑制影响），供上层发 Android 通知
  */
 class MonitorLoop(
     /** 单条 URL 的开播检查。 */
@@ -38,6 +40,10 @@ class MonitorLoop(
     private val isRecording: (String) -> Boolean = { false },
     /** 检测到开播且未在录制时的回调（启动录制任务）。 */
     private val onLive: (String, DouyinStreamInfo) -> Unit = { _, _ -> },
+    /** 房间转为直播中（状态切换即触发一次，无论是否被抑制；用于发开播通知）。 */
+    private val onLiveEvent: (url: String, anchorName: String, title: String) -> Unit = { _, _, _ -> },
+    /** 房间从直播中转为未开播（用于发关播通知）。 */
+    private val onOfflineEvent: (url: String, anchorName: String) -> Unit = { _, _ -> },
 ) {
 
     sealed class State {
@@ -138,9 +144,12 @@ class MonitorLoop(
                 continue
             }
             if (wasRecording.remove(url)) recordJustEnded = true
+            val prev = _states.value[url]
             val next = try {
                 val info = check(url)
                 if (info.isLive) {
+                    // 开播事件：仅状态切换时触发一次（抑制中也不错过通知，2e）
+                    if (prev !is State.Live) onLiveEvent(url, info.anchorName, info.title)
                     if (url !in suppressed) {
                         Log.i(TAG, "开播检测: $url → ${info.anchorName}「${info.title}」→ 启动录制")
                         onLive(url, info)
@@ -150,6 +159,8 @@ class MonitorLoop(
                     State.Live(info.anchorName, info.title)
                 } else {
                     suppressed.remove(url) // 转为未开播后恢复该条目的自动启动
+                    // 关播事件：仅直播中→未开播的切换触发（2e）
+                    if (prev is State.Live) onOfflineEvent(url, prev.anchorName)
                     State.Offline
                 }
             } catch (e: CancellationException) {

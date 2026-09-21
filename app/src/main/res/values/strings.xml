@@ -7,4 +7,10 @@
     <string name="notif_monitor_idle">监控运行中 · 等待开播</string>
     <string name="notif_monitor_recording">录制中 %1$d 路</string>
     <string name="notif_monitor_watching">监控 %2$d 路 · 直播中 %1$d 路</string>
+    <string name="notif_channel_events">直播事件提醒</string>
+    <string name="notif_channel_events_desc">主播开播、下播的事件提醒通知</string>
+    <string name="notif_event_live_title">开播提醒</string>
+    <string name="notif_event_live_text">%1$s 正在直播，点击查看</string>
+    <string name="notif_event_offline_title">直播结束</string>
+    <string name="notif_event_offline_text">%1$s 已下播</string>
 </resources>

@@ -146,4 +146,74 @@ class MonitorLoopTest {
         // 录制结束但本轮耗时 >=60s → 正常间隔
         assertEquals(305L, loop.nextDelaySec(300L, jitter = 5, errors = 0, recordJustEnded = true, roundDurationSec = 60))
     }
+
+    // ---- 2e：开播/关播事件（仅状态切换触发一次） ----
+
+    @Test
+    fun pollOnce_liveEventFiresOnlyOnTransition() = runTest {
+        val events = mutableListOf<String>()
+        val loop = MonitorLoop(
+            check = { liveInfo() },
+            onLiveEvent = { url, anchor, title -> events.add("$url|$anchor|$title") },
+        )
+        loop.pollOnce({ listOf("u1") })
+        assertEquals(listOf("u1|测试主播|测试标题"), events)
+        // 第二轮仍直播：不重复触发
+        loop.pollOnce({ listOf("u1") })
+        assertEquals(1, events.size)
+    }
+
+    @Test
+    fun pollOnce_liveEventFiresEvenWhenSuppressed() = runTest {
+        val events = mutableListOf<String>()
+        val loop = MonitorLoop(
+            check = { liveInfo() },
+            onLiveEvent = { url, anchor, _ -> events.add("$url|$anchor") },
+        )
+        loop.suppressAutoStart("u1")
+        loop.pollOnce({ listOf("u1") })
+        // 抑制自动录制不影响开播通知
+        assertEquals(listOf("u1|测试主播"), events)
+    }
+
+    @Test
+    fun pollOnce_offlineEventFiresOnLiveToOffline() = runTest {
+        var online = true
+        val offlineEvents = mutableListOf<String>()
+        val loop = MonitorLoop(
+            check = { if (online) liveInfo() else offlineInfo() },
+            onOfflineEvent = { url, anchor -> offlineEvents.add("$url|$anchor") },
+        )
+        // 首轮未开播：无关播通知（Unknown→Offline 不是切换）
+        loop.pollOnce({ listOf("u1") })
+        assertTrue(offlineEvents.isEmpty())
+        online = true
+        loop.pollOnce({ listOf("u1") })
+        online = false
+        loop.pollOnce({ listOf("u1") })
+        assertEquals(listOf("u1|测试主播"), offlineEvents)
+    }
+
+    @Test
+    fun pollOnce_offlineEventFiresAfterRecordEnd() = runTest {
+        val recording = mutableSetOf<String>()
+        var online = true
+        val offlineEvents = mutableListOf<String>()
+        val loop = MonitorLoop(
+            check = { if (online) liveInfo() else offlineInfo() },
+            isRecording = { it in recording },
+            onOfflineEvent = { url, anchor -> offlineEvents.add("$url|$anchor") },
+        )
+        loop.pollOnce({ listOf("u1") })
+        recording.add("u1")
+        // 录制中关播：该条目暂停轮询，状态保持 Live，不触发关播通知
+        loop.pollOnce({ listOf("u1") })
+        assertTrue(offlineEvents.isEmpty())
+        // 录制结束下一轮检测：关播通知触发
+        recording.remove("u1")
+        online = false
+        loop.pollOnce({ listOf("u1") })
+        assertTrue(loop.states.value["u1"] is MonitorLoop.State.Offline)
+        assertEquals(listOf("u1|测试主播"), offlineEvents)
+    }
 }
