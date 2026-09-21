@@ -62,9 +62,8 @@ class DouyuSignTest {
             did = truth.getString("did"),
             t10 = truth.getString("t10"),
         )
-        val expected = truth.getJSONArray("params_list").let { arr ->
-            (0 until arr.length()).map { arr.getString(it) }
-        }
+        val arr = truth.getJSONArray("params_list")
+        val expected = (0 until arr.length()).map { arr.getString(it) }
         assertArrayEquals(expected.toTypedArray(), params.toTypedArray())
         assertEquals(truth.getString("v"), params[0])
         assertEquals(truth.getString("t10"), params[2])

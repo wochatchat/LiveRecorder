@@ -42,7 +42,7 @@ object DouyuSign {
     fun extractSignScript(roomHtml: String): String? {
         val fromFull = runCatching { RE_SIGN_BLOCK.find(roomHtml)?.groupValues?.get(1) }.getOrNull()
         if (fromFull != null) return fromFull
-        val body = extractCrpScriptBody(roomHtml) ?: return null
+        val body = extractCrpScript(roomHtml) ?: return null
         return RE_SIGN_BLOCK.find(body)?.groupValues?.get(1)
     }
 
