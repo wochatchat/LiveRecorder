@@ -82,7 +82,7 @@ class MonitorService : Service() {
     private fun startMonitoring() {
         val app = application as RecorderApp
         val store = MonitorStore(application)
-        app.monitorLoop.start(scope, urls = { store.urls.first() })
+        app.monitorLoop.start(scope, urls = { store.enabledUrls.first() })
     }
 
     private fun stopMonitoring() {

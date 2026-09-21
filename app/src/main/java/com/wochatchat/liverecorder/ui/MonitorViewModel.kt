@@ -30,6 +30,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     val pushConfig: StateFlow<PushConfig> = store.pushConfig
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), PushConfig())
 
+    /** 已停用的监控条目集合（2g 单条启停，上游 # 注释语义）。 */
+    val disabledUrls: StateFlow<Set<String>> = store.disabledUrls
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
     init {
         // 2b 接线：服务常驻条件 = 监控开启 或 有活动录制；两者皆无则停服。
         viewModelScope.launch {
@@ -64,11 +68,24 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
         store.setPushConfig(enabled, type, api)
     }
 
-    fun add(url: String) = viewModelScope.launch { store.add(url) }
+        fun add(url: String) = viewModelScope.launch { store.add(url) }
 
     fun remove(url: String) = viewModelScope.launch {
         controller.stop(url)
+        (getApplication() as RecorderApp).monitorLoop.forget(url)
         store.remove(url)
+    }
+
+    /** 编辑/重命名 URL（2g）。 */
+    fun renameUrl(oldUrl: String, newUrl: String) = viewModelScope.launch {
+        controller.stop(oldUrl)
+        (getApplication() as RecorderApp).monitorLoop.forget(oldUrl)
+        store.renameUrl(oldUrl, newUrl)
+    }
+
+    /** 单条启停（2g）：false=停用（上游 # 注释行），true=启用参与轮询。 */
+    fun setEnabled(url: String, enabled: Boolean) = viewModelScope.launch {
+        store.setEnabled(url, enabled)
     }
 
     fun startRecord(url: String) = controller.start(url)

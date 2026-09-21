@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.wochatchat.liverecorder.push.PushConfig
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 
 private val Context.dataStore by preferencesDataStore(name = "monitor")
@@ -32,6 +33,40 @@ class MonitorStore(private val context: Context) {
 
     val urls: Flow<List<String>> = context.dataStore.data.map { prefs ->
         prefs[key]?.split('\n')?.filter { it.isNotBlank() } ?: emptyList()
+    }
+
+    /** 单条停用集合（2g，对齐上游 URL_config.ini 行首 `#` 注释即停用的语义）。 */
+    private val disabledKey = stringPreferencesKey("disabled_urls")
+
+    /** 已停用的 url 集合。 */
+    val disabledUrls: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[disabledKey]?.split('\n')?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+    }
+
+    /** 仅已启用的监控条目（轮询用；上游逐行跳过 # 注释行同语义）。 */
+    val enabledUrls: Flow<List<String>> = combine(urls, disabledUrls) { list, disabled ->
+        list.filter { it !in disabled }
+    }
+
+    /** 单条启停：true=启用（参与轮询/自动录制），false=停用（等价上游 # 注释行）。 */
+    suspend fun setEnabled(url: String, enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[disabledKey]?.split('\n')?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+            prefs[disabledKey] =
+                (if (enabled) current - url else current + url).joinToString("\n")
+        }
+    }
+
+    /** 编辑条目：替换 url（同一条目改名，保持列表位置与启停状态）。 */
+    suspend fun renameUrl(oldUrl: String, newUrl: String) {
+        val trimmed = newUrl.trim()
+        if (trimmed.isEmpty() || trimmed == oldUrl) return
+        context.dataStore.edit { prefs ->
+            val current = prefs[key]?.split('\n')?.filter { it.isNotBlank() } ?: emptyList()
+            if (oldUrl in current && trimmed !in current) {
+                prefs[key] = current.map { if (it == oldUrl) trimmed else it }.joinToString("\n")
+            }
+        }
     }
 
     suspend fun add(url: String) {

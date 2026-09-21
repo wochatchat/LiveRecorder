@@ -216,4 +216,43 @@ class MonitorLoopTest {
         assertTrue(loop.states.value["u1"] is MonitorLoop.State.Offline)
         assertEquals(listOf("u1|测试主播"), offlineEvents)
     }
+
+    // ---- 2g：移除/改名条目后的状态清理 ----
+
+    @Test
+    fun forget_clearsStateAndSuppression() = runTest {
+        val live = mutableListOf<String>()
+        var online = true
+        val loop = MonitorLoop(
+            check = { if (online) liveInfo() else offlineInfo() },
+            onLive = { url, _ -> live.add(url) },
+        )
+        // 建立状态 + 抑制标记
+        loop.suppressAutoStart("u1")
+        loop.pollOnce({ listOf("u1", "u2") })
+        assertTrue(loop.states.value["u1"] is MonitorLoop.State.Live)
+        // forget 后：状态、抑制标记全部清除
+        loop.forget("u1")
+        assertEquals(null, loop.states.value["u1"])
+        // 再轮询：抑制已解除，onLive 正常触发（等价于重新添加该条目）
+        online = true
+        loop.pollOnce({ listOf("u1") })
+        assertEquals(listOf("u1"), live)
+    }
+
+    @Test
+    fun forget_clearsRecordEndTracking() = runTest {
+        val recording = mutableSetOf("u1")
+        val loop = MonitorLoop(
+            check = { liveInfo() },
+            isRecording = { it in recording },
+        )
+        // 录制中：进入 wasRecording 集合
+        loop.pollOnce({ listOf("u1") })
+        // 移除条目后：录制结束标记一并清理，不再触发快检
+        loop.forget("u1")
+        val round = loop.pollOnce({ listOf("u1") })
+        assertFalse(round.recordJustEnded)
+        assertTrue(loop.states.value["u1"] is MonitorLoop.State.Live)
+    }
 }

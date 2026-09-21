@@ -23,6 +23,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
@@ -36,6 +37,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -49,10 +51,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wochatchat.liverecorder.monitor.MonitorLoop
 import com.wochatchat.liverecorder.push.PushConfig
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.ui.MonitorViewModel
@@ -74,10 +78,13 @@ class MainActivity : ComponentActivity() {
 fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     val urls by viewModel.urls.collectAsState()
     val recordStates by viewModel.recordStates.collectAsState()
+    val monitorStates by viewModel.monitorStates.collectAsState()
+    val disabledUrls by viewModel.disabledUrls.collectAsState()
     val monitorEnabled by viewModel.monitorEnabled.collectAsState()
     val pushConfig by viewModel.pushConfig.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var showPushDialog by remember { mutableStateOf(false) }
+    var editUrl by remember { mutableStateOf<String?>(null) }
 
     // Android 13+ 通知权限：前台服务可无权限运行，但常驻通知需要它（2a/2e 依赖）
     val notifPermission = rememberLauncherForActivityResult(
@@ -137,7 +144,11 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
                     MonitorItem(
                         url = url,
                         recordState = state,
+                        monitorState = monitorStates[url],
+                        disabled = url in disabledUrls,
                         onRemove = { viewModel.remove(url) },
+                        onEdit = { editUrl = url },
+                        onToggleEnabled = { viewModel.setEnabled(url, it) },
                         onStart = { viewModel.startRecord(url) },
                         onStop = { viewModel.stopRecord(url) },
                     )
@@ -152,6 +163,17 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
             onConfirm = { url ->
                 viewModel.add(url)
                 showAddDialog = false
+            }
+        )
+    }
+
+    editUrl?.let { old ->
+        EditUrlDialog(
+            initial = old,
+            onDismiss = { editUrl = null },
+            onConfirm = { new ->
+                viewModel.renameUrl(old, new)
+                editUrl = null
             }
         )
     }
@@ -191,43 +213,63 @@ private fun EmptyState(padding: PaddingValues) {
 private fun MonitorItem(
     url: String,
     recordState: RecordController.RecordState?,
+    monitorState: MonitorLoop.State?,
+    disabled: Boolean,
     onRemove: () -> Unit,
+    onEdit: () -> Unit,
+    onToggleEnabled: (Boolean) -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
 ) {
     val recording = recordState is RecordController.RecordState.Resolving ||
         recordState is RecordController.RecordState.Recording ||
         recordState is RecordController.RecordState.Reconnecting
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .padding(vertical = 4.dp)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(url, style = MaterialTheme.typography.bodyMedium, maxLines = 2)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            StatusBadge(recordState, monitorState, disabled)
+            Spacer(Modifier.weight(1f))
+            // 单条启停（2g）：停用后不参与轮询与自动录制（上游 # 注释行语义）
+            Switch(checked = !disabled, onCheckedChange = onToggleEnabled)
+        }
+        Text(
+            url,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 2,
+            color = if (disabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface
+        )
+        if (monitorState is MonitorLoop.State.Live) {
             Text(
-                describeState(recordState),
-                style = MaterialTheme.typography.labelSmall,
-                color = when (recordState) {
-                    is RecordController.RecordState.Recording -> MaterialTheme.colorScheme.error
-                    is RecordController.RecordState.Reconnecting -> MaterialTheme.colorScheme.tertiary
-                    is RecordController.RecordState.Failed -> MaterialTheme.colorScheme.error
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                }
+                "${monitorState.anchorName}「${monitorState.title}」",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
             )
         }
-        IconButton(onClick = if (recording) onStop else onStart) {
-            Icon(
-                if (recording) Icons.Default.Stop
-                else Icons.Default.PlayArrow,
-                contentDescription = if (recording) "停止" else "录制",
-                tint = if (recording)
-                    MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-            )
-        }
-        IconButton(onClick = onRemove) {
-            Icon(Icons.Default.Close, contentDescription = "删除", tint = MaterialTheme.colorScheme.outline)
+        Text(
+            describeState(recordState),
+            style = MaterialTheme.typography.labelSmall,
+            color = stateColor(recordState, disabled)
+        )
+        Row {
+            IconButton(onClick = if (recording) onStop else onStart, enabled = !disabled) {
+                Icon(
+                    if (recording) Icons.Default.Stop
+                    else Icons.Default.PlayArrow,
+                    contentDescription = if (recording) "停止" else "录制",
+                    tint = if (recording)
+                        MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+            }
+            IconButton(onClick = onEdit, enabled = !disabled) {
+                Icon(Icons.Default.Edit, contentDescription = "编辑", tint = MaterialTheme.colorScheme.primary)
+            }
+            IconButton(onClick = onRemove) {
+                Icon(Icons.Default.Close, contentDescription = "删除", tint = MaterialTheme.colorScheme.outline)
+            }
         }
     }
 }
@@ -243,6 +285,48 @@ private fun describeState(state: RecordController.RecordState?): String = when (
         if (state.completed) "完成 · ${state.bytes / 1024 / 1024} MB · ${state.savePath.substringAfterLast('/')}"
         else "已停止 · ${state.bytes / 1024 / 1024} MB"
     is RecordController.RecordState.Failed -> "失败: ${state.message}"
+}
+
+/** 状态徽标：录制链路状态优先于监控状态，已停用置灰。 */
+@Composable
+private fun StatusBadge(
+    recordState: RecordController.RecordState?,
+    monitorState: MonitorLoop.State?,
+    disabled: Boolean,
+) {
+    val (text, color) = when {
+        disabled -> "已停用" to MaterialTheme.colorScheme.outline
+        recordState is RecordController.RecordState.Recording -> "录制中" to MaterialTheme.colorScheme.error
+        recordState is RecordController.RecordState.Reconnecting -> "断流重连" to MaterialTheme.colorScheme.tertiary
+        recordState is RecordController.RecordState.Resolving -> "解析中" to MaterialTheme.colorScheme.primary
+        monitorState is MonitorLoop.State.Live -> "直播中" to MaterialTheme.colorScheme.primary
+        monitorState is MonitorLoop.State.Offline -> "未开播" to MaterialTheme.colorScheme.onSurfaceVariant
+        monitorState is MonitorLoop.State.Error -> "失效" to MaterialTheme.colorScheme.error
+        else -> "待检测" to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        color = color.copy(alpha = 0.12f),
+        contentColor = color,
+        shape = MaterialTheme.shapes.small
+    ) {
+        Text(
+            text,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+        )
+    }
+}
+
+/** 状态行颜色（录制链路优先；已停用一律置灰）。 */
+private fun stateColor(
+    recordState: RecordController.RecordState?,
+    disabled: Boolean,
+): Color = when {
+    disabled -> Color(0xFF9E9E9E)
+    recordState is RecordController.RecordState.Recording -> Color(0xFFD32F2F)
+    recordState is RecordController.RecordState.Reconnecting -> Color(0xFF1976D2)
+    recordState is RecordController.RecordState.Failed -> Color(0xFFD32F2F)
+    else -> Color(0xFF666666)
 }
 
 @Composable
@@ -269,6 +353,38 @@ private fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
             IconButton(onClick = onDismiss) {
                 Icon(Icons.Default.Close, contentDescription = "取消")
             }
+        }
+    )
+}
+
+/** 编辑监控条目（2g）：替换 url，保持列表位置与启停状态。 */
+@Composable
+private fun EditUrlDialog(
+    initial: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var text by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("编辑直播间") },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text("直播间链接") },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { if (text.isNotBlank()) onConfirm(text) },
+                enabled = text.isNotBlank() && text.trim() != initial
+            ) { Text("保存") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
         }
     )
 }

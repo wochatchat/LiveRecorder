@@ -108,6 +108,13 @@ class MonitorLoop(
         Log.i(TAG, "抑制自动录制: $url")
     }
 
+    /** 移除/改名条目后清理其监控状态、录制结束标记与抑制标记（2g）。 */
+    fun forget(url: String) {
+        _states.update { it - url }
+        wasRecording.remove(url)
+        suppressed.remove(url)
+    }
+
     /**
      * 计算下一轮间隔（秒），语义对齐上游 main.py：
      * 间隔 + 抖动；错误过多 +60s；录制刚结束且本轮耗时 <60s → 固定 30s 快检。
