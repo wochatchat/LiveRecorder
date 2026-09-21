@@ -258,4 +258,49 @@ class MonitorLoopTest {
         assertFalse(round.recordJustEnded)
         assertTrue(loop.states.value["u1"] is MonitorLoop.State.Live)
     }
+
+    // ---- 2h：存储阈值暂停/恢复 ----
+
+    @Test
+    fun runRound_storageLowPausesAndResumes() = runTest {
+        var ok = false
+        val lowEvents = mutableListOf<Int>()
+        val resumedEvents = mutableListOf<Int>()
+        val checked = mutableListOf<String>()
+        val loop = MonitorLoop(
+            check = { url -> checked.add(url); liveInfo() },
+            storageOk = { ok },
+            onLowStorage = { lowEvents.add(1) },
+            onStorageResumed = { resumedEvents.add(1) },
+        )
+        // 空间不足：本轮流询跳过，不检查任何条目，触发一次低存储回调
+        assertEquals(null, loop.runRound({ listOf("u1") }))
+        assertTrue(loop.states.value.isEmpty())
+        assertTrue(checked.isEmpty())
+        assertEquals(1, lowEvents.size)
+        // 持续不足：不重复触发
+        assertEquals(null, loop.runRound({ listOf("u1") }))
+        assertEquals(1, lowEvents.size)
+        // 恢复：轮询继续，恢复回调触发一次
+        ok = true
+        assertTrue(loop.runRound({ listOf("u1") }) != null)
+        assertTrue(loop.states.value["u1"] is MonitorLoop.State.Live)
+        assertEquals(1, resumedEvents.size)
+        // 后续正常轮：不再重复触发恢复回调
+        loop.runRound({ listOf("u1") })
+        assertEquals(1, resumedEvents.size)
+        assertEquals(1, lowEvents.size)
+    }
+
+    @Test
+    fun runRound_storageCheckErrorTreatedAsOk() = runTest {
+        val loop = MonitorLoop(
+            check = { liveInfo() },
+            storageOk = { throw RuntimeException("storage probe failed") },
+        )
+        // 存储探测异常时按充足处理（不因检查失败卡死监控）
+        val round = loop.runRound({ listOf("u1") })
+        assertTrue(round != null)
+        assertTrue(loop.states.value["u1"] is MonitorLoop.State.Live)
+    }
 }

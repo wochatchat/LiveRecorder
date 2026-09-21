@@ -32,6 +32,9 @@ import kotlin.random.Random
  *   抑制集，直到该房间转为未开播才恢复自动启动
  * - 开播/关播事件（2e）：状态切换时分别回调 [onLiveEvent]/[onOfflineEvent]（开播
  *   事件在抑制中也触发，通知不受抑制影响），供上层发 Android 通知
+ * - 存储阈值（2h）：每轮开头检查保存目录剩余空间（上游主循环 check_disk_capacity
+ *   同位置），低于阈值进入暂停态——跳过轮询（不触发新的录制）并由上层停掉活动录制
+ *   （等价上游 exit_recording）；空间恢复后自动继续（上游需手动重启，移动端体验改进）
  */
 class MonitorLoop(
     /** 单条 URL 的开播检查。 */
@@ -44,6 +47,12 @@ class MonitorLoop(
     private val onLiveEvent: (url: String, anchorName: String, title: String) -> Unit = { _, _, _ -> },
     /** 房间从直播中转为未开播（用于发关播通知）。 */
     private val onOfflineEvent: (url: String, anchorName: String) -> Unit = { _, _ -> },
+    /** 存储充足返回 true（2h）。低于阈值时本轮流询跳过且不触发录制。 */
+    private val storageOk: suspend () -> Boolean = { true },
+    /** 进入低存储暂停态（仅状态切换时触发一次）：上层停活动录制 + 发通知。 */
+    private val onLowStorage: () -> Unit = {},
+    /** 存储恢复后自动继续监控（同样仅切换时触发一次）。 */
+    private val onStorageResumed: () -> Unit = {},
 ) {
 
     sealed class State {
@@ -83,7 +92,12 @@ class MonitorLoop(
         job = scope.launch {
             while (isActive) {
                 val t0 = System.currentTimeMillis()
-                val round = pollOnce(urls)
+                val round = runRound(urls)
+                if (round == null) {
+                    // 低存储暂停：仍按正常间隔定期复查空间（恢复后自动继续）
+                    delay(intervalSec * 1000)
+                    continue
+                }
                 if (round.errors > 0) Log.w(TAG, "本轮检查错误 ${round.errors} 条")
                 val jitter = (-JITTER_SEC..JITTER_SEC).random().coerceAtLeast(0)
                 val roundSec = (System.currentTimeMillis() - t0) / 1000
@@ -100,6 +114,7 @@ class MonitorLoop(
         _states.value = emptyMap()
         wasRecording.clear()
         suppressed.clear()
+        storagePaused = false
     }
 
     /** 手动停止录制后抑制该条目的自动重启，直到房间转为未开播。 */
@@ -138,6 +153,34 @@ class MonitorLoop(
         /** 本轮是否有条目从录制中转为结束（触发下一轮 30s 快检）。 */
         val recordJustEnded: Boolean,
     )
+
+    /** 低存储暂停态（2h）：存储低于阈值时为 true，恢复后自动清除。 */
+    @Volatile
+    private var storagePaused = false
+
+    /** 单轮完整流程：存储检查（2h）→ 轮询。存储不足返回 null（本轮跳过）。 */
+    internal suspend fun runRound(urls: suspend () -> List<String>): RoundResult? {
+        val ok = try {
+            storageOk()
+        } catch (e: Exception) {
+            Log.w(TAG, "存储检查失败，按充足处理: ${e.message}")
+            true
+        }
+        if (!ok) {
+            if (!storagePaused) {
+                storagePaused = true
+                Log.w(TAG, "存储空间低于阈值，暂停监控录制")
+                onLowStorage()
+            }
+            return null
+        }
+        if (storagePaused) {
+            storagePaused = false
+            Log.i(TAG, "存储空间恢复，继续监控")
+            onStorageResumed()
+        }
+        return pollOnce(urls)
+    }
 
     /** 单轮检查：顺序检查全部 url。internal 便于单测注入。 */
     internal suspend fun pollOnce(urls: suspend () -> List<String>): RoundResult {

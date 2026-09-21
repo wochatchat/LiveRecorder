@@ -1,11 +1,17 @@
 package com.wochatchat.liverecorder.recorder
 
 import com.wochatchat.liverecorder.platform.douyin.DouyinStreamInfo
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Phase 2-2d 断流重连行为测试：
@@ -103,5 +109,42 @@ class RecordControllerReconnectTest {
     fun `backoff delay doubles and caps at 60s`() {
         val controller = RecordController(baseDir = tempDir())
         assertEquals(listOf(2L, 4L, 8L, 16L, 32L, 60L), (1..6).map { controller.reconnectDelaySec(it) })
+    }
+
+    // ---- 2h：stopAll（存储阈值触底时停掉全部活动录制） ----
+
+    @Test
+    fun `stopAll cancels all active recordings`() = runTest {
+        val started = AtomicInteger(0)
+        val blocking = object : StreamDownloader() {
+            override suspend fun download(
+                sourceUrl: String,
+                saveFile: File,
+                headers: Map<String, String>,
+                onProgress: suspend (bytes: Long) -> Unit,
+            ): Boolean {
+                started.incrementAndGet()
+                awaitCancellation()
+            }
+        }
+        val controller = RecordController(
+            baseDir = tempDir(),
+            downloader = blocking,
+            fetchInfo = { info(isLive = true) },
+            scope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(testScheduler)),
+            sleep = { },
+        )
+        controller.start("u1")
+        controller.start("u2")
+        // Unconfined 调度：runRecord 已推进到下载挂起点
+        assertEquals(2, started.get())
+        assertTrue(controller.isActive("u1"))
+        assertTrue(controller.isActive("u2"))
+        // stopAll：全部取消，状态置 Finished（半截文件保留语义）
+        controller.stopAll()
+        assertFalse(controller.isActive("u1"))
+        assertFalse(controller.isActive("u2"))
+        val state = controller.states.value["u1"] as RecordController.RecordState.Finished
+        assertFalse(state.completed)
     }
 }

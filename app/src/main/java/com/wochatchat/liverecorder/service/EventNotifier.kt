@@ -50,6 +50,26 @@ class EventNotifier(private val context: Context) {
         )
     }
 
+    /** 低存储通知（2h）：剩余空间低于阈值，监控录制已暂停。固定 id（新一轮覆盖旧的）。 */
+    fun notifyStorageLow(thresholdGb: Double, freeGb: Double) {
+        notify(
+            id = STORAGE_NOTIFICATION_ID,
+            title = context.getString(R.string.notif_storage_low_title),
+            text = context.getString(R.string.notif_storage_low_text, thresholdGb, freeGb),
+            icon = android.R.drawable.ic_dialog_alert,
+        )
+    }
+
+    /** 存储恢复通知：监控录制自动继续。 */
+    fun notifyStorageResumed() {
+        notify(
+            id = STORAGE_NOTIFICATION_ID,
+            title = context.getString(R.string.notif_storage_resumed_title),
+            text = context.getString(R.string.notif_storage_resumed_text),
+            icon = android.R.drawable.stat_sys_download_done,
+        )
+    }
+
     private fun notify(id: Int, title: String, text: String, icon: Int) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
@@ -82,5 +102,8 @@ class EventNotifier(private val context: Context) {
         /** 事件通知 id 区间 [10000, 100000)，避开监控常驻通知 id（1001）。 */
         private const val EVENT_NOTIFICATION_ID_BASE = 10000
         private const val EVENT_NOTIFICATION_ID_RANGE = 90000
+
+        /** 存储事件通知固定 id（低于事件区间，2h）。 */
+        private const val STORAGE_NOTIFICATION_ID = 9900
     }
 }

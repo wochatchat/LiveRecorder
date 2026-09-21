@@ -80,6 +80,11 @@ class RecordController(
         jobs.remove(url)?.cancel()
     }
 
+    /** 停止全部录制任务（Phase 2-2h 存储阈值触底时调用，等价上游 exit_recording 中断所有下载）。 */
+    fun stopAll() {
+        jobs.keys.toList().forEach { stop(it) }
+    }
+
     internal suspend fun runRecord(url: String) {
         var attempt = 0
         var totalBytes = 0L

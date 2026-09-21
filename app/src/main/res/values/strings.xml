@@ -13,4 +13,8 @@
     <string name="notif_event_live_text">%1$s 正在直播，点击查看</string>
     <string name="notif_event_offline_title">直播结束</string>
     <string name="notif_event_offline_text">%1$s 已下播</string>
+    <string name="notif_storage_low_title">存储空间不足</string>
+    <string name="notif_storage_low_text">剩余 %2$.2f GB，低于阈值 %1$.1f GB，监控录制已暂停；清理空间后自动恢复</string>
+    <string name="notif_storage_resumed_title">存储已恢复</string>
+    <string name="notif_storage_resumed_text">剩余空间充足，监控录制已自动继续</string>
 </resources>

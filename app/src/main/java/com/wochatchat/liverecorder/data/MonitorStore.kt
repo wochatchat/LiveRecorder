@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.wochatchat.liverecorder.push.PushConfig
+import com.wochatchat.liverecorder.storage.StorageManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
@@ -85,6 +86,17 @@ class MonitorStore(private val context: Context) {
             val current = prefs[key]?.split('\n')?.filter { it.isNotBlank() } ?: emptyList()
             prefs[key] = (current - url).joinToString("\n")
         }
+    }
+
+    /** 录制空间剩余阈值（GB）（2h，对齐上游 config.ini `录制空间剩余阈值(gb)`，默认 1.0）。 */
+    private val diskLimitKey = stringPreferencesKey("disk_limit_gb")
+
+    val diskLimitGb: Flow<Double> = context.dataStore.data.map { prefs ->
+        prefs[diskLimitKey]?.toDoubleOrNull() ?: StorageManager.DEFAULT_THRESHOLD_GB
+    }
+
+    suspend fun setDiskLimitGb(gb: Double) {
+        context.dataStore.edit { prefs -> prefs[diskLimitKey] = gb.toString() }
     }
 
     /** HTTP 推送配置（2f）：类型 + 地址列表（中英文逗号分隔）+ 总开关。 */

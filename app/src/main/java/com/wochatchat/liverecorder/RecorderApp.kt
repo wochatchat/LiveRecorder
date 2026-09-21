@@ -7,6 +7,7 @@ import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.data.MonitorStore
 import com.wochatchat.liverecorder.push.HttpPusher
 import com.wochatchat.liverecorder.service.EventNotifier
+import com.wochatchat.liverecorder.storage.StorageManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,6 +28,10 @@ class RecorderApp : Application() {
         private set
 
     lateinit var pusher: HttpPusher
+        private set
+
+    /** 保存目录存储检查（2h）：低于阈值暂停监控录制并通知。 */
+    lateinit var storage: StorageManager
         private set
 
     /** App 级后台任务域（推送等 fire-and-forget 工作）。 */
@@ -64,7 +69,17 @@ class RecorderApp : Application() {
                     pusher.pushOfflineAsync(cfg, anchor, timeNow(), liveUrl = url)
                 }
             },
+            // 2h 存储阈值：低于阈值暂停轮询 + 停掉活动录制 + 通知；恢复后自动继续
+            storageOk = {
+                !storage.isLow(store.diskLimitGb.first())
+            },
+            onLowStorage = {
+                notifier.notifyStorageLow(store.diskLimitGb.first(), storage.freeGb())
+                recordController.stopAll()
+            },
+            onStorageResumed = { notifier.notifyStorageResumed() },
         )
         this.pusher = pusher
+        this.storage = StorageManager(File(filesDir, "downloads"))
     }
 }
