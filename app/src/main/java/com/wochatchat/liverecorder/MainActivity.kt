@@ -25,16 +25,20 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -49,6 +53,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wochatchat.liverecorder.push.PushConfig
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.ui.MonitorViewModel
 
@@ -92,6 +97,14 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
             TopAppBar(
                 title = { Text("直播监控") },
                 actions = {
+                    IconButton(onClick = { showPushDialog = true }) {
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = "推送设置",
+                            tint = if (pushConfig.isValid) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outline
+                        )
+                    }
                     IconButton(onClick = { viewModel.setMonitorEnabled(!monitorEnabled) }) {
                         Icon(
                             Icons.Default.Notifications,
@@ -137,6 +150,17 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
             onConfirm = { url ->
                 viewModel.add(url)
                 showAddDialog = false
+            }
+        )
+    }
+
+    if (showPushDialog) {
+        PushSettingsDialog(
+            initial = pushConfig,
+            onDismiss = { showPushDialog = false },
+            onConfirm = { enabled, type, api ->
+                viewModel.setPushConfig(enabled, type, api)
+                showPushDialog = false
             }
         )
     }
@@ -243,6 +267,59 @@ private fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
             IconButton(onClick = onDismiss) {
                 Icon(Icons.Default.Close, contentDescription = "取消")
             }
+        }
+    )
+}
+
+/** HTTP 推送设置（2f）：开关 + 类型（ntfy/bark）+ 推送地址（多个用逗号分隔）。 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PushSettingsDialog(
+    initial: PushConfig,
+    onDismiss: () -> Unit,
+    onConfirm: (enabled: Boolean, type: String, api: String) -> Unit,
+) {
+    var enabled by remember { mutableStateOf(initial.enabled) }
+    var type by remember { mutableStateOf(initial.type) }
+    var api by remember { mutableStateOf(initial.apis.joinToString(",")) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("HTTP 推送") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "开播/关播时推送到 ntfy 或 bark。地址支持多个，用逗号分隔。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("启用推送", modifier = Modifier.weight(1f))
+                    Switch(checked = enabled, onCheckedChange = { enabled = it })
+                }
+                Row(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("ntfy" to "ntfy", "bark" to "bark").forEach { (value, label) ->
+                        FilterChip(
+                            selected = type == value,
+                            onClick = { type = value },
+                            label = { Text(value) }
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = api,
+                    onValueChange = { api = it },
+                    placeholder = { Text(if (type == "bark") "https://api.day.app/你的Key" else "https://ntfy.sh/你的主题") },
+                    label = { Text("推送地址") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onConfirm(enabled, type, api) }) { Text("保存") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
         }
     )
 }

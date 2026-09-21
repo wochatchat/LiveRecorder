@@ -4,8 +4,18 @@ import android.app.Application
 import com.wochatchat.liverecorder.monitor.MonitorLoop
 import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
 import com.wochatchat.liverecorder.recorder.RecordController
+import com.wochatchat.liverecorder.data.MonitorStore
+import com.wochatchat.liverecorder.push.HttpPusher
 import com.wochatchat.liverecorder.service.EventNotifier
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /** 进程级录制控制器（应用销毁前常驻，独立于 Activity 生命周期）。 */
 class RecorderApp : Application() {
@@ -16,19 +26,45 @@ class RecorderApp : Application() {
     lateinit var monitorLoop: MonitorLoop
         private set
 
+    lateinit var pusher: HttpPusher
+        private set
+
+    /** App 级后台任务域（推送等 fire-and-forget 工作）。 */
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    private val store by lazy { MonitorStore(this) }
+
+    private fun timeNow(): String =
+        SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
+
     override fun onCreate() {
         super.onCreate()
         // 事件渠道尽早创建（2e：开播/关播通知）
         val notifier = EventNotifier(this)
         notifier.createChannel()
         val spider = DouyinSpider()
+        val pusher = HttpPusher()
         recordController = RecordController(baseDir = File(filesDir, "downloads"), fetchInfo = { spider.fetchStreamInfo(it) })
         monitorLoop = MonitorLoop(
             check = { url -> spider.fetchStreamInfo(url) },
             isRecording = { url -> recordController.isActive(url) },
             onLive = { url, _ -> recordController.start(url) },
-            onLiveEvent = { url, anchor, title -> notifier.notifyLive(url, anchor, title) },
-            onOfflineEvent = { url, anchor -> notifier.notifyOffline(url, anchor) },
+            onLiveEvent = { url, anchor, title ->
+                notifier.notifyLive(url, anchor, title)
+                // 2f：HTTP 推送（ntfy/bark），fire-and-forget，配置未启用则内部跳过
+                appScope.launch {
+                    val cfg = store.pushConfig.first()
+                    pusher.pushLiveAsync(cfg, anchor, timeNow(), liveUrl = url)
+                }
+            },
+            onOfflineEvent = { url, anchor ->
+                notifier.notifyOffline(url, anchor)
+                appScope.launch {
+                    val cfg = store.pushConfig.first()
+                    pusher.pushOfflineAsync(cfg, anchor, timeNow(), liveUrl = url)
+                }
+            },
         )
+        this.pusher = pusher
     }
 }

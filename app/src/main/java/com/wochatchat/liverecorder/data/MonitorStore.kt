@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.wochatchat.liverecorder.push.PushConfig
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -48,6 +49,31 @@ class MonitorStore(private val context: Context) {
         context.dataStore.edit { prefs ->
             val current = prefs[key]?.split('\n')?.filter { it.isNotBlank() } ?: emptyList()
             prefs[key] = (current - url).joinToString("\n")
+        }
+    }
+
+    /** HTTP 推送配置（2f）：类型 + 地址列表（中英文逗号分隔）+ 总开关。 */
+    private val pushEnabledKey = booleanPreferencesKey("push_enabled")
+    private val pushTypeKey = stringPreferencesKey("push_type")
+    private val pushApiKey = stringPreferencesKey("push_api")
+
+    val pushConfig: Flow<PushConfig> = context.dataStore.data.map { prefs ->
+        PushConfig(
+            enabled = prefs[pushEnabledKey] ?: false,
+            type = prefs[pushTypeKey] ?: PushConfig.TYPE_NTFY,
+            apis = (prefs[pushApiKey] ?: "")
+                .replace('，', ',')
+                .split(',')
+                .map { it.trim() }
+                .filter { it.isNotBlank() },
+        )
+    }
+
+    suspend fun setPushConfig(enabled: Boolean, type: String, api: String) {
+        context.dataStore.edit { prefs ->
+            prefs[pushEnabledKey] = enabled
+            prefs[pushTypeKey] = type
+            prefs[pushApiKey] = api
         }
     }
 }
