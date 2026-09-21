@@ -8,6 +8,7 @@
  */
 package com.wochatchat.liverecorder.platform.douyu
 
+import com.wochatchat.liverecorder.sign.RhinoJsEngine
 import org.json.JSONObject
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
