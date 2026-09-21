@@ -89,7 +89,8 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-    }    testOptions {
+    }
+    testOptions {
         // MonitorLoop 单测在 JVM 跑：android.util.Log 默认未 mock 会抛异常，
         // 打开 returnDefaultValues 让 Log 调用静默返回
         unitTests.isReturnDefaultValues = true
