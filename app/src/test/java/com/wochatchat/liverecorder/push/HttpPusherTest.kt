@@ -73,7 +73,7 @@ class HttpPusherTest {
         val api = server.url("/mytopic").toString().removeSuffix("/")
         val failed = pusher.push(
             PushConfig(enabled = true, type = "ntfy", apis = listOf(api)),
-            HttpPusher.Event.LIVE, "小央视频", "2026-09-21 12:00:00", liveUrl = "https://live.douyin.com/123",
+            Event.LIVE, "小央视频", "2026-09-21 12:00:00", liveUrl = "https://live.douyin.com/123",
         )
         assertTrue(failed.isEmpty())
         val recorded = server.takeRequest()
@@ -91,7 +91,7 @@ class HttpPusherTest {
         val api = server.url("/bad").toString().removeSuffix("/")
         val failed = pusher.push(
             PushConfig(enabled = true, type = "ntfy", apis = listOf(api)),
-            HttpPusher.Event.LIVE, "a", "t", liveUrl = "",
+            Event.LIVE, "a", "t", liveUrl = "",
         )
         assertEquals(listOf(api), failed)
     }
@@ -102,7 +102,7 @@ class HttpPusherTest {
         val api = server.url("/t").toString().removeSuffix("/")
         val failed = pusher.push(
             PushConfig(enabled = true, type = "ntfy", apis = listOf(api)),
-            HttpPusher.Event.LIVE, "a", "t", liveUrl = "",
+            Event.LIVE, "a", "t", liveUrl = "",
         )
         assertEquals(listOf(api), failed)
     }
@@ -113,7 +113,7 @@ class HttpPusherTest {
         server.enqueue(MockResponse().setBody("""{"code":200,"message":"success"}"""))
         val ok = pusher.push(
             PushConfig(enabled = true, type = "bark", apis = listOf(api)),
-            HttpPusher.Event.LIVE, "a", "t", liveUrl = "",
+            Event.LIVE, "a", "t", liveUrl = "",
         )
         assertTrue(ok.isEmpty())
         val recorded = server.takeRequest()
@@ -124,7 +124,7 @@ class HttpPusherTest {
         server.enqueue(MockResponse().setBody("""{"code":400,"message":"bad"}"""))
         val failed = pusher.push(
             PushConfig(enabled = true, type = "bark", apis = listOf(api)),
-            HttpPusher.Event.OFFLINE, "a", "t", liveUrl = "",
+            Event.OFFLINE, "a", "t", liveUrl = "",
         )
         assertEquals(listOf(api), failed)
     }
@@ -137,7 +137,7 @@ class HttpPusherTest {
         val badApi = server.url("/bad").toString().removeSuffix("/")
         val failed = pusher.push(
             PushConfig(enabled = true, type = "ntfy", apis = listOf(okApi, badApi)),
-            HttpPusher.Event.LIVE, "a", "t", liveUrl = "",
+            Event.LIVE, "a", "t", liveUrl = "",
         )
         assertEquals(listOf(badApi), failed)
     }
