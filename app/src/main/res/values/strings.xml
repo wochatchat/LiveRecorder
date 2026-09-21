@@ -6,4 +6,5 @@
     <string name="notif_monitor_title">直播录制</string>
     <string name="notif_monitor_idle">监控运行中 · 等待开播</string>
     <string name="notif_monitor_recording">录制中 %1$d 路</string>
+    <string name="notif_monitor_watching">监控 %2$d 路 · 直播中 %1$d 路</string>
 </resources>

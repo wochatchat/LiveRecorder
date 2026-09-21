@@ -72,6 +72,11 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        // MonitorLoop 单测在 JVM 跑：android.util.Log 默认未 mock 会抛异常，
+        // 打开 returnDefaultValues 让 Log 调用静默返回
+        unitTests.isReturnDefaultValues = true
+    }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
     }
@@ -99,6 +104,7 @@ dependencies {
     implementation(libs.okhttp.logging)
 
     testImplementation(libs.junit)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     // org.json: 纯 Java 实现，单元测试时 org.json 在 JVM 上可用（生产代码走 Android Framework）
     testImplementation("org.json:json:20240303")
     // MockWebServer: StreamDownloader 的 JVM 单测（流式写文件 / 非 200 / 中途取消）

@@ -1,6 +1,7 @@
 package com.wochatchat.liverecorder.data
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -16,6 +17,17 @@ private val Context.dataStore by preferencesDataStore(name = "monitor")
 class MonitorStore(private val context: Context) {
 
     private val key = stringPreferencesKey("urls")
+
+    /** 监控总开关（2b）：开启时服务常驻并轮询检查开播状态。 */
+    private val monitorKey = booleanPreferencesKey("monitor_enabled")
+
+    val monitorEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[monitorKey] ?: false
+    }
+
+    suspend fun setMonitorEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[monitorKey] = enabled }
+    }
 
     val urls: Flow<List<String>> = context.dataStore.data.map { prefs ->
         prefs[key]?.split('\n')?.filter { it.isNotBlank() } ?: emptyList()

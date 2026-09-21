@@ -68,6 +68,7 @@ class MainActivity : ComponentActivity() {
 fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     val urls by viewModel.urls.collectAsState()
     val recordStates by viewModel.recordStates.collectAsState()
+    val monitorEnabled by viewModel.monitorEnabled.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
 
     // Android 13+ 通知权限：前台服务可无权限运行，但常驻通知需要它（2a/2e 依赖）
@@ -87,7 +88,20 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("直播监控") })
+            TopAppBar(
+                title = { Text("直播监控") },
+                actions = {
+                    IconButton(onClick = { viewModel.setMonitorEnabled(!monitorEnabled) }) {
+                        Icon(
+                            if (monitorEnabled) Icons.Default.NotificationsActive
+                            else Icons.Default.NotificationsOff,
+                            contentDescription = if (monitorEnabled) "关闭监控" else "开启监控",
+                            tint = if (monitorEnabled) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outline
+                        )
+                    }
+                }
+            )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
