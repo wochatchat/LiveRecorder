@@ -23,7 +23,7 @@ class MonitorLoopTest {
         val loop = MonitorLoop(check = { url ->
             if (url.endsWith("/live")) liveInfo() else offlineInfo()
         })
-        val errors = loop.pollOnce(listOf("https://a/live", "https://b/live", "https://c/off"))
+        val errors = loop.pollOnce({ listOf("https://a/live", "https://b/live", "https://c/off") })
         assertEquals(0, errors)
         val states = loop.states.value
         assertEquals(3, states.size)
@@ -40,18 +40,18 @@ class MonitorLoopTest {
             else liveInfo()
         })
         // 第一轮：检查抛异常 → Error 状态，返回错误计数 1
-        assertEquals(1, loop.pollOnce(listOf("u1")))
+        assertEquals(1, loop.pollOnce({ listOf("u1") }))
         assertEquals("network down", (loop.states.value["u1"] as? MonitorLoop.State.Error)?.message)
         // 第二轮恢复：状态翻转成 Live
         fail = false
-        assertEquals(0, loop.pollOnce(listOf("u1")))
+        assertEquals(0, loop.pollOnce({ listOf("u1") }))
         assertTrue(loop.states.value["u1"] is MonitorLoop.State.Live)
     }
 
     @Test
     fun stop_clearsStates() = runTest {
         val loop = MonitorLoop(check = { liveInfo() })
-        loop.pollOnce(listOf("u"))
+        loop.pollOnce({ listOf("u") })
         assertTrue(loop.states.value.isNotEmpty())
         loop.stop()
         assertTrue(loop.states.value.isEmpty())
