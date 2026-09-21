@@ -123,6 +123,8 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    // Rhino: 纯 JVM JS 引擎，QuickJsEngine JNI 的单测替身（Phase 3b）
+    testImplementation(libs.rhino)
     // org.json: 纯 Java 实现，单元测试时 org.json 在 JVM 上可用（生产代码走 Android Framework）
     testImplementation("org.json:json:20240303")
     // MockWebServer: StreamDownloader 的 JVM 单测（流式写文件 / 非 200 / 中途取消）

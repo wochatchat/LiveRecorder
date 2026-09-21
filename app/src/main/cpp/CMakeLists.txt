@@ -12,7 +12,7 @@ set(QUICKJS_SOURCES
     quickjs/libunicode.c
 )
 
-add_library(quickjs SHARED ${QUICKJS_SOURCES})
+add_library(quickjs SHARED ${QUICKJS_SOURCES} quickjs-jni.c)
 
 target_include_directories(quickjs PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/quickjs)
 target_compile_definitions(quickjs PRIVATE
