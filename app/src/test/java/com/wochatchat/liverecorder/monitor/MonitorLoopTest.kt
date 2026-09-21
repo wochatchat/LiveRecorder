@@ -237,7 +237,8 @@ class MonitorLoopTest {
         // 再轮询：抑制已解除，onLive 正常触发（等价于重新添加该条目）
         online = true
         loop.pollOnce({ listOf("u1") })
-        assertEquals(listOf("u1"), live)
+        // u2 首轮（未抑制）已触发过，u1 在 forget 清除抑制后重新触发
+        assertEquals(listOf("u2", "u1"), live)
     }
 
     @Test
