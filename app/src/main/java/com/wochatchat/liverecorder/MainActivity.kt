@@ -299,7 +299,7 @@ private fun PushSettingsDialog(
                     Text("启用推送", modifier = Modifier.weight(1f))
                     Switch(checked = enabled, onCheckedChange = { enabled = it })
                 }
-                Row(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("ntfy" to "ntfy", "bark" to "bark").forEach { (value, label) ->
                         FilterChip(
                             selected = type == value,
