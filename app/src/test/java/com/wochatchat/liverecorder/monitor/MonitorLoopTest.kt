@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * MonitorLoop 单测（JVM）：状态跃迁 / 错误容错 / 常量对齐。
+ * MonitorLoop 单测（JVM）：状态跃迁 / 错误容错 / 常量对齐 / 2c 录制调度。
  * Log 依赖 testOptions.unitTests.isReturnDefaultValues = true。
  */
 class MonitorLoopTest {
@@ -23,8 +23,8 @@ class MonitorLoopTest {
         val loop = MonitorLoop(check = { url ->
             if (url.endsWith("/live")) liveInfo() else offlineInfo()
         })
-        val errors = loop.pollOnce({ listOf("https://a/live", "https://b/live", "https://c/off") })
-        assertEquals(0, errors)
+        val round = loop.pollOnce({ listOf("https://a/live", "https://b/live", "https://c/off") })
+        assertEquals(0, round.errors)
         val states = loop.states.value
         assertEquals(3, states.size)
         assertEquals("测试主播", (states["https://a/live"] as MonitorLoop.State.Live).anchorName)
@@ -40,11 +40,11 @@ class MonitorLoopTest {
             else liveInfo()
         })
         // 第一轮：检查抛异常 → Error 状态，返回错误计数 1
-        assertEquals(1, loop.pollOnce({ listOf("u1") }))
+        assertEquals(1, loop.pollOnce({ listOf("u1") }).errors)
         assertEquals("network down", (loop.states.value["u1"] as? MonitorLoop.State.Error)?.message)
         // 第二轮恢复：状态翻转成 Live
         fail = false
-        assertEquals(0, loop.pollOnce({ listOf("u1") }))
+        assertEquals(0, loop.pollOnce({ listOf("u1") }).errors)
         assertTrue(loop.states.value["u1"] is MonitorLoop.State.Live)
     }
 
@@ -64,5 +64,86 @@ class MonitorLoopTest {
         assertEquals(300L, MonitorLoop.DEFAULT_INTERVAL_SEC)
         assertEquals(5, MonitorLoop.JITTER_SEC)
         assertEquals(60L, MonitorLoop.ERROR_EXTRA_DELAY_SEC)
+        assertEquals(30L, MonitorLoop.QUICK_CHECK_SEC)
+        assertEquals(30L, MonitorLoop.QUICK_CHECK_SEC)
+        assertEquals(60L, MonitorLoop.QUICK_CHECK_WINDOW_SEC)
+    }
+
+    @Test
+    fun pollOnce_skipsRecordingUrls() = runTest {
+        val recording = mutableSetOf("u1")
+        val checked = mutableListOf<String>()
+        val loop = MonitorLoop(
+            check = { url -> checked.add(url); liveInfo() },
+            isRecording = { it in recording },
+        )
+        val round = loop.pollOnce({ listOf("u1", "u2") })
+        // 录制中的条目不检查、不更新状态
+        assertEquals(listOf("u2"), checked)
+        assertEquals(0, round.errors)
+        assertFalse(round.recordJustEnded)
+        assertTrue(loop.states.value["u1"] == null)
+        assertTrue(loop.states.value["u2"] is MonitorLoop.State.Live)
+    }
+
+    @Test
+    fun pollOnce_onLiveFiresAndRecordEndDetected() = runTest {
+        val recording = mutableSetOf<String>()
+        val liveUrls = mutableListOf<String>()
+        val loop = MonitorLoop(
+            check = { liveInfo() },
+            isRecording = { it in recording },
+            onLive = { url, info -> liveUrls.add("$url|${info.anchorName}") },
+        )
+        // 开播 → onLive 触发，未标记快检
+        var round = loop.pollOnce({ listOf("u1") })
+        assertEquals(0, round.errors)
+        assertFalse(round.recordJustEnded)
+        assertEquals(listOf("u1|测试主播"), liveUrls)
+        // 模拟录制开始：暂停轮询，onLive 不再触发
+        recording.add("u1")
+        round = loop.pollOnce({ listOf("u1") })
+        assertEquals(1, liveUrls.size)
+        assertFalse(round.recordJustEnded)
+        // 录制结束：下一轮检测到刚结束，恢复轮询并再次触发 onLive
+        recording.remove("u1")
+        round = loop.pollOnce({ listOf("u1") })
+        assertTrue(round.recordJustEnded)
+        assertEquals(listOf("u1|测试主播", "u1|测试主播"), liveUrls)
+    }
+
+    @Test
+    fun pollOnce_suppressAutoStartUntilOffline() = runTest {
+        val live = mutableListOf<DouyinStreamInfo>()
+        var online = true
+        val loop = MonitorLoop(
+            check = { if (online) liveInfo() else offlineInfo() },
+            onLive = { _, info -> live.add(info) },
+        )
+        loop.suppressAutoStart("u1")
+        // 抑制中：状态仍为 Live，但不触发 onLive
+        loop.pollOnce({ listOf("u1") })
+        assertTrue(loop.states.value["u1"] is MonitorLoop.State.Live)
+        assertTrue(live.isEmpty())
+        // 关播后抑制解除
+        online = false
+        loop.pollOnce({ listOf("u1") })
+        assertEquals(MonitorLoop.State.Offline, loop.states.value["u1"])
+        online = true
+        loop.pollOnce({ listOf("u1") })
+        assertEquals(1, live.size)
+    }
+
+    @Test
+    fun nextDelaySec_alignsUpstreamQuickCheck() {
+        val loop = MonitorLoop(check = { offlineInfo() })
+        // 正常轮：间隔 + 抖动
+        assertEquals(305L, loop.nextDelaySec(300L, jitter = 5, errors = 0, recordJustEnded = false, roundDurationSec = 10))
+        // 错误过多 +60s
+        assertEquals(365L, loop.nextDelaySec(300L, jitter = 5, errors = 21, recordJustEnded = false, roundDurationSec = 10))
+        // 录制刚结束且本轮 <60s → 固定 30s（覆盖错误加时，上游同语义）
+        assertEquals(30L, loop.nextDelaySec(300L, jitter = 5, errors = 100, recordJustEnded = true, roundDurationSec = 59))
+        // 录制结束但本轮耗时 >=60s → 正常间隔
+        assertEquals(305L, loop.nextDelaySec(300L, jitter = 5, errors = 0, recordJustEnded = true, roundDurationSec = 60))
     }
 }

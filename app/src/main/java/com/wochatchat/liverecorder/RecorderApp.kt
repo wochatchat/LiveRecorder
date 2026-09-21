@@ -19,6 +19,10 @@ class RecorderApp : Application() {
         super.onCreate()
         val spider = DouyinSpider()
         recordController = RecordController(baseDir = File(filesDir, "downloads"), spider = spider)
-        monitorLoop = MonitorLoop(check = { url -> spider.fetchStreamInfo(url) })
+        monitorLoop = MonitorLoop(
+            check = { url -> spider.fetchStreamInfo(url) },
+            isRecording = { url -> recordController.isActive(url) },
+            onLive = { url, _ -> recordController.start(url) },
+        )
     }
 }

@@ -62,5 +62,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     fun startRecord(url: String) = controller.start(url)
 
-    fun stopRecord(url: String) = controller.stop(url)
+    fun stopRecord(url: String) {
+        controller.stop(url)
+        // 手动停止后不再自动重启录制，直到该房间转为未开播
+        (getApplication() as RecorderApp).monitorLoop.suppressAutoStart(url)
+    }
 }
+
