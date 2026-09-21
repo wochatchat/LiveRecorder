@@ -127,7 +127,7 @@ class MonitorLoop(
     )
 
     /** 单轮检查：顺序检查全部 url。internal 便于单测注入。 */
-    suspend fun pollOnce(urls: suspend () -> List<String>): RoundResult {
+    internal suspend fun pollOnce(urls: suspend () -> List<String>): RoundResult {
         var errors = 0
         var recordJustEnded = false
         for (url in urls()) {
