@@ -75,7 +75,9 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     val urls by viewModel.urls.collectAsState()
     val recordStates by viewModel.recordStates.collectAsState()
     val monitorEnabled by viewModel.monitorEnabled.collectAsState()
+    val pushConfig by viewModel.pushConfig.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
+    var showPushDialog by remember { mutableStateOf(false) }
 
     // Android 13+ 通知权限：前台服务可无权限运行，但常驻通知需要它（2a/2e 依赖）
     val notifPermission = rememberLauncherForActivityResult(
