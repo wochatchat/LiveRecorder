@@ -74,8 +74,8 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
     ): List<String> {
         val title = DEFAULT_TITLE
         val content = when (event) {
-            Event.LIVE -> "$MSG_PREFIX $anchorName 正在直播中，时间：$timeStr"
-            Event.OFFLINE -> "$MSG_PREFIX $anchorName 直播已结束！时间：$timeStr"
+            Event.LIVE -> "$MSG_PREFIX$anchorName 正在直播中，时间：$timeStr"
+            Event.OFFLINE -> "$MSG_PREFIX$anchorName 直播已结束！时间：$timeStr"
         }
         val failed = mutableListOf<String>()
         for (api in config.apis) {
