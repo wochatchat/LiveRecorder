@@ -117,7 +117,8 @@ class MonitorService : Service() {
         val recordStates = app.recordController.states.value
         val monitorStates = app.monitorLoop.states.value
         val active = recordStates.values.count {
-            it is RecordController.RecordState.Resolving || it is RecordController.RecordState.Recording
+            it is RecordController.RecordState.Resolving || it is RecordController.RecordState.Recording ||
+                it is RecordController.RecordState.Reconnecting
         }
         val live = monitorStates.values.count { it is MonitorLoop.State.Live }
         val text = when {

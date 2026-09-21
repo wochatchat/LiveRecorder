@@ -15,13 +15,15 @@ import java.util.concurrent.TimeUnit
  * OkHttp 流式 GET → 16KB 分块写文件。
  *
  * 上游语义：
- * - httpx.Client(timeout=None)：读超时不限（长连接直播流）；仅保留 20s 连接超时防死等
+ * - httpx.Client(timeout=None)：读超时不限；**移动端改为 [readTimeoutSec]（默认 60s）读超时，
+ *   作为断流探测——连接假死无数据时抛 SocketTimeoutException 视为中断，交由
+ *   RecordController 重连（上游 timeout=None 在移动端会永久挂死）**
  * - follow_redirects=True（OkHttp 默认）
  * - 非 200 → 失败
  * - 中断（协程取消 = 上游 exit_recording / url_comments）→ 失败并**保留半截文件**（上游同语义）
  * - 返回 true = 正常下载到流结束（直播流通常由服务端断开而结束）
  */
-class StreamDownloader(
+open class StreamDownloader(
     private val client: OkHttpClient = defaultClient(),
 ) {
     /** 下载单个分块字节数（上游 chunk_size = 1024 * 16）。 */
@@ -30,7 +32,8 @@ class StreamDownloader(
 
         fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(0, TimeUnit.MILLISECONDS)
+            // 读超时 = 断流探测：60s 无任何字节视为连接假死（正常直播流不可能 60s 零字节）
+            .readTimeout(60, TimeUnit.SECONDS)
             .callTimeout(0, TimeUnit.SECONDS)
             .followRedirects(true)
             .followSslRedirects(true)
@@ -43,7 +46,7 @@ class StreamDownloader(
      * @return true=下载到流结束；false=非 200 / 网络异常
      * @throws kotlinx.coroutines.CancellationException 协程被取消（停止录制）
      */
-    suspend fun download(
+    open suspend fun download(
         sourceUrl: String,
         saveFile: File,
         headers: Map<String, String> = emptyMap(),

@@ -18,7 +18,7 @@ class RecorderApp : Application() {
     override fun onCreate() {
         super.onCreate()
         val spider = DouyinSpider()
-        recordController = RecordController(baseDir = File(filesDir, "downloads"), spider = spider)
+        recordController = RecordController(baseDir = File(filesDir, "downloads"), fetchInfo = { spider.fetchStreamInfo(it) })
         monitorLoop = MonitorLoop(
             check = { url -> spider.fetchStreamInfo(url) },
             isRecording = { url -> recordController.isActive(url) },

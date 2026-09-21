@@ -31,7 +31,8 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
             combine(store.monitorEnabled, controller.states) { enabled, states ->
                 val active = states.values.any {
                     it is RecordController.RecordState.Resolving ||
-                        it is RecordController.RecordState.Recording
+                        it is RecordController.RecordState.Recording ||
+                        it is RecordController.RecordState.Reconnecting
                 }
                 when {
                     enabled -> MonitorService.startMonitor(getApplication())

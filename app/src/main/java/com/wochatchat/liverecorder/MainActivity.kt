@@ -170,7 +170,8 @@ private fun MonitorItem(
     onStop: () -> Unit,
 ) {
     val recording = recordState is RecordController.RecordState.Resolving ||
-        recordState is RecordController.RecordState.Recording
+        recordState is RecordController.RecordState.Recording ||
+        recordState is RecordController.RecordState.Reconnecting
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -184,17 +185,18 @@ private fun MonitorItem(
                 style = MaterialTheme.typography.labelSmall,
                 color = when (recordState) {
                     is RecordController.RecordState.Recording -> MaterialTheme.colorScheme.error
+                    is RecordController.RecordState.Reconnecting -> MaterialTheme.colorScheme.tertiary
                     is RecordController.RecordState.Failed -> MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
             )
         }
-        IconButton(onClick = if (recordState is RecordController.RecordState.Recording) onStop else onStart) {
+        IconButton(onClick = if (recording) onStop else onStart) {
             Icon(
-                if (recordState is RecordController.RecordState.Recording) Icons.Default.Stop
+                if (recording) Icons.Default.Stop
                 else Icons.Default.PlayArrow,
-                contentDescription = if (recordState is RecordController.RecordState.Recording) "停止" else "录制",
-                tint = if (recordState is RecordController.RecordState.Recording)
+                contentDescription = if (recording) "停止" else "录制",
+                tint = if (recording)
                     MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
             )
         }
@@ -209,6 +211,8 @@ private fun describeState(state: RecordController.RecordState?): String = when (
     is RecordController.RecordState.Resolving -> "解析直播源…"
     is RecordController.RecordState.Recording ->
         "录制中 · ${state.bytes / 1024 / 1024} MB · ${state.savePath.substringAfterLast('/')}"
+    is RecordController.RecordState.Reconnecting ->
+        "断流重连中(第 ${state.attempt} 次,${state.nextDelaySec}s 后) · ${state.message}"
     is RecordController.RecordState.Finished ->
         if (state.completed) "完成 · ${state.bytes / 1024 / 1024} MB · ${state.savePath.substringAfterLast('/')}"
         else "已停止 · ${state.bytes / 1024 / 1024} MB"
