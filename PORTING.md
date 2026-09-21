@@ -109,7 +109,7 @@
 ### 第一批（P0 · 主流国内，首批上线必须）
 | 平台 | 状态 | 依赖 JS/特殊点 |
 |---|---|---|
-| 抖音直播 | ⬜ | a_bogus（Kotlin 重写）+ web/app 双路径 + 硬编码 Cookie 可更新 |
+| 抖音直播 | ✅（P1 完成端到端对拍，监控/分段见 Phase 2/3） | a_bogus（Kotlin 重写）+ web/app 双路径 + 硬编码 Cookie 可更新 |
 | TikTok 直播 | ⬜ | 需代理；按 vbitrate/resolution 排序选源 |
 | 快手直播 | ⬜ | did 设备伪装；web/api2 双路径 |
 | 虎牙直播 | ⬜ | app API URL 加密参数（ wildlife 解码） |
@@ -219,3 +219,4 @@
 | 2026-09-13 | R0 | 完成源码盘点与可行性评估；架构映射、C 组件边界（QuickJS+ffmpeg 必要，SM3 不必要）、平台矩阵、六阶段计划定稿 |
 | 2026-09-13 | R1 | **Phase 0 完成**：仓库 wochatchat/LiveRecorder；脚手架（Compose 主页+监控列表+添加对话框+DataStore）；4 workflow CI（build/build-test/compile-check/cleanup）；build.sh 版本自增；keystore 生成（keypass=storepass 教训）；v0.1.1 签名 APK 归档 + Release 产物齐；两次 CI 失败修复（缺 viewmodel-compose 依赖 / PKCS12 keypass） |
 | 2026-09-21 | R8 | **Phase 1-1g：路径 A 流下载 + 录制 UI 最小版**。新增 `recorder/` 模块：RecordSource（select_source_url / get_record_headers / clean_name 移植，Kotlin JVM 输出与 Python 上游 11 组用例逐行一致）、StreamDownloader（direct_download_stream → OkHttp 流式 16KB 分块写盘，取消保留半截文件）、RecordController（url→状态机 StateFlow，文件命名 {downloads}/抖音直播/{主播}/{主播}_{ts}.flv）；RecorderApp 进程级单例；监控列表加录制/停止按钮+状态行。与上游差异：无监控轮询（Phase 2）、HLS 需 ffmpeg（Phase 3，h265-only 房间报不支持）。MockWebServer 5 测 + RecordSource 14 测 |
+| 2026-09-21 | R9 | **Phase 1-1h 完成，Phase 1 全部完成 ✅**：开播房间沙箱端到端实时对拍通过（Python 原版 vs kotlinc 编译 Kotlin 真源码 JVM 全链路：房间数据/五档画质 URL/选档降级逐项一致，douyincdn 裸 HEAD 405 双方一致降档）。重要澄清：maven org.json keys() HashMap 乱序仅 JVM 测试伪影，真机 Android org.json（LinkedHashMap）保文档序与上游一致，不改代码。build-test.yml 出带签名测试包，真机 60s 录制验证交用户执行 |
