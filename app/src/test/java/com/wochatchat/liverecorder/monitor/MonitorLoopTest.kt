@@ -252,6 +252,8 @@ class MonitorLoopTest {
         loop.pollOnce({ listOf("u1") })
         // 移除条目后：录制结束标记一并清理，不再触发快检
         loop.forget("u1")
+        // 模拟录制也已停止（ forget 后该条目已不在录制链路里）
+        recording.remove("u1")
         val round = loop.pollOnce({ listOf("u1") })
         assertFalse(round.recordJustEnded)
         assertTrue(loop.states.value["u1"] is MonitorLoop.State.Live)
