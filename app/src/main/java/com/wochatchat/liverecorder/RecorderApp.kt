@@ -74,8 +74,12 @@ class RecorderApp : Application() {
                 !storage.isLow(store.diskLimitGb.first())
             },
             onLowStorage = {
-                notifier.notifyStorageLow(store.diskLimitGb.first(), storage.freeGb())
-                recordController.stopAll()
+                // 回调非 suspend：切 appScope 取阈值后再通知
+                appScope.launch {
+                    val limit = store.diskLimitGb.first()
+                    notifier.notifyStorageLow(limit, storage.freeGb())
+                    recordController.stopAll()
+                }
             },
             onStorageResumed = { notifier.notifyStorageResumed() },
         )
