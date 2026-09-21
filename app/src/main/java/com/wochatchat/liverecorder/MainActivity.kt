@@ -74,10 +74,11 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     val notifPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
+    val context = LocalContext.current
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(
-                LocalContext.current, android.Manifest.permission.POST_NOTIFICATIONS
+                context, android.Manifest.permission.POST_NOTIFICATIONS
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             notifPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
