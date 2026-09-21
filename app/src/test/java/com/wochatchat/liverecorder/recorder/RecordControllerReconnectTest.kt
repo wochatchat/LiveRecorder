@@ -75,7 +75,7 @@ class RecordControllerReconnectTest {
         )
         controller.runRecord("u")
         assertEquals(5, downloader.calls.size)
-        assertEquals(listOf(2L, 4L, 8L, 16L, 32L), delays)
+        assertEquals(listOf(2000L, 4000L, 8000L, 16000L, 32000L), delays)
         assertTrue(controller.states.value["u"] is RecordController.RecordState.Failed)
     }
 
