@@ -93,8 +93,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
                 actions = {
                     IconButton(onClick = { viewModel.setMonitorEnabled(!monitorEnabled) }) {
                         Icon(
-                            if (monitorEnabled) Icons.Default.NotificationsActive
-                            else Icons.Default.NotificationsOff,
+                            Icons.Default.Notifications,
                             contentDescription = if (monitorEnabled) "关闭监控" else "开启监控",
                             tint = if (monitorEnabled) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.outline

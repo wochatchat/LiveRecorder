@@ -38,7 +38,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
                     active -> MonitorService.start(getApplication())
                     else -> MonitorService.stop(getApplication())
                 }
-            }.collect()
+            }.collect { }
         }
     }
 
@@ -46,7 +46,7 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     val recordStates: StateFlow<Map<String, RecordController.RecordState>> = controller.states
 
     /** url → 监控状态（Unknown/Live/Offline/Error），供 UI 状态徽标。 */
-    val monitorStates get() = (app as RecorderApp).monitorLoop.states
+    val monitorStates get() = (getApplication() as RecorderApp).monitorLoop.states
 
     fun setMonitorEnabled(enabled: Boolean) = viewModelScope.launch {
         store.setMonitorEnabled(enabled)
