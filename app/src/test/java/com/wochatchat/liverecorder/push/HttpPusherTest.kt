@@ -77,7 +77,8 @@ class HttpPusherTest {
         )
         assertTrue(failed.isEmpty())
         val recorded = server.takeRequest()
-        assertEquals("/mytopic", recorded.path)
+        // 上游语义：POST 到 server（去掉 topic 段），topic 只出现在 body 里
+        assertEquals("/", recorded.path)
         assertEquals("POST", recorded.method)
         val sent = JSONObject(recorded.body.readUtf8())
         assertEquals("mytopic", sent.getString("topic"))
