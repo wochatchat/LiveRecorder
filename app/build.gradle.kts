@@ -23,6 +23,24 @@ android {
         targetSdk = 34
         versionCode = vCode
         versionName = vName
+
+        // Phase 3a: QuickJS C core（vendor 自 Bellard quickjs-2026-06-04）。
+        // x86_64 供模拟器/后续 JVM 侧验证；纯 C 无 STL。
+        externalNativeBuild {
+            cmake {
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+            }
+        }
+    }
+
+    // QuickJS 构建入口（src/main/cpp/CMakeLists.txt）。
+    // ndkVersion 对齐 GitHub ubuntu-latest runner 预装版本，避免 CI 额外下载。
+    ndkVersion = "27.2.12479018"
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     // Keystore decoded from repo secrets at CI build time (signing.properties,
@@ -71,8 +89,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-    }
-    testOptions {
+    }    testOptions {
         // MonitorLoop 单测在 JVM 跑：android.util.Log 默认未 mock 会抛异常，
         // 打开 returnDefaultValues 让 Log 调用静默返回
         unitTests.isReturnDefaultValues = true
