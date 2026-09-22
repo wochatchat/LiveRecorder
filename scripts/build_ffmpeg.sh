@@ -118,11 +118,17 @@ fi
 # ---------------------------------------------------------------------------
 FF_SRC=$SRC_DIR/ffmpeg
 if [[ ! -d $FF_SRC/.git ]]; then
-  echo "===== Clone ffmpeg $FFMPEG_VERSION ====="
+  echo "===== Fetch ffmpeg $FFMPEG_VERSION ====="
   mkdir -p $SRC_DIR
-  # 使用 n9.0.2^{} dereference 绕过 annotated tag shallow clone 问题
-  git clone --depth=1 --branch "${FFMPEG_VERSION}^{}" \
-    https://github.com/FFmpeg/FFmpeg.git $FF_SRC
+  # ls-remote 解引用 annotated tag → commit SHA，再按 SHA 浅 fetch
+  # （git clone --branch 对 annotated tag 浅克隆会产生 "is not a commit" 问题）
+  FF_SHA=$(git ls-remote origin "refs/tags/$FFMPEG_VERSION^{}" | awk '{print $1}')
+  echo "ffmpeg $FFMPEG_VERSION → commit $FF_SHA"
+  git init -q $FF_SRC
+  cd $FF_SRC
+  git remote add origin https://github.com/FFmpeg/FFmpeg.git
+  git fetch --depth=1 -q origin "$FF_SHA"
+  git checkout -q --detach "$FF_SHA"
 fi
 
 cd $FF_SRC
