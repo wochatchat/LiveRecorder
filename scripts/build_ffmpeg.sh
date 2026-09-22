@@ -51,13 +51,14 @@ for dir in "$NDK_ROOT" "$ANDROID_HOME/ndk"; do
   if [[ -d "$dir" ]]; then
     TC=$(find_toolchain "$dir")
     if [[ -n "$TC" && -d "$TC" ]]; then
-      NDK_DIR=$(dirname "$TC")
+      TOOLCHAIN="$TC"
+      NDK_DIR="$dir"
       break
     fi
   fi
 done
 
-if [[ -z "$NDK_DIR" ]]; then
+if [[ -z "${NDK_DIR:-}" ]]; then
   echo "ERROR: 未找到 NDK toolchain" >&2
   exit 1
 fi
