@@ -2,6 +2,10 @@ name: Build FFmpeg
 
 # 手动触发；也可被 build.yml / build-test.yml 用 workflow_call 复用
 on:
+  push:
+    paths:
+      - '.github/workflows/build-ffmpeg.yml'
+      - 'scripts/build_ffmpeg.sh'
   workflow_dispatch:
     inputs:
       abi:
@@ -26,6 +30,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    # push 时走默认 ABI；workflow_dispatch 可选一个 ABI
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
