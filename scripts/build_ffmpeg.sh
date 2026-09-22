@@ -67,10 +67,7 @@ echo "NDK_DIR=$NDK_DIR"
 echo "TOOLCHAIN=$TOOLCHAIN"
 
 SYSROOT=$TOOLCHAIN/../sysroot
-# API 级 wrapper 自带 --target=…-android26（app minSdk=26），裸 clang 会因缺 --target 链接失败
 API=26
-CC=$TOOLCHAIN/bin/${TARGET}${API}-clang
-CXX=$TOOLCHAIN/bin/${TARGET}${API}-clang++
 
 # ---------------------------------------------------------------------------
 # 2. ABI → 交叉编译参数
@@ -81,6 +78,10 @@ case "$ABI" in
   x86_64)      ARCH=x86_64;   TARGET=x86_64-linux-android ;;
   *) echo "ERROR: 未知 ABI: $ABI" >&2; exit 1 ;;
 esac
+
+# API 级 wrapper 自带 --target=…-android26（app minSdk=26），裸 clang 会因缺 --target 链接失败
+CC=$TOOLCHAIN/bin/${TARGET}${API}-clang
+CXX=$TOOLCHAIN/bin/${TARGET}${API}-clang++
 
 echo "Building ffmpeg $FFMPEG_VERSION for $ABI (arch=$ARCH, target=$TARGET)"
 
