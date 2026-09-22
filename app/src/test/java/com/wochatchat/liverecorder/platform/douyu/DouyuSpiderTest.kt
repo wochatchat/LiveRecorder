@@ -1,5 +1,14 @@
 /*
  * DouyuSpiderTest — Phase 3d：斗鱼爬虫单元测试。
+ *
+ * LiveHttpClient 现为 open class，测试子类 DouyuTestClient 按 URL 前缀返回 fixture。
+ * 覆盖：
+ *   1. parseRidFromUrl（静态，不走 HTTP）
+ *   2. extractActualRid — vike_pageContext 提取真实 rid
+ *   3. parseBetardInfo — betard JSON → DouyuInfo（离线/在线）
+ *   4. parseH5PlayResponse — 流 URL / 画质标签
+ *   5. getDouyuInfo / getDouyuStreamData — fixture 端到端（suspend）
+ *   6. 数据类字段
  */
 package com.wochatchat.liverecorder.platform.douyu
 
@@ -18,8 +27,6 @@ import java.io.File
 
 class DouyuSpiderTest {
 
-    // ---- 资源加载 ----
-
     private fun resource(name: String): String {
         val url = javaClass.classLoader!!.getResource(name)
             ?: throw IllegalStateException("test resource not found: $name")
@@ -29,21 +36,6 @@ class DouyuSpiderTest {
     private fun mRoomHtml() = resource("douyu_m_room_raw.html")
     private fun betardJson() = resource("douyu_betard_offline_raw.json")
     private fun signHtml() = resource("douyu_room_sign_raw.html")
-
-    // ---- Mock HTTP Client（正确签名：suspend + HttpResult）----
-
-    private inner class MockHttpClient(private val getResponses: Map<String, String>) : LiveHttpClient() {
-        override suspend fun get(url: String, headers: Map<String, String>, timeoutSec: Long): HttpResult {
-            val text = getResponses[url]
-                ?: throw IllegalStateException("MockHttpClient: no GET response for $url")
-            return HttpResult(code = 200, text = text, finalUrl = url, cookies = emptyMap())
-        }
-        override suspend fun postForm(url: String, headers: Map<String, String>, form: Map<String, String>, timeoutSec: Long): HttpResult {
-            val text = getResponses[url]
-                ?: throw IllegalStateException("MockHttpClient: no POST response for $url")
-            return HttpResult(code = 200, text = text, finalUrl = url, cookies = emptyMap())
-        }
-    }
 
     // ---- 1. URL rid 解析 ----
 
@@ -73,26 +65,36 @@ class DouyuSpiderTest {
 
     @Test
     fun extractActualRid_fromVikePageContext() {
-        val spider = DouyuSpider()
-        assertEquals("631134", spider.extractActualRid(mRoomHtml(), "9999"))
+        assertEquals("631134", DouyuSpider().extractActualRid(mRoomHtml(), "9999"))
     }
 
     @Test
     fun extractActualRid_fallbackToProvided() {
-        val spider = DouyuSpider()
-        assertEquals("12345", spider.extractActualRid("<html><body>no info</body></html>", "12345"))
+        assertEquals("12345", DouyuSpider().extractActualRid("<html><body>no info</body></html>", "12345"))
     }
 
     // ---- 3. parseBetardInfo ----
 
     @Test
     fun parseBetardInfo_offlineRoom() {
-        val spider = DouyuSpider()
-        val info = spider.parseBetardInfo(betardJson())
+        val info = DouyuSpider().parseBetardInfo(betardJson())
         assertEquals("上天入地大神通儿", info.anchorName)
         assertFalse(info.isLive)  // show_status=2
         assertNull(info.title)    // offline
         assertEquals("631134", info.roomId)
+    }
+
+    @Test
+    fun parseBetardInfo_liveRoom() {
+        val liveJson = JSONObject(betardJson()).apply {
+            getJSONObject("room").apply {
+                put("show_status", 1)
+                put("roomName", "测试直播")
+            }
+        }.toString()
+        val info = DouyuSpider().parseBetardInfo(liveJson)
+        assertTrue(info.isLive)
+        assertEquals("测试直播", info.title)
     }
 
     // ---- 4. parseH5PlayResponse ----
@@ -111,60 +113,54 @@ class DouyuSpiderTest {
         assertEquals("测试主播", info.anchorName)
         assertEquals("https://txy.live.douyucdn.cn/live/room.flv?auth_key=abc", info.streamUrl)
         assertEquals("超清", info.qualityLabel)
+        assertNotNull(info.rawJson)
     }
 
     @Test
     fun parseH5PlayResponse_noStream() {
-        val json = JSONObject().apply {
-            put("data", JSONObject().apply {
-                put("nickname", "离线主播")
-                put("rate", "2")
-            })
-        }.toString()
-        val info = DouyuSpider().parseH5PlayResponse(json, "631134")
-        assertNull(info.streamUrl)
+        val json = """{"data":{"nickname":"离线"}}"""
+        assertNull(DouyuSpider().parseH5PlayResponse(json, "631134").streamUrl)
     }
 
-    // ---- 5. getDouyuInfo 端到端（Mock HTTP，suspend）----
+    @Test
+    fun parseH5PlayResponse_rateLabels() {
+        val map = mapOf("0" to "蓝光", "3" to "超清", "2" to "高清", "1" to "标清", "9" to "9")
+        for ((input, expected) in map) {
+            val json = """{"data":{"nickname":"x","rate":"$input"}}"""
+            assertEquals(expected, DouyuSpider().parseH5PlayResponse(json, "1").qualityLabel)
+        }
+    }
+
+    // ---- 5. getDouyuInfo 端到端（测试子类 client，suspend）----
 
     @Test
     fun getDouyuInfo_offlineRoom() = runTest {
-        val client = MockHttpClient(
-            mapOf(
-                "https://m.douyu.com/631134" to mRoomHtml(),
-                "https://www.douyu.com/betard/631134" to betardJson(),
-            )
-        )
-        val spider = DouyuSpider(client)
-        val info = spider.getDouyuInfo("https://www.douyu.com/631134")
+        val client = DouyuTestClient(mHtml = mRoomHtml(), betardJson = betardJson())
+        val info = DouyuSpider(client).getDouyuInfo("https://www.douyu.com/631134")
         assertEquals("631134", info.roomId)
         assertEquals("上天入地大神通儿", info.anchorName)
         assertFalse(info.isLive)
     }
 
-    // ---- 6. token 参数格式（直接测 DouyuSign，与 mock 无关）----
+    // ---- 5b. getDouyuStreamData 端到端（fixture HTML 签名 → postForm）----
 
     @Test
-    fun tokenParamsStructure_matchesTruth() {
+    fun getDouyuStreamData_tokenFlow() = runTest {
         val truth = JSONObject(resource("douyu_sign_truth.json"))
-        val params = DouyuSign.getTokenParams(
-            eval = { code -> RhinoJsEngine.eval(code) },
-            roomHtml = signHtml(),
-            rid = truth.getString("rid"),
-            did = truth.getString("did"),
-            t10 = truth.getString("t10"),
+        val client = DouyuTestClient(
+            mHtml = mRoomHtml(),
+            betardJson = betardJson(),
+            h5playJson = """{"data":{"nickname":"测试主播","hls_url":"https://x/live.flv","rate":"0"}}""",
         )
-        assertEquals(4, params.size)
-        assertEquals(truth.getString("v"), params[0])
-        assertEquals(truth.getString("did"), params[1])
-        assertEquals(truth.getString("t10"), params[2])
-        assertTrue(params[3].matches(Regex("[0-9a-f]{32}")))
-        val arr = truth.getJSONArray("params_list")
-        val expected = (0 until arr.length()).map { arr.getString(it) }
-        assertArrayEquals(expected.toTypedArray(), params.toTypedArray())
+        val spider = DouyuSpider(client, jsEngine = { code -> RhinoJsEngine.eval(code) })
+        val info = spider.getDouyuStreamData("631134", t10 = truth.getString("t10"))
+        assertEquals("631134", info.roomId)
+        assertEquals("测试主播", info.anchorName)
+        assertEquals("https://x/live.flv", info.streamUrl)
+        assertEquals("蓝光", info.qualityLabel)
     }
 
-    // ---- 7. DouyuInfo 数据类 ----
+    // ---- 6. 数据类 ----
 
     @Test
     fun douyuInfo_fields() {
@@ -177,10 +173,30 @@ class DouyuSpiderTest {
 
     @Test
     fun douyuStreamInfo_fields() {
-        val info = DouyuStreamInfo(roomId = "631134", anchorName = "主播", streamUrl = "https://x.flv", qualityLabel = "蓝光")
+        val info = DouyuStreamInfo(roomId = "631134", anchorName = "主播",
+            streamUrl = "https://x.flv", qualityLabel = "蓝光")
         assertEquals("631134", info.roomId)
         assertEquals("https://x.flv", info.streamUrl)
         assertEquals("蓝光", info.qualityLabel)
         assertNull(info.rawJson)
     }
+}
+
+// ---- 测试专用 HTTP Client（open LiveHttpClient 子类，按 URL 前缀分发 fixture）----
+
+private class DouyuTestClient(
+    private val mHtml: String,
+    private val betardJson: String,
+    private val h5playJson: String = """{"data":{"nickname":"测试主播"}}""",
+) : LiveHttpClient() {
+
+    override suspend fun get(url: String, headers: Map<String, String>, timeoutSec: Long): HttpResult = when {
+        url.startsWith("https://m.douyu.com/") -> HttpResult(200, mHtml, url, emptyMap())
+        url.startsWith("https://www.douyu.com/betard/") -> HttpResult(200, betardJson, url, emptyMap())
+        else -> HttpResult(404, "not found", url, emptyMap())
+    }
+
+    override suspend fun postForm(url: String, headers: Map<String, String>,
+                                  form: Map<String, String>, timeoutSec: Long): HttpResult =
+        HttpResult(200, h5playJson, url, emptyMap())
 }

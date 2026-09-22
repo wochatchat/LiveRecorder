@@ -26,12 +26,12 @@ import javax.net.ssl.X509TrustManager
  *   不做全局关闭校验）
  * - 超时默认 20s，对齐上游 async_req(timeout=20)
  */
-class LiveHttpClient(
+open class LiveHttpClient(
     proxyAddr: String? = null,
     trustAll: Boolean = false,
     timeoutSec: Long = DEFAULT_TIMEOUT_SEC,
 ) {
-    val client: OkHttpClient = buildClient(proxyAddr, trustAll, timeoutSec)
+    open val client: OkHttpClient = buildClient(proxyAddr, trustAll, timeoutSec)
 
     data class HttpResult(
         val code: Int,
@@ -43,7 +43,7 @@ class LiveHttpClient(
     }
 
     /** GET。headers 为 per-platform 注入点（UA 伪装等由调用方按平台传入，缺省用默认 UA）。 */
-    suspend fun get(
+    open suspend fun get(
         url: String,
         headers: Map<String, String> = emptyMap(),
         timeoutSec: Long = DEFAULT_TIMEOUT_SEC,
@@ -74,7 +74,7 @@ class LiveHttpClient(
     }
 
     /** POST 表单（对齐上游 sync_req data=urlencode 语义）。 */
-    suspend fun postForm(
+    open suspend fun postForm(
         url: String,
         headers: Map<String, String> = emptyMap(),
         form: Map<String, String>,
