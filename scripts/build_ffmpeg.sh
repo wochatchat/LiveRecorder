@@ -92,42 +92,36 @@ if [[ ! -f $MB_INSTALL/lib/libmbedtls.a ]]; then
   echo "===== Build mbedtls $MBEDTLS_VERSION ====="
   mkdir -p /tmp/mbedtls-src $MB_INSTALL/lib $MB_INSTALL/include $MB_INSTALL/lib/pkgconfig
 
+  # GitHub releases .tar.bz2 包含 framework submodule 内容（git archive tag 不含 submodule）
+  MB_VER="${MBEDTLS_VERSION#mbedtls-}"
   curl -fsSL \
-    "https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/$MBEDTLS_VERSION.tar.gz" \
-    -o /tmp/mbedtls.tar.gz
-  tar -xzf /tmp/mbedtls.tar.gz -C /tmp/mbedtls-src --strip-components=1
+    "https://github.com/Mbed-TLS/mbedtls/releases/download/$MBEDTLS_VERSION/mbedtls-$MB_VER.tar.bz2" \
+    -o /tmp/mbedtls.tar.bz2
+  tar -xjf /tmp/mbedtls.tar.bz2 -C /tmp/mbedtls-src --strip-components=1
 
   cd /tmp/mbedtls-src
 
-  # mbedtls 3.x 使用 cmake；framework 子模块是测试框架，非库编译必须
-  #   cmake 默认禁用测试，跳过 framework 依赖
-  mkdir -p build && cd build
-  cmake .. \
-    -DCMAKE_BUILD_TYPE=Release \
-    -DCMAKE_INSTALL_PREFIX=$MB_INSTALL \
-    -DCMAKE_C_COMPILER="$CC" \
-    -DCMAKE_AR=$TOOLCHAIN/bin/llvm-ar \
-    -DCMAKE_RANLIB=$TOOLCHAIN/bin/llvm-ranlib \
-    -DCMAKE_C_FLAGS="-fPIC -O2 --sysroot=$SYSROOT" \
-    -DENABLE_TESTING=OFF \
-    -DUSE_SHARED_MBEDTLS_LIBRARY=OFF
-  cmake --build . --target mbedcrypto mbedtls mbedx509 -j$(nproc)
-  cmake --install . --prefix $MB_INSTALL
+  # 确保 framework 子模块内容就位（make lib 依赖 framework/exported.make）
+  git submodule update --init framework 2>/dev/null || true
 
-  # pkg-config 文件由 cmake install 生成；若没有则自建
-  if [[ ! -f $MB_INSTALL/lib/pkgconfig/mbedtls.pc ]]; then
-    mkdir -p $MB_INSTALL/lib/pkgconfig
-    cat > "$MB_INSTALL/lib/pkgconfig/mbedtls.pc" <<PKGEOF
-prefix=$MB_INSTALL
-exec_prefix=\${prefix}
-libdir=\${exec_prefix}/lib
-includedir=\${prefix}/include
+  # 交叉编译静态库（必须用 NDK clang，否则产出 x86_64 目标文件与 aarch64 不兼容）
+  CC="$CC" AR="$TOOLCHAIN/bin/llvm-ar" \
+    CFLAGS="-fPIC -O2 --sysroot=$SYSROOT" \
+    make -j$(nproc) clean lib
+  cp library/*.a $MB_INSTALL/lib/
+  cp -r include/* $MB_INSTALL/include/
+
+  mkdir -p $MB_INSTALL/lib/pkgconfig
+  cat > "$MB_INSTALL/lib/pkgconfig/mbedtls.pc" <<'PKGEOF'
+prefix=/tmp/ffmpeg-mbedtls-install
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
 Name: mbedtls
 Version: 3.6.2
-Libs: -L\${libdir} -lmbedtls -lmbedx509 -lmbedcrypto
-Cflags: -I\${includedir}
+Libs: -L${libdir} -lmbedtls -lmbedx509 -lmbedcrypto
+Cflags: -I${includedir}
 PKGEOF
-  fi
 
   echo "mbedtls built"
 fi
