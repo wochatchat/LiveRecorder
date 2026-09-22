@@ -98,7 +98,8 @@ if [[ ! -f $MB_INSTALL/lib/libmbedtls.a ]]; then
   tar -xzf /tmp/mbedtls.tar.gz -C /tmp/mbedtls-src --strip-components=1
 
   cd /tmp/mbedtls-src
-  CFLAGS="-fPIC -O2" make -j$(nproc) clean lib
+  # 关键：必须用 NDK 交叉编译器，否则产出宿主 x86_64 静态库，链接 ffmpeg 时报 incompatible
+  CC="$CC" AR="$TOOLCHAIN/bin/llvm-ar" CFLAGS="-fPIC -O2 --sysroot=$SYSROOT" make -j$(nproc) clean lib
   cp library/*.a $MB_INSTALL/lib/
   cp -r include/* $MB_INSTALL/include/
 
