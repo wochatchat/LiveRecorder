@@ -2,7 +2,9 @@ package com.wochatchat.liverecorder
 
 import android.app.Application
 import com.wochatchat.liverecorder.monitor.MonitorLoop
+import com.wochatchat.liverecorder.platform.PlatformRouter
 import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
+import com.wochatchat.liverecorder.platform.douyu.DouyuSpider
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.data.MonitorStore
 import com.wochatchat.liverecorder.push.HttpPusher
@@ -48,10 +50,11 @@ class RecorderApp : Application() {
         val notifier = EventNotifier(this)
         notifier.createChannel()
         val spider = DouyinSpider()
+        val router = PlatformRouter(spider, DouyuSpider())
         val pusher = HttpPusher()
-        recordController = RecordController(baseDir = File(filesDir, "downloads"), fetchInfo = { spider.fetchStreamInfo(it) })
+        recordController = RecordController(baseDir = File(filesDir, "downloads"), fetchInfo = { router.fetchStreamInfo(it) })
         monitorLoop = MonitorLoop(
-            check = { url -> spider.fetchStreamInfo(url) },
+            check = { url -> router.fetchStreamInfo(url) },
             isRecording = { url -> recordController.isActive(url) },
             onLive = { url, _ -> recordController.start(url) },
             onLiveEvent = { url, anchor, title ->

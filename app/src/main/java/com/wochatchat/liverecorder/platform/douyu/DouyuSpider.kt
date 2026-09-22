@@ -152,6 +152,11 @@ class DouyuSpider(
             ?: room.optString("rtmp_url", null)
             ?.let { "$it/${room.optString("rtmp_live", "")}" }
             ?: room.optString("flv_url", null)
+        // FLV 直下 URL（上游 get_douyu_stream_url 组合 rtmp_url/rtmp_live 作为 flv_url/record_url）
+        val flvUrl = room.optString("rtmp_url", null)?.let { rtmp ->
+            val live = room.optString("rtmp_live", null)
+            if (live.isNullOrBlank()) rtmp else "$rtmp/$live"
+        }
         val qualityLabel = room.optString("rate", null)?.let {
             when (it) {
                 "0" -> "蓝光"
@@ -165,6 +170,7 @@ class DouyuSpider(
             roomId = rid,
             anchorName = anchorName,
             streamUrl = streamUrl,
+            flvUrl = flvUrl,
             qualityLabel = qualityLabel,
             rawJson = jsonStr,
         )

@@ -21,6 +21,8 @@ data class DouyuStreamInfo(
     val anchorName: String,
     /** m3u8 流 URL（可为 null，表示无可用流） */
     val streamUrl: String? = null,
+    /** FLV 直下 URL（上游 stream.py get_douyu_stream_url：rtmp_url/rtmp_live，录制用） */
+    val flvUrl: String? = null,
     /** 流描述 */
     val qualityLabel: String? = null,
     /** 原始 JSON 响应（用于调试/扩展） */

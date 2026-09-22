@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentHashMap
  * - 指数退避 2s×2^n 封顶 60s，连续 [MAX_RECONNECT_ATTEMPTS] 次失败放弃（上游固定
  *   循环间隔 300s 重试，移动端改为快速退避）
  * - HLS(m3u8) 源需 ffmpeg（Phase 3），当前仅支持 FLV 直下，h265-only 房间报不支持
- * - 文件命名：{baseDir}/抖音直播/{主播}/{主播}_{时间戳}.flv
+ * - 文件命名：{baseDir}/{平台目录}/{主播}/{主播}_{时间戳}.flv（3e：斗鱼=斗鱼直播，其余=抖音直播）
  */
 class RecordController(
     private val baseDir: File,
@@ -186,7 +186,7 @@ class RecordController(
     internal fun reconnectDelaySec(attempt: Int): Long =
         (BASE_BACKOFF_SEC shl (attempt - 1)).coerceAtMost(MAX_BACKOFF_SEC)
 
-    private fun platformName(url: String): String = "抖音直播"
+    private fun platformName(url: String): String = if (url.contains("douyu.com/")) "斗鱼直播" else "抖音直播"
 
     private fun setState(url: String, state: RecordState) {
         _states.update { it + (url to state) }

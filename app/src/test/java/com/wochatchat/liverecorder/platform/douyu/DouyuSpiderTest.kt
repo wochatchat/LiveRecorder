@@ -119,6 +119,22 @@ class DouyuSpiderTest {
     }
 
     @Test
+    fun parseH5PlayResponse_flvUrlFromRtmp() {
+        // 上游 stream.py:303：flv_url = rtmp_url/rtmp_live
+        val json = JSONObject().apply {
+            put("data", JSONObject().apply {
+                put("nickname", "测试主播")
+                put("rtmp_url", "https://flv.douyucdn.cn/live")
+                put("rtmp_live", "631134abc.flv")
+                put("hls_url", "https://txy/live.m3u8")
+            })
+        }.toString()
+        val info = DouyuSpider().parseH5PlayResponse(json, "631134")
+        assertEquals("https://txy/live.m3u8", info.streamUrl)
+        assertEquals("https://flv.douyucdn.cn/live/631134abc.flv", info.flvUrl)
+    }
+
+    @Test
     fun parseH5PlayResponse_noStream() {
         val json = """{"data":{"nickname":"离线"}}"""
         assertNull(DouyuSpider().parseH5PlayResponse(json, "631134").streamUrl)
