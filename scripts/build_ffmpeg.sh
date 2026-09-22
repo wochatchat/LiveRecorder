@@ -66,7 +66,7 @@ fi
 echo "NDK_DIR=$NDK_DIR"
 echo "TOOLCHAIN=$TOOLCHAIN"
 
-SYSROOT=$NDK_DIR/sysroot
+SYSROOT=$TOOLCHAIN/../sysroot
 API=26
 
 # ---------------------------------------------------------------------------
@@ -156,7 +156,6 @@ export LD=$TOOLCHAIN/bin/ld.lld
   --target-os=android \
   --arch=$ARCH \
   --cpu=generic \
-  --sysroot=$SYSROOT \
   --cc=$CC \
   --cxx=$CXX \
   --ar=$TOOLCHAIN/bin/llvm-ar \
