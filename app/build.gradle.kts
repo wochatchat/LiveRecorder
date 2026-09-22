@@ -97,6 +97,11 @@ android {
     }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        // Phase 3-3g: ffmpeg 二进制（libffmpeg.so）不是标准 .so 不 strip；
+        // quickjs .so 已经 llvm-strip，这里不再处理。
+        jniLibs {
+            keepDebugSymbols += "**/libffmpeg.so"
+        }
     }
 }
 

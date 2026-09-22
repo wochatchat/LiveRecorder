@@ -5,6 +5,7 @@ import com.wochatchat.liverecorder.monitor.MonitorLoop
 import com.wochatchat.liverecorder.platform.PlatformRouter
 import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
 import com.wochatchat.liverecorder.platform.douyu.DouyuSpider
+import com.wochatchat.liverecorder.recorder.FfmpegRecorder
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.data.MonitorStore
 import com.wochatchat.liverecorder.push.HttpPusher
@@ -52,7 +53,16 @@ class RecorderApp : Application() {
         val spider = DouyinSpider()
         val router = PlatformRouter(spider, DouyuSpider())
         val pusher = HttpPusher()
-        recordController = RecordController(baseDir = File(filesDir, "downloads"), fetchInfo = { router.fetchStreamInfo(it) })
+        // 3g：ffmpeg 分段录制（m3u8 必须 + FLV 分段）
+        val ffmpegBin = File(nativeLibraryDir, "libffmpeg.so")
+        val ffmpegRecorder = if (ffmpegBin.exists()) {
+            FfmpegRecorder(ffmpegBin = ffmpegBin, scope = appScope)
+        } else null
+        recordController = RecordController(
+            baseDir = File(filesDir, "downloads"),
+            fetchInfo = { router.fetchStreamInfo(it) },
+            ffmpeg = ffmpegRecorder,
+        )
         monitorLoop = MonitorLoop(
             check = { url -> router.fetchStreamInfo(url) },
             isRecording = { url -> recordController.isActive(url) },
