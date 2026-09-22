@@ -16,7 +16,6 @@ package com.wochatchat.liverecorder.platform.douyu
 
 import com.wochatchat.liverecorder.net.LiveHttpClient
 import org.json.JSONObject
-import java.net.URLEncoder
 
 /** 斗鱼爬虫：房间信息查询 + 流地址获取 */
 class DouyuSpider(
@@ -51,16 +50,16 @@ class DouyuSpider(
      * @return DouyuInfo（主播昵称 / 开播状态 / 标题 / 房间号）
      * @throws IllegalStateException 网络请求或解析失败
      */
-    fun getDouyuInfo(url: String): DouyuInfo {
+    suspend fun getDouyuInfo(url: String): DouyuInfo {
         val rid = parseRidFromUrl(url)
             ?: throw IllegalStateException("douyu: cannot parse rid from url: $url")
 
         // ① 抓 m.douyu.com 获取真实 rid（vike_pageContext 内嵌 JSON 含 room_id）
-        val mHtml = client.get(mRoomUrl(rid), headers = M_HEADERS)
+        val mHtml = client.get(mRoomUrl(rid), headers = M_HEADERS).text
         val actualRid = extractActualRid(mHtml, rid)
 
         // ② 抓 betard 接口获取房间信息
-        val json = client.get(betardUrl(actualRid), headers = M_HEADERS)
+        val json = client.get(betardUrl(actualRid), headers = M_HEADERS).text
         return parseBetardInfo(json)
     }
 
@@ -71,14 +70,14 @@ class DouyuSpider(
      * @param did 设备 ID（默认走 DouyuSign.DEFAULT_DID）
      * @param t10 时间戳（默认当前时间十位字符串）
      */
-    fun getDouyuStreamData(
+    suspend fun getDouyuStreamData(
         rid: String,
         rate: String = "-1",
         did: String = DouyuSign.DEFAULT_DID,
         t10: String = (System.currentTimeMillis() / 1000).toString(),
     ): DouyuStreamInfo {
         // ① 抓 m.douyu.com 用于签名提取
-        val mHtml = client.get(mRoomUrl(rid), headers = M_HEADERS)
+        val mHtml = client.get(mRoomUrl(rid), headers = M_HEADERS).text
         val actualRid = extractActualRid(mHtml, rid)
 
         // ② 生成签名参数
@@ -86,9 +85,17 @@ class DouyuSpider(
         require(paramsList.size == 4) { "douyu: expected 4 token params, got ${paramsList.size}" }
         val (v, _, tt, sign) = paramsList
 
-        // ③ POST 获取流 URL
-        val formData = buildFormData(actualRid, v, did, tt, sign, rate)
-        val json = client.postJson(h5playUrl(actualRid), formData, M_HEADERS)
+        // ③ POST 获取流 URL（上游 form-encoded，不是 json）
+        val formData = mapOf(
+            "v" to v,
+            "did" to did,
+            "tt" to tt,
+            "sign" to sign,
+            "ver" to "22011191",
+            "rid" to actualRid,
+            "rate" to rate,
+        )
+        val json = client.postForm(h5playUrl(actualRid), M_HEADERS, formData).text
         return parseH5PlayResponse(json, actualRid)
     }
 
@@ -135,18 +142,6 @@ class DouyuSpider(
             roomId = roomId,
         )
     }
-
-    /** 构造 getH5Play POST body */
-    private fun buildFormData(rid: String, v: String, did: String, tt: String, sign: String, rate: String): Map<String, String> =
-        mapOf(
-            "v" to v,
-            "did" to did,
-            "tt" to tt,
-            "sign" to sign,
-            "ver" to "22011191",
-            "rid" to rid,
-            "rate" to rate,
-        )
 
     /** 解析 getH5Play 返回流信息（支持 flv/hls） */
     internal fun parseH5PlayResponse(jsonStr: String, rid: String): DouyuStreamInfo {
