@@ -1,0 +1,177 @@
+name: Build FFmpeg
+
+# 手动触发；也可被 build.yml / build-test.yml 用 workflow_call 复用
+on:
+  workflow_dispatch:
+    inputs:
+      abi:
+        description: 'ABI to build'
+        required: true
+        default: 'arm64-v8a'
+        type: choice
+        options:
+          - arm64-v8a
+          - armeabi-v7a
+          - x86_64
+
+concurrency:
+  group: build-ffmpeg-${{ inputs.abi || 'arm64-v8a' }}
+  cancel-in-progress: true
+
+env:
+  FFMPEG_VERSION: n9.0.2
+  MBEDTLS_VERSION: yotta-2.3.2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Resolve NDK
+        id: ndk
+        run: |
+          NDK_DIR=""
+          if [[ -d "${ANDROID_HOME:-}/ndk" ]]; then
+            NDK_DIR=$(ls -d $ANDROID_HOME/ndk/*/toolchains/llvm/prebuilt/linux-x86_64 2>/dev/null | head -1 | xargs dirname)
+          fi
+          if [[ -z "$NDK_DIR" ]] && [[ -d /opt/android/ndk ]]; then
+            NDK_DIR=$(ls -d /opt/android/ndk/*/toolchains/llvm/prebuilt/linux-x86_64 2>/dev/null | head -1 | xargs dirname)
+          fi
+          if [[ -z "$NDK_DIR" ]]; then
+            echo "下载 android-ndk-r27..."
+            curl -fsSL "https://dl.google.com/android/repository/android-ndk-r27-linux.zip" -o /tmp/ndk.zip
+            unzip -oq /tmp/ndk.zip -d /tmp/
+            NDK_DIR=/tmp/android-ndk-r27
+          fi
+          echo "NDK_DIR=$NDK_DIR"
+          echo "NDK_DIR=$NDK_DIR" >> $GITHUB_OUTPUT
+          echo "TOOLCHAIN=$NDK_DIR/toolchains/llvm/prebuilt/linux-x86_64" >> $GITHUB_OUTPUT
+
+      - name: Build mbedtls
+        env:
+          MB_INSTALL: /tmp/ffmpeg-cache/mbedtls
+          MBEDTLS_VERSION: ${{ env.MBEDTLS_VERSION }}
+        run: |
+          mkdir -p $MB_INSTALL/lib $MB_INSTALL/include $MB_INSTALL/lib/pkgconfig
+          if [[ -f $MB_INSTALL/lib/libmbedtls.a ]]; then
+            echo "mbedtls 命中缓存，跳过"
+          else
+            echo "下载并构建 mbedtls $MBEDTLS_VERSION..."
+            curl -fsSL \
+              "https://github.com/Mbed-TLS/mbedtls/archive/refs/tags/$MBEDTLS_VERSION.tar.gz" \
+              -o /tmp/mbedtls.tar.gz
+            mkdir -p /tmp/mbedtls-src && tar -xzf /tmp/mbedtls.tar.gz -C /tmp/mbedtls-src --strip-components=1
+            cd /tmp/mbedtls-src
+            CFLAGS="-fPIC -O2" make -j$(nproc) clean lib
+            cp library/*.a $MB_INSTALL/lib/
+            cp -r include/* $MB_INSTALL/include/
+            mkdir -p "$MB_INSTALL/lib/pkgconfig"
+          printf 'prefix=/tmp/ffmpeg-cache/mbedtls\nexec_prefix=${prefix}\nlibdir=${exec_prefix}/lib\nincludedir=${prefix}/include\nName: mbedtls\nVersion: 3.6.2\nLibs: -L${libdir} -lmbedtls -lmbedx509 -lmbedcrypto\nCflags: -I${includedir}\n' > "$MB_INSTALL/lib/pkgconfig/mbedtls.pc"
+          fi
+          ls $MB_INSTALL/lib/
+
+      - name: Build ffmpeg
+        env:
+          ABI: ${{ inputs.abi }}
+          ANDROID_NDK_DIR: ${{ steps.ndk.outputs.NDK_DIR }}
+          TOOLCHAIN: ${{ steps.ndk.outputs.TOOLCHAIN }}
+          MB_INSTALL: /tmp/ffmpeg-cache/mbedtls
+          FFMPEG_VERSION: ${{ env.FFMPEG_VERSION }}
+          BUILD_DIR: /tmp/ffmpeg-build
+        run: |
+          set -euo pipefail
+          echo "===== Build ffmpeg $FFMPEG_VERSION for $ABI ====="
+          mkdir -p $BUILD_DIR/src $BUILD_DIR/out
+
+          # Clone ffmpeg
+          if [[ ! -d $BUILD_DIR/src/ffmpeg/.git ]]; then
+            git clone --depth=1 --branch $FFMPEG_VERSION \
+              https://github.com/FFmpeg/FFmpeg.git $BUILD_DIR/src/ffmpeg
+          fi
+
+          # ABI mapping
+          case "$ABI" in
+            arm64-v8a)   ARCH=aarch64;  TARGET=aarch64-linux-android ;;
+            armeabi-v7a) ARCH=arm;      TARGET=armv7a-linux-androideabi ;;
+            x86_64)      ARCH=x86_64;   TARGET=x86_64-linux-android ;;
+            *) echo "unknown ABI"; exit 1 ;;
+          esac
+
+          SYSROOT=$TOOLCHAIN/../sysroot
+          CC=$TOOLCHAIN/bin/clang
+          CXX=$TOOLCHAIN/bin/clang++
+
+          echo "Compiler: $($CC --version | head -1)"
+          export CC CXX SYSROOT PKG_CONFIG_PATH=/tmp/ffmpeg-cache/mbedtls/lib/pkgconfig
+          cd $BUILD_DIR/src/ffmpeg
+          git submodule update --init --recursive 2>/dev/null || true
+
+          ./configure \
+            --prefix=$BUILD_DIR/out \
+            --enable-cross-compile \
+            --cross-prefix="$TOOLCHAIN/bin/$TARGET-" \
+            --target-os=android \
+            --arch=$ARCH \
+            --cpu=generic \
+            --sysroot=$SYSROOT \
+            --cc=$CC \
+            --cxx=$CXX \
+            --ar=$TOOLCHAIN/bin/llvm-ar \
+            --ranlib=$TOOLCHAIN/bin/llvm-ranlib \
+            --strip=$TOOLCHAIN/bin/llvm-strip \
+            --nm=$TOOLCHAIN/bin/llvm-nm \
+            --pkg-config=pkg-config \
+            --extra-cflags="$EXTRA_CFLAGS" \
+            --extra-ldflags="$EXTRA_LDFLAGS" \
+            --disable-autodetect \
+            --enable-gpl \
+            --enable-version3 \
+            --disable-doc \
+            --disable-programs \
+            --enable-small \
+            --disable-symver \
+            --disable-everything \
+            --enable-network \
+            --enable-demuxer=flv,mpegts,hls,mov,mp4,aac,m4a,matroska,webm \
+            --enable-muxer=mp4,adts,mpegts,segment,flv,matroska,webm,null \
+            --enable-protocol=file,http,https,tcp,tls,crypto,data \
+            --enable-bsf=aac_adtstoasc,h264_mp4toannexb,hevc_mp4toannexb \
+            --enable-parser=aac,h264,hevc \
+            --enable-mbedtls \
+            --disable-openssl \
+            --disable-gnutls \
+            --disable-avdevice \
+            --disable-avfilter \
+            --disable-swresample \
+            --disable-swscale \
+            --disable-postproc \
+            --disable-devices \
+            2>&1 | tee $BUILD_DIR/config.log | tail -8
+
+          echo "checking config..."
+          grep -E "^#define CONFIG_(FLV|MP4|MPEGTS|HLS)_DEMUXER 1" config.h | head || true
+          grep "^#define CONFIG_MBEDTLS 1" config.h || echo "WARNING: mbedtls not enabled"
+
+          make -j$(nproc) V=1 2>&1 | tee $BUILD_DIR/build.log | tail -5
+          ls -lh ffmpeg
+
+          cp ffmpeg $BUILD_DIR/out/libffmpeg.so
+          $TOOLCHAIN/bin/llvm-strip -s $BUILD_DIR/out/libffmpeg.so
+
+          echo "=== ffmpeg version ==="
+          $BUILD_DIR/out/libffmpeg.so -version | head -3 || echo "(binary not directly runnable on x86_64 runner — skip)"
+
+          echo "=== artifact ==="
+          ls -lh $BUILD_DIR/out/
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ inputs.abi }}
+          path: /tmp/ffmpeg-build/out/libffmpeg.so
+          retention-days: 3
