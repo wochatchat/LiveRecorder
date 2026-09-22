@@ -23,7 +23,8 @@ class DouyuSpider(
     private val jsEngine: (String) -> String = { code -> com.wochatchat.liverecorder.sign.QuickJsEngine.eval(code) },
 ) {
     companion object {
-        private val RE_RID = Regex("""rid=(.*?)(?:&|$)|douyu\.com/(\d+)""")
+        private val RE_RID_PARAM = Regex("""rid=(.*?)(?=&|$)""")
+        private val RE_RID_PATH = Regex("""douyu\.com/(\d+)""")
         private const val BETARD_API = "https://www.douyu.com/betard/%s"
         private const val H5PLAY_API = "https://www.douyu.com/lapi/live/getH5Play/%s"
         private const val M_ROOM_URL = "https://m.douyu.com/%s"
@@ -34,13 +35,11 @@ class DouyuSpider(
         private const val VIDEO_LOOP = 0  // 非循环播放（录播材料）
         private const val LIVE_SHOW_STATUS = 1  // show_status=1 才算开播
 
-        /** 提取 URL 中的房间号（支持 rid=xxx 或 douyu.com/xxx 格式） */
+        /** 提取 URL 中的房间号（上游优先级：rid= 参数 → douyu.com/ 纯数字路径段） */
         fun parseRidFromUrl(url: String): String? {
-            RE_RID.find(url)?.groupValues?.let { g ->
-                return g.getOrNull(1)?.takeIf { it.isNotBlank() }
-                    ?: g.getOrNull(2)?.takeIf { it.isNotBlank() }
-            }
-            return null
+            RE_RID_PARAM.find(url)?.groupValues?.get(1)
+                ?.takeIf { it.isNotBlank() }?.let { return it }
+            return RE_RID_PATH.find(url)?.groupValues?.get(1)
         }
     }
 
@@ -134,7 +133,7 @@ class DouyuSpider(
                 room.optInt("show_status") == LIVE_SHOW_STATUS
         val anchorName = room.optString("nickname", "未知主播")
         val title = if (isLive) room.optString("roomName", "").replace("&nbsp;", " ") else null
-        val roomId = room.optString("roomId", null)
+        val roomId = room.optString("room_id", null)
         return DouyuInfo(
             anchorName = anchorName,
             isLive = isLive,

@@ -37,13 +37,14 @@ object DouyuSign {
 
     /**
      * 从房间页 HTML 提取签名脚本（上游语义，带回退）。
-     * 供 getTokenJs 与单测复用；提取失败返回 null。
+     * 优先 crp-stript 块内文（m 站路径；全 HTML 贪婪正则会跨 </script> 拼进
+     * vike_pageContext.crptext 的 JSON 转义文本，产出无效 JS），失配再全文匹配。
      */
     fun extractSignScript(roomHtml: String): String? {
-        val fromFull = runCatching { RE_SIGN_BLOCK.find(roomHtml)?.groupValues?.get(1) }.getOrNull()
-        if (fromFull != null) return fromFull
-        val body = extractCrpScript(roomHtml) ?: return null
-        return RE_SIGN_BLOCK.find(body)?.groupValues?.get(1)
+        val fromCrp = extractCrpScript(roomHtml)
+            ?.let { body -> runCatching { RE_SIGN_BLOCK.find(body)?.groupValues?.get(1) }.getOrNull() }
+        if (fromCrp != null) return fromCrp
+        return runCatching { RE_SIGN_BLOCK.find(roomHtml)?.groupValues?.get(1) }.getOrNull()
     }
 
     /** 提取 <script id="crp-stript"> ... </script> 内文（m 站路径） */

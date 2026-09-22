@@ -48,11 +48,13 @@ class DouyuSpiderTest {
 
     @Test
     fun parseRidFromUrl_ridParam() {
-        assertEquals("631134", DouyuSpider.parseRidFromUrl("https://www.douyu.com/betard/631134"))
+        // rid= 参数优先（上游 match_rid 语义）
         assertEquals(
             "3125893",
             DouyuSpider.parseRidFromUrl("https://m.douyu.com/3125893?rid=3125893&dyshid=0-96003918aa5365bc6dcb4933000316p1")
         )
+        // 路径段只认纯数字（betard/xxx 等 API 路径不是房间链接）
+        assertNull(DouyuSpider.parseRidFromUrl("https://www.douyu.com/betard/631134"))
     }
 
     @Test
