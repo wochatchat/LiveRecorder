@@ -167,7 +167,8 @@ export LD=$TOOLCHAIN/bin/ld.lld
   --enable-gpl \
   --enable-version3 \
   --disable-doc \
-  --disable-programs \
+  --disable-ffprobe \
+  --disable-ffplay \
   --enable-small \
   --disable-symver \
   --disable-everything \
@@ -184,7 +185,6 @@ export LD=$TOOLCHAIN/bin/ld.lld
   --disable-avfilter \
   --disable-swresample \
   --disable-swscale \
-  --disable-postproc \
   --disable-devices
 
 # ---------------------------------------------------------------------------
