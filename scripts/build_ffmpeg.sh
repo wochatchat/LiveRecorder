@@ -190,11 +190,11 @@ export LD=$TOOLCHAIN/bin/ld.lld
   --enable-protocol=file,http,https,tcp,tls,crypto,data \
   --enable-bsf=aac_adtstoasc,h264_mp4toannexb,hevc_mp4toannexb \
   --enable-parser=aac,h264,hevc \
+  --enable-filter=aformat,anull,atrim,crop \
   --enable-mbedtls \
   --disable-openssl \
   --disable-gnutls \
   --disable-avdevice \
-  --disable-avfilter \
   --disable-swresample \
   --disable-swscale \
   --disable-devices || {
