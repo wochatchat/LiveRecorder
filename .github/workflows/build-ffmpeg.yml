@@ -24,7 +24,7 @@ concurrency:
 
 env:
   FFMPEG_VERSION: n9.0.2
-  MBEDTLS_VERSION: yotta-2.3.2
+  MBEDTLS_VERSION: mbedtls-3.6.2
 
 jobs:
   build:
