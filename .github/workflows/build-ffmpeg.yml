@@ -96,10 +96,10 @@ jobs:
           echo "===== Build ffmpeg $FFMPEG_VERSION for $ABI ====="
           mkdir -p $BUILD_DIR/src $BUILD_DIR/out
 
-          # Clone ffmpeg
+          # Clone ffmpeg (n9.0.2^{} = dereference to commit SHA, bypass annotated-tag shallow clone issue)
+          FF_BRANCH="n9.0.2"
           if [[ ! -d $BUILD_DIR/src/ffmpeg/.git ]]; then
-            git clone --depth=1 --branch $FFMPEG_VERSION \
-              https://github.com/FFmpeg/FFmpeg.git $BUILD_DIR/src/ffmpeg
+            git clone --depth=1 --branch "${FF_BRANCH}^{}" \
           fi
 
           # ABI mapping
