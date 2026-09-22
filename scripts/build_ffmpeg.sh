@@ -66,7 +66,7 @@ fi
 echo "NDK_DIR=$NDK_DIR"
 echo "TOOLCHAIN=$TOOLCHAIN"
 
-SYSROOT=$TOOLCHAIN/../sysroot
+SYSROOT=$TOOLCHAIN/sysroot
 API=26
 
 # ---------------------------------------------------------------------------
