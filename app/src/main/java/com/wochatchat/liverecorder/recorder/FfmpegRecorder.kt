@@ -1,7 +1,9 @@
 package com.wochatchat.liverecorder.recorder
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -12,6 +14,9 @@ import java.io.InputStreamReader
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/** 进度回调：估算累计字节数（可在 IO 线程调用）。 */
+typealias ProgressCallback = (estimatedBytes: Long) -> Unit
 
 /**
  * FFmpeg 分段录制核心引擎（Phase 3-3g）。
@@ -39,9 +44,6 @@ class FfmpegRecorder(
         val estimatedBytes: Long,
     )
 
-    /** 进度回调：当前估算累计字节数（可在 IO 线程调用）。 */
-    typealias ProgressCallback = (estimatedBytes: Long) -> Unit
-
     /**
      * 分段录制直播流。
      * @param sourceUrl   直播流地址（m3u8 或 flv）
@@ -65,7 +67,6 @@ class FfmpegRecorder(
             SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
         }"
 
-        // 选择输出格式（对齐 main.py:1367 条件分支）
         val isM3u8 = sourceUrl.contains(".m3u8") || sourceUrl.contains(".ts")
         val extension = if (isM3u8) "ts" else "flv"
         val segmentFormat = if (isM3u8) "mpegts" else "flv"
@@ -104,7 +105,6 @@ class FfmpegRecorder(
         }
 
         try {
-            // 等待 ffmpeg 结束（协程 cancel → process.destroyForcibly）
             val exitCode = process.waitFor()
             progressJob.cancel()
 
@@ -117,9 +117,7 @@ class FfmpegRecorder(
                 f.name.startsWith(baseName) && f.name.endsWith(".$extension")
             }?.sortedBy { it.name } ?: emptyList()
 
-            // 进程退出后获取更精确的文件大小
             val totalBytes = segments.sumOf { it.length() }.coerceAtLeast(estimatedBytes)
-
             RecordResult(segments, totalBytes)
         } finally {
             progressJob.cancel()
@@ -163,29 +161,22 @@ class FfmpegRecorder(
         add("-segment_format"); add(segmentFormat)
         add("-reset_timestamps"); add("1")
 
-        add(outputPath)   // 含 %03d，ffmpeg 自动编号
+        add(outputPath)
     }
 
     /**
      * 解析 ffmpeg stderr 行，提取估算字节数。
-     *
-     * ffmpeg frame= 行示例（hls）：
-     *   frame=  123 fps=30 q=-0.0 size=    2048kB time=00:10:30.00 bitrate=  123.4kbits/s
-     * ffmpeg (general)：
-     *   frame=  456 fps=30 q=-0.0 size=    8192kB time=00:05:00.00 bitrate=  128.0kbits/s
-     *
-     * `size=NNNkB` 在 segment 模式下是当前分片字节数，累加已开启的分片估算总大小。
+     * `frame=  123 fps=30 q=-0.0 size=    2048kB time=00:10:30.00 bitrate=  123.4kbits/s`
      */
     private fun parseProgress(line: String, onBytes: (Long) -> Unit) {
         if (!line.startsWith("frame=")) return
-        // 提取 "size=    NNNNkB" 或 "size=    NNNNkB "
         val sizeMatch = SIZE_RE.find(line) ?: return
         val kb = sizeMatch.groupValues[1].toLongOrNull() ?: return
         onBytes(kb * 1024)
     }
 
     private companion object {
-        const val DEFAULT_SEGMENT_SEC = 1800  // 30 min，对齐上游 config.ini 默认值
+        const val DEFAULT_SEGMENT_SEC = 1800
         const val DEFAULT_UA = "Mozilla/5.0 (Linux; Android 11; Pixel 5) " +
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36"
         private val SIZE_RE = Regex("""size=\s*(\d+)kB""")

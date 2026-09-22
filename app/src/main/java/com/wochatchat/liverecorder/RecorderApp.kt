@@ -54,7 +54,7 @@ class RecorderApp : Application() {
         val router = PlatformRouter(spider, DouyuSpider())
         val pusher = HttpPusher()
         // 3g：ffmpeg 分段录制（m3u8 必须 + FLV 分段）
-        val ffmpegBin = File(nativeLibraryDir, "libffmpeg.so")
+        val ffmpegBin = File(applicationInfo.nativeLibraryDir, "libffmpeg.so")
         val ffmpegRecorder = if (ffmpegBin.exists()) {
             FfmpegRecorder(ffmpegBin = ffmpegBin, scope = appScope)
         } else null
