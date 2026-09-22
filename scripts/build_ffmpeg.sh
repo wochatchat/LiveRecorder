@@ -67,8 +67,10 @@ echo "NDK_DIR=$NDK_DIR"
 echo "TOOLCHAIN=$TOOLCHAIN"
 
 SYSROOT=$TOOLCHAIN/../sysroot
-CC=$TOOLCHAIN/bin/clang
-CXX=$TOOLCHAIN/bin/clang++
+# API 级 wrapper 自带 --target=…-android26（app minSdk=26），裸 clang 会因缺 --target 链接失败
+API=26
+CC=$TOOLCHAIN/bin/${TARGET}${API}-clang
+CXX=$TOOLCHAIN/bin/${TARGET}${API}-clang++
 
 # ---------------------------------------------------------------------------
 # 2. ABI → 交叉编译参数
