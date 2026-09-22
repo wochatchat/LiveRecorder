@@ -98,21 +98,36 @@ if [[ ! -f $MB_INSTALL/lib/libmbedtls.a ]]; then
   tar -xzf /tmp/mbedtls.tar.gz -C /tmp/mbedtls-src --strip-components=1
 
   cd /tmp/mbedtls-src
-  # 关键：必须用 NDK 交叉编译器，否则产出宿主 x86_64 静态库，链接 ffmpeg 时报 incompatible
-  CC="$CC" AR="$TOOLCHAIN/bin/llvm-ar" CFLAGS="-fPIC -O2 --sysroot=$SYSROOT" make -j$(nproc) clean lib
-  cp library/*.a $MB_INSTALL/lib/
-  cp -r include/* $MB_INSTALL/include/
 
-  cat > "$MB_INSTALL/lib/pkgconfig/mbedtls.pc" <<'PKGEOF'
-prefix=/tmp/ffmpeg-mbedtls-install
-exec_prefix=${prefix}
-libdir=${exec_prefix}/lib
-includedir=${prefix}/include
+  # mbedtls 3.x 使用 cmake；framework 子模块是测试框架，非库编译必须
+  #   cmake 默认禁用测试，跳过 framework 依赖
+  mkdir -p build && cd build
+  cmake .. \
+    -DCMAKE_BUILD_TYPE=Release \
+    -DCMAKE_INSTALL_PREFIX=$MB_INSTALL \
+    -DCMAKE_C_COMPILER="$CC" \
+    -DCMAKE_AR=$TOOLCHAIN/bin/llvm-ar \
+    -DCMAKE_RANLIB=$TOOLCHAIN/bin/llvm-ranlib \
+    -DCMAKE_C_FLAGS="-fPIC -O2 --sysroot=$SYSROOT" \
+    -DENABLE_TESTING=OFF \
+    -DUSE_SHARED_MBEDTLS_LIBRARY=OFF
+  cmake --build . --target mbedcrypto mbedtls mbedx509 -j$(nproc)
+  cmake --install . --prefix $MB_INSTALL
+
+  # pkg-config 文件由 cmake install 生成；若没有则自建
+  if [[ ! -f $MB_INSTALL/lib/pkgconfig/mbedtls.pc ]]; then
+    mkdir -p $MB_INSTALL/lib/pkgconfig
+    cat > "$MB_INSTALL/lib/pkgconfig/mbedtls.pc" <<PKGEOF
+prefix=$MB_INSTALL
+exec_prefix=\${prefix}
+libdir=\${exec_prefix}/lib
+includedir=\${prefix}/include
 Name: mbedtls
 Version: 3.6.2
-Libs: -L${libdir} -lmbedtls -lmbedx509 -lmbedcrypto
-Cflags: -I${includedir}
+Libs: -L\${libdir} -lmbedtls -lmbedx509 -lmbedcrypto
+Cflags: -I\${includedir}
 PKGEOF
+  fi
 
   echo "mbedtls built"
 fi
