@@ -187,7 +187,11 @@ export LD=$TOOLCHAIN/bin/ld.lld
   --disable-avfilter \
   --disable-swresample \
   --disable-swscale \
-  --disable-devices
+  --disable-devices || {
+  echo "===== configure FAILED, printing ffbuild/config.log tail ====="
+  tail -100 $FF_SRC/ffbuild/config.log || true
+  exit 1
+}
 
 # ---------------------------------------------------------------------------
 # 6. 编译
