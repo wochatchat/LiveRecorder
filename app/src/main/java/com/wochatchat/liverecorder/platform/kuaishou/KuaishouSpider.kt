@@ -129,7 +129,7 @@ class KuaishouSpider(
             "Accept-Language" to ACCEPT_LANGUAGE,
             "Referer" to API2_REFERER,
             "content-type" to API2_CONTENT_TYPE,
-            "Cookie" to cookie.takeUnless { it.isNullOrBlank() } ?: API2_DID_COOKIE,
+            "Cookie" to (cookie.takeUnless { it.isNullOrBlank() } ?: API2_DID_COOKIE),
         )
         val body = JSONObject()
             .put("source", 5)
