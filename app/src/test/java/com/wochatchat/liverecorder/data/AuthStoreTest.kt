@@ -11,7 +11,7 @@ class AuthStoreTest {
     fun `parse splits on first equals`() {
         val map = AuthStore.parseCookieLines("douyin=ttwid=1|ab; ms=x=y\nhuya=a=b")
         assertEquals("ttwid=1|ab; ms=x=y", map["douyin"])
-        assertEquals("b", map["huya"])
+        assertEquals("a=b", map["huya"])
     }
 
     @Test
