@@ -47,8 +47,6 @@ class PlatformRouter(
 
         /** 上游 main.py:609：live.kuaishou.com → 快手直播链路。 */
         fun isKuaishouUrl(url: String): Boolean = url.contains("live.kuaishou.com/")
-        /** 上游 main.py:609：live.kuaishou.com → 快手直播链路。 */
-        fun isKuaishouUrl(url: String): Boolean = url.contains("live.kuaishou.com/")
 
         /** 上游 main.py:618：www.huya.com → 虎牙直播链路。 */
         fun isHuyaUrl(url: String): Boolean = url.contains("huya.com/")
