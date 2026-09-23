@@ -10,8 +10,10 @@
 package com.wochatchat.liverecorder.platform
 
 import com.wochatchat.liverecorder.net.LiveHttpClient
+import com.wochatchat.liverecorder.platform.bilibili.BilibiliSpider
 import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
 import com.wochatchat.liverecorder.platform.douyu.DouyuSpider
+import com.wochatchat.liverecorder.platform.huya.HuyaSpider
 import com.wochatchat.liverecorder.sign.RhinoJsEngine
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
@@ -64,6 +66,8 @@ class PlatformRouterTest {
         douyuSpider = com.wochatchat.liverecorder.platform.douyu.DouyuSpider(
             client, jsEngine = { code -> com.wochatchat.liverecorder.sign.RhinoJsEngine.eval(code) },
         ),
+        huyaSpider = com.wochatchat.liverecorder.platform.huya.HuyaSpider(client),
+        bilibiliSpider = com.wochatchat.liverecorder.platform.bilibili.BilibiliSpider(client),
     )
 
     private fun liveH5play(rate: String) = """{"data":{"nickname":"测试主播","rate":"$rate",
@@ -128,5 +132,106 @@ class PlatformRouterTest {
             routerWith(client).fetchStreamInfo("https://www.douyu.com/631134", qualityCode)
             assertEquals("画质码 $qualityCode → rate", expectedRate, client.postedRate.get())
         }
+    }
+
+// ---- 4. 虎牙路由（HuyaSpider web 路径 + app 路径）----
+
+    private val huyaWebLive = """<script>stream: {"data":[{"gameLiveInfo":{"nick":"虎牙主播","introduction":"虎牙标题"},
+        "gameStreamInfoList":[{"sCdnType":"AL","sFlvUrl":"http://al.flv.huya.com/src","sHlsUrl":"http://al.hls.huya.com/src",
+        "sStreamName":"113524-abc-1-10057-A","sFlvAntiCode":"fm=bW9iaWxlXw&ctype=tars_mp&fs=bhct&exsphd=264_4000,264_2000,264_1000,264_800,264_600",
+        "sHlsAntiCode":"fm=x","sFlvUrlSuffix":"flv","sHlsUrlSuffix":"m3u8"}]}]},"iWebDefaultBitRate":0</script>"""
+
+    private val huyaAppLive = """{"data":{"profileInfo":{"nick":"App虎牙"},"liveData":{"introduction":"App标题"},
+        "realLiveStatus":"ON","stream":{"baseSteamInfoList":[
+            {"sCdnType":"TX","sFlvUrl":"tx.flv.huya.com/src","sHlsUrl":"tx.hls.huya.com/src",
+             "sStreamName":"113524-tx","sFlvAntiCode":"fm=y&ctype=tars_mp&fs=bhct",
+             "sHlsAntiCode":"fm=y","sFlvUrlSuffix":"flv","sHlsUrlSuffix":"m3u8"}
+        ]}}}"""
+
+    private class HuyaTestClient(private val webHtml: String, private val appJson: String) : LiveHttpClient() {
+        override suspend fun get(url: String, headers: Map<String, String>, timeoutSec: Long): HttpResult =
+            HttpResult(200, if (url.contains("mp.huya.com")) appJson else webHtml, url, emptyMap())
+    }
+
+    @Test
+    fun isHuyaUrl() {
+        assertTrue(PlatformRouter.isHuyaUrl("https://www.huya.com/113524"))
+        assertTrue(PlatformRouter.isHuyaUrl("https://live.huya.com/116"))
+        assertFalse(PlatformRouter.isHuyaUrl("https://www.douyu.com/631134"))
+    }
+
+    @Test
+    fun huyaOnline_flvRecordUrl() = runTest {
+        val router = PlatformRouter(huyaSpider = HuyaSpider(HuyaTestClient(huyaWebLive, huyaAppLive)))
+        // HD 走 web 路径 anti-code 重算 + ratio（exsphd[::-1][1] = 2000）
+        val info = router.fetchStreamInfo("https://www.huya.com/113524", "HD")
+        assertTrue(info.isLive)
+        assertEquals("虎牙主播", info.anchorName)
+        assertEquals("HD", info.quality)
+        assertTrue(info.flvUrl.contains("al.flv.huya.com"))
+        assertTrue(info.recordUrl.contains("&ratio="))
+        assertTrue(info.recordUrl.contains("ratio=800"))
+    }
+
+    @Test
+    fun huyaOD_usesAppPath() = runTest {
+        val router = PlatformRouter(huyaSpider = HuyaSpider(HuyaTestClient(huyaWebLive, huyaAppLive)))
+        val info = router.fetchStreamInfo("https://www.huya.com/113524", "OD")
+        assertTrue(info.isLive)
+        // OD 走 app 路径：TX 优先 + https 强转 + ctype 替换
+        assertTrue(info.recordUrl.startsWith("https://tx.flv.huya.com/"))
+        assertTrue(info.recordUrl.contains("huya_webh5"))  // TX ctype 替换
+    }
+// ---- 5. B 站路由（room_init + playUrl）----
+
+    private class BiliTestClient(
+        private val roomInitJson: String,
+        private val masterInfoJson: String,
+        private val h5InfoJson: String,
+        private val playUrlJson: String,
+    ) : LiveHttpClient() {
+        override suspend fun get(url: String, headers: Map<String, String>, timeoutSec: Long): HttpResult =
+            HttpResult(200, when {
+                url.contains("room_init") -> roomInitJson
+                url.contains("Master/info") -> masterInfoJson
+                url.contains("getH5InfoByRoom") -> h5InfoJson
+                else -> playUrlJson
+            }, url, emptyMap())
+    }
+
+    @Test
+    fun isBilibiliUrl() {
+        assertTrue(PlatformRouter.isBilibiliUrl("https://live.bilibili.com/26066074"))
+        assertFalse(PlatformRouter.isBilibiliUrl("https://www.bilibili.com/video/BV1xx"))
+    }
+
+    @Test
+    fun bilibiliOnline_recordUrl() = runTest {
+        val client = BiliTestClient(
+            roomInitJson = """{"code":0,"data":{"uid":12345678,"live_status":1,"room_id":26066074}}""",
+            masterInfoJson = """{"code":0,"data":{"info":{"uname":"B站主播"}}}""",
+            h5InfoJson = """{"code":0,"data":{"room_info":{"title":"B站标题"}}}""",
+            playUrlJson = """{"code":0,"data":{"durl":[{"order":0,"url":"https://d1--cn-gotcha.bilibili.com/flv/test.flv"}]}}""",
+        )
+        val router = PlatformRouter(bilibiliSpider = BilibiliSpider(client))
+        val info = router.fetchStreamInfo("https://live.bilibili.com/26066074", "OD")
+        assertTrue(info.isLive)
+        assertEquals("B站主播", info.anchorName)
+        assertEquals("B站标题", info.title)
+        assertTrue(info.recordUrl.contains("d1--cn-gotcha"))
+    }
+
+    @Test
+    fun bilibiliOffline_noStream() = runTest {
+        val client = BiliTestClient(
+            roomInitJson = """{"code":0,"data":{"uid":12345678,"live_status":0,"room_id":26066074}}""",
+            masterInfoJson = """{"code":0,"data":{"info":{"uname":"离线主播"}}}""",
+            h5InfoJson = """{"code":0,"data":{"room_info":{"title":"离线标题"}}}""",
+            playUrlJson = "{}",
+        )
+        val router = PlatformRouter(bilibiliSpider = BilibiliSpider(client))
+        val info = router.fetchStreamInfo("https://live.bilibili.com/26066074", "OD")
+        assertFalse(info.isLive)
+        assertEquals("离线主播", info.anchorName)
     }
 }

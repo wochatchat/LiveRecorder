@@ -18,15 +18,19 @@
  */
 package com.wochatchat.liverecorder.platform
 
+import com.wochatchat.liverecorder.platform.bilibili.BilibiliSpider
 import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
 import com.wochatchat.liverecorder.platform.douyin.DouyinStreamInfo
 import com.wochatchat.liverecorder.platform.douyu.DouyuSpider
+import com.wochatchat.liverecorder.platform.huya.HuyaSpider
 import com.wochatchat.liverecorder.platform.kuaishou.KuaishouSpider
 
 class PlatformRouter(
     private val douyinSpider: DouyinSpider = DouyinSpider(),
     private val douyuSpider: DouyuSpider = DouyuSpider(),
     private val kuaishouSpider: KuaishouSpider = KuaishouSpider(),
+    private val huyaSpider: HuyaSpider = HuyaSpider(),
+    private val bilibiliSpider: BilibiliSpider = BilibiliSpider(),
 ) {
     companion object {
         /** 斗鱼画质码映射（上游 stream.py get_douyu_stream_url video_quality_options）。 */
@@ -43,6 +47,14 @@ class PlatformRouter(
 
         /** 上游 main.py:609：live.kuaishou.com → 快手直播链路。 */
         fun isKuaishouUrl(url: String): Boolean = url.contains("live.kuaishou.com/")
+        /** 上游 main.py:609：live.kuaishou.com → 快手直播链路。 */
+        fun isKuaishouUrl(url: String): Boolean = url.contains("live.kuaishou.com/")
+
+        /** 上游 main.py:618：www.huya.com → 虎牙直播链路。 */
+        fun isHuyaUrl(url: String): Boolean = url.contains("huya.com/")
+
+        /** 上游 main.py:651：live.bilibili.com → B 站直播链路。 */
+        fun isBilibiliUrl(url: String): Boolean = url.contains("live.bilibili.com/")
     }
 
     /** 源分发 + 画质映射，一步到位（MonitorLoop 轮询与 RecordController 录制共用）。
@@ -55,6 +67,8 @@ class PlatformRouter(
     ): DouyinStreamInfo = when {
         isDouyuUrl(url) -> fetchDouyu(url, quality, proxyAddr)
         isKuaishouUrl(url) -> fetchKuaishou(url, quality, proxyAddr, cookies["kuaishou"])
+        isHuyaUrl(url) -> fetchHuya(url, quality, proxyAddr, cookies["huya"])
+        isBilibiliUrl(url) -> fetchBilibili(url, quality, proxyAddr, cookies["bilibili"])
         else -> douyinSpider.fetchStreamInfo(url, quality, proxyAddr)
     }
 
@@ -109,5 +123,64 @@ class PlatformRouter(
             flvUrl = play.flvUrl,
             recordUrl = play.flvUrl.ifEmpty { play.m3u8Url },
         )
+    }
+
+    /**
+     * 虎牙 → 抖音同构映射（main.py:618-630 + stream.py:210 get_huya_stream_url）：
+     * OD/BD/UHD → app 路径（TX CDN 优先预计算 URL）；HD/SD/LD → web 路径 + anti-code 重算。
+     * recordUrl 恒为 FLV（上游 record_url = flv_url or m3u8_url）。
+     */
+    private suspend fun fetchHuya(
+        url: String,
+        quality: String?,
+        proxyAddr: String?,
+        cookie: String?,
+    ): DouyinStreamInfo {
+        // 虎牙 selectStream 需要完整房间信息才能按画质选路径（web anti-code 重算 / app TX 优先）
+        val info = huyaSpider.getHuyaInfo(url, proxyAddr, cookie)
+        val play = huyaSpider.selectStream(info, quality)
+            ?: return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(
+            anchorName = play.anchorName,
+            isLive = true,
+            title = play.title,
+            quality = play.quality,
+            m3u8Url = play.m3u8Url,
+            flvUrl = play.flvUrl,
+            recordUrl = play.recordUrl,
+        )
+    }
+
+    /** B 站 → 抖音同构映射（room_init/Master/info + playUrl 直链）。 */
+    private suspend fun fetchBilibili(
+        url: String,
+        quality: String?,
+        proxyAddr: String?,
+        cookie: String?,
+    ): DouyinStreamInfo {
+        val info = bilibiliSpider.getRoomInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        val qn = biliQn(quality)
+        val playUrl = bilibiliSpider.getStreamData(url, qn, proxyAddr, cookie)
+        return DouyinStreamInfo(
+            anchorName = info.anchorName,
+            isLive = !playUrl.isNullOrEmpty(),
+            title = info.title,
+            quality = quality ?: "OD",
+            recordUrl = playUrl.orEmpty(),
+            flvUrl = playUrl.orEmpty(),
+        )
+    }
+
+    /** 画质码 → B 站 qn（上游 stream.py:360 video_quality_options）。 */
+    private fun biliQn(qualityCode: String?): String = when (qualityCode) {
+        "OD" -> "10000"
+        "BD" -> "400"
+        "UHD" -> "250"
+        "HD" -> "150"
+        "SD", "LD" -> "80"
+        else -> "10000"
     }
 }
