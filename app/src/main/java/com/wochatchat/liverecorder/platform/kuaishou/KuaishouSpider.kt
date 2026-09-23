@@ -160,9 +160,14 @@ class KuaishouSpider(
         } catch (e: Exception) {
             null
         } ?: return KsStreamData(type = 1, isLive = false)
+        // errorType 检查（上游 play_list.get('errorType')）
+        if ("\"errorType\"" in jsonStr) {
+            return KsStreamData(type = 2, isLive = false)
+        }
         val playList = try {
             val m = RE_PLAY_LIST.find(jsonStr) ?: return KsStreamData(type = 1, isLive = false)
-            JSONObject(m.groupValues[1] + "}")
+            // 正则捕获 liveStream 对象本身（末尾已是完整 JSON，勿追加任何后缀）
+            JSONObject(m.groupValues[1])
         } catch (e: Exception) {
             return KsStreamData(type = 1, isLive = false)
         }
@@ -203,11 +208,19 @@ class KuaishouSpider(
         if (!liveStream.optBoolean("living")) {
             return KsStreamData(type = 2, isLive = false, anchorName = anchorName)
         }
-        // multiResolution 双列表（存在才取）；备用直链 backup 上下游均不消费，本侧省略
-        val m3u8List = liveStream.optJSONObject("multiResolutionHlsPlayUrls")
-            ?.optJSONArray("urls")?.let { toStreamUrls(it) } ?: emptyList()
-        val flvList = liveStream.optJSONObject("multiResolutionPlayUrls")
-            ?.optJSONArray("urls")?.let { toStreamUrls(it) } ?: emptyList()
+        // multiResolution 双列表（存在才取）；各元素 urls 数组展开
+        val m3u8List = mutableListOf<KsStreamUrl>()
+        liveStream.optJSONArray("multiResolutionHlsPlayUrls")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                arr.optJSONObject(i)?.optJSONArray("urls")?.let { toStreamUrls(it) }?.let { m3u8List.addAll(it) }
+            }
+        }
+        val flvList = mutableListOf<KsStreamUrl>()
+        liveStream.optJSONArray("multiResolutionPlayUrls")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                arr.optJSONObject(i)?.optJSONArray("urls")?.let { toStreamUrls(it) }?.let { flvList.addAll(it) }
+            }
+        }
         return KsStreamData(
             type = 2,
             isLive = true,
@@ -259,7 +272,7 @@ class KuaishouSpider(
      * 返回 (url, 画质名)。
      */
     internal fun pickByBitrate(list: List<KsStreamUrl>, quality: String?): Pair<String, String> {
-        val sorted = list.sortedByDescending { it.bitrate ?: 0 }
+        val sorted = list.sortedByDescending { it.bitrate ?: Int.MIN_VALUE }
         val q = (quality ?: "").uppercase()
         val (name, threshold) = if (q.firstOrNull()?.isDigit() == true) {
             val idx = q.takeWhile { it.isDigit() }.toInt().coerceIn(0, QUALITY_KEYS.size - 1)
@@ -267,9 +280,8 @@ class KuaishouSpider(
         } else {
             q to QUALITY_MAPPING_BIT.getOrDefault(q, 99999)
         }
-        val chosen = sorted.indexOfFirst { (it.bitrate ?: 0) <= threshold }
-            .let { if (it < 0) sorted.size - 1 else it }
-        return sorted[chosen].url to name
+        val chosen = sorted.firstOrNull { (it.bitrate ?: Int.MIN_VALUE) <= threshold }
+        return (chosen ?: sorted.last()).url to name
     }
 
     /** 倒序 + 不足 5 档用末位补齐后按画质下标取（上游 while len < 5 append(-1) 语义）。 */

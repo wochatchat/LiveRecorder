@@ -155,10 +155,10 @@ class KuaishouSpiderTest {
             KuaishouSpider.KsStreamUrl("https://f.example.com/l3.flv"),
             KuaishouSpider.KsStreamUrl("https://f.example.com/l1.flv"),
         )
-        // 倒序 [l3, l0, l1]，不足 5 档补末位 → [l3, l0, l1, l1, l1]
-        assertEquals("https://f.example.com/l3.flv", spider.pickReversed(list, 0).url)
-        assertEquals("https://f.example.com/l0.flv", spider.pickReversed(list, 1).url)
-        assertEquals("https://f.example.com/l1.flv", spider.pickReversed(list, 2).url)
+        // 反转 [l0, l3, l1] → [l1, l3, l0]，不足 5 档用末位补齐 → [l1, l3, l0, l0, l0]
+        assertEquals("https://f.example.com/l1.flv", spider.pickReversed(list, 0).url)
+        assertEquals("https://f.example.com/l3.flv", spider.pickReversed(list, 1).url)
+        assertEquals("https://f.example.com/l0.flv", spider.pickReversed(list, 2).url)
         // 下标越界（不足 5 档，越界下标）→ 末档兜底
         val two = listOf(
             KuaishouSpider.KsStreamUrl("https://f.example.com/a.flv"),

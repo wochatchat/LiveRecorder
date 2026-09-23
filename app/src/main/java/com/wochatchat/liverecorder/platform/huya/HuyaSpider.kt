@@ -107,7 +107,7 @@ class HuyaSpider(
     internal fun parseWebResponse(html: String): HuyaInfo {
         val jsonStr = RE_STREAM.find(html)?.groupValues?.get(1) ?: return HuyaInfo()
         val data0 = runCatching {
-            val arr = JSONObject(jsonStr + "}").optJSONArray("data") ?: return@runCatching null
+            val arr = JSONObject(jsonStr + "]}").optJSONArray("data") ?: return@runCatching null
             arr.optJSONObject(0)
         }.getOrNull() ?: return HuyaInfo()
         val live = data0.optJSONObject("gameLiveInfo")
@@ -320,8 +320,10 @@ class HuyaSpider(
 
     /** 极简 query 解析（对齐 urllib.parse.parse_qs 的取值语义，值已 URL 解码）。 */
     internal fun parseQuery(antiCode: String): Map<String, String> =
-        antiCode.split("&").mapNotNull {
-            val i = it.indexOf('=')
-            if (i <= 0) null else it.substring(0, i) to it.substring(i + 1)
+        antiCode.split("&").mapNotNull { entry ->
+            val i = entry.indexOf('=')
+            if (i <= 0) null else entry.substring(0, i) to
+                runCatching { java.net.URLDecoder.decode(entry.substring(i + 1), "UTF-8") }
+                    .getOrElse { entry.substring(i + 1) }
         }.toMap()
 }
