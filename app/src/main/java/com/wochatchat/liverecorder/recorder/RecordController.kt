@@ -137,6 +137,8 @@ class RecordController(
 
                 val anchor = RecordSource.cleanName(info.anchorName)
                 val dir = File(File(baseDir, PLATFORM_DIR), anchor)
+                // ffmpeg 不会创建输出目录（OkHttp 路径由 StreamDownloader mkdirs），首次录制需先建
+                dir.mkdirs()
                 val headers = RecordSource.getRecordHeaders(platformName(url), url)
                     ?.let { mapOf(it.first to it.second) }
                     ?: emptyMap()
