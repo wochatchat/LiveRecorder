@@ -246,6 +246,7 @@ private fun MonitorItem(
     recordState: RecordController.RecordState?,
     monitorState: MonitorLoop.State?,
     disabled: Boolean,
+    unhealthy: Boolean = false,
     onRemove: () -> Unit,
     onEdit: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
