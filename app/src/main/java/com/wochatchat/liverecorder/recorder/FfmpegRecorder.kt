@@ -56,7 +56,7 @@ open class FfmpegRecorder(
      * @return 录制结果
      * @throws kotlinx.coroutines.CancellationException 协程被取消
      */
-    suspend fun record(
+    suspend open fun record(
         sourceUrl: String,
         outputDir: File,
         headers: Map<String, String>,
