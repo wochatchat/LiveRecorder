@@ -19,7 +19,8 @@ import java.util.Locale
 typealias ProgressCallback = (estimatedBytes: Long) -> Unit
 
 /**
- * FFmpeg 分段录制核心引擎（Phase 3-3g）。
+ * FFmpeg 分段录制核心引擎（Phase 3-3g 分段录制；Phase 3-3h 后期转换）。
+ * open：单测用子类替代真实 ffmpeg（模式同 LiveHttpClient）。
  * 纯 JVM，无 Android 依赖；[ffmpegBin] 由调用方从 nativeLibraryDir 注入。
  *
  * 对照上游 main.py:1254–1268 / 1366–1368 分段分支：
@@ -30,7 +31,7 @@ typealias ProgressCallback = (estimatedBytes: Long) -> Unit
  * - 进度估算来自 ffmpeg stderr 解析（`frame=` 行含 bytes 估算）
  * - 默认 1800s 分段（对齐上游 config.ini 默认值）
  */
-class FfmpegRecorder(
+open class FfmpegRecorder(
     private val ffmpegBin: File,
     private val scope: CoroutineScope,
     /** 协程睡眠点（单测注入，生产走 kotlinx.coroutines.delay）。 */
@@ -122,6 +123,60 @@ class FfmpegRecorder(
         } finally {
             progressJob.cancel()
             if (process.isAlive) process.destroyForcibly()
+        }
+    }
+
+    /**
+     * TS→MP4 容器级 remux（Phase 3-3h，对齐上游 converts_mp4 main.py:219-249）。
+     * `-c copy -f mp4`，不解码重编码；成功且 [deleteOriginal] 时删除原文件。
+     *
+     * @return 输出 mp4 文件；输入不存在/为空或 ffmpeg 失败时返回 null（原文件保留）
+     */
+    open fun remuxToMp4(input: File, deleteOriginal: Boolean = true): File? {
+        val output = File(input.parentFile, input.nameWithoutExtension + ".mp4")
+        val cmd = listOf(
+            ffmpegBin.absolutePath, "-y", "-hide_banner", "-loglevel", "error",
+            "-i", input.absolutePath,
+            "-c:v", "copy", "-c:a", "copy",
+            "-f", "mp4", output.absolutePath,
+        )
+        return runConvert(cmd, input, output, deleteOriginal)
+    }
+
+    /**
+     * 音频提取为 m4a（3-3h，对齐上游 converts_m4a main.py:254-268）。
+     * `-vn -c:a aac -bsf:a aac_adtstoasc -ab 320k`；成功且 [deleteOriginal] 时删除原文件。
+     */
+    open fun extractM4a(input: File, deleteOriginal: Boolean = true): File? {
+        val output = File(input.parentFile, input.nameWithoutExtension + ".m4a")
+        val cmd = listOf(
+            ffmpegBin.absolutePath, "-y", "-hide_banner", "-loglevel", "error",
+            "-i", input.absolutePath,
+            "-n", "-vn",
+            "-c:a", "aac", "-bsf:a", "aac_adtstoasc", "-ab", "320k",
+            output.absolutePath,
+        )
+        return runConvert(cmd, input, output, deleteOriginal)
+    }
+
+    /** 同步执行容器级转换；exitCode==0 且产物存在才算成功。 */
+    private fun runConvert(cmd: List<String>, input: File, output: File, deleteOriginal: Boolean): File? {
+        if (!input.exists() || input.length() == 0L) return null
+        val process = try {
+            ProcessBuilder(cmd).redirectErrorStream(false).start()
+        } catch (e: Exception) {
+            println("ffmpeg 转换启动失败 (${input.name}): ${e.message}")
+            return null
+        }
+        // 消费 stderr 防管道阻塞（错误内容随异常路径丢弃，成功无碍）
+        val stderr = process.errorStream.use { it.readBytes() }
+        val exitCode = process.waitFor()
+        return if (exitCode == 0 && output.exists() && output.length() > 0) {
+            if (deleteOriginal) input.delete()
+            output
+        } else {
+            println("ffmpeg 转换失败 exitCode=$exitCode (${input.name}): ${String(stderr)}")
+            null
         }
     }
 

@@ -34,6 +34,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     val disabledUrls: StateFlow<Set<String>> = store.disabledUrls
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
 
+    /** 3-3h：录制完成后自动转 MP4 开关。 */
+    val autoConvertMp4: StateFlow<Boolean> = store.autoConvertMp4
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
     init {
         // 2b 接线：服务常驻条件 = 监控开启 或 有活动录制；两者皆无则停服。
         viewModelScope.launch {
@@ -66,6 +70,11 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     /** 保存推送配置（2f）。 */
     fun setPushConfig(enabled: Boolean, type: String, api: String) = viewModelScope.launch {
         store.setPushConfig(enabled, type, api)
+    }
+
+    /** 3-3h：切换录制完成后自动转 MP4。 */
+    fun setAutoConvertMp4(enabled: Boolean) = viewModelScope.launch {
+        store.setAutoConvertMp4(enabled)
     }
 
         fun add(url: String) = viewModelScope.launch { store.add(url) }

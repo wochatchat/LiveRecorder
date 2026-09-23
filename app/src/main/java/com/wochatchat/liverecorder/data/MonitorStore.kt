@@ -99,6 +99,17 @@ class MonitorStore(private val context: Context) {
         context.dataStore.edit { prefs -> prefs[diskLimitKey] = gb.toString() }
     }
 
+    /** 3-3h：录制完成后自动转 MP4（对齐上游 config.ini「录制完成后自动转为mp4格式」，默认否）。 */
+    private val autoConvertMp4Key = booleanPreferencesKey("auto_convert_mp4")
+
+    val autoConvertMp4: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[autoConvertMp4Key] ?: false
+    }
+
+    suspend fun setAutoConvertMp4(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[autoConvertMp4Key] = enabled }
+    }
+
     /** HTTP 推送配置（2f）：类型 + 地址列表（中英文逗号分隔）+ 总开关。 */
     private val pushEnabledKey = booleanPreferencesKey("push_enabled")
     private val pushTypeKey = stringPreferencesKey("push_type")

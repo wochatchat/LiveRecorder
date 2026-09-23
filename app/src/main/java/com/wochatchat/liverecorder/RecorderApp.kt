@@ -62,6 +62,8 @@ class RecorderApp : Application() {
             baseDir = File(filesDir, "downloads"),
             fetchInfo = { router.fetchStreamInfo(it) },
             ffmpeg = ffmpegRecorder,
+            // 3-3h：录制完成后自动转 MP4（开关持久化在 MonitorStore）
+            mp4Convert = { store.autoConvertMp4.first() },
         )
         monitorLoop = MonitorLoop(
             check = { url -> router.fetchStreamInfo(url) },

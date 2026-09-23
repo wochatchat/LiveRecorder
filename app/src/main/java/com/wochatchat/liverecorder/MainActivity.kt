@@ -32,6 +32,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -181,9 +182,11 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     if (showPushDialog) {
         PushSettingsDialog(
             initial = pushConfig,
+            initialConvertMp4 = viewModel.autoConvertMp4.collectAsState().value,
             onDismiss = { showPushDialog = false },
-            onConfirm = { enabled, type, api ->
+            onConfirm = { enabled, type, api, convertMp4 ->
                 viewModel.setPushConfig(enabled, type, api)
+                viewModel.setAutoConvertMp4(convertMp4)
                 showPushDialog = false
             }
         )
@@ -389,21 +392,23 @@ private fun EditUrlDialog(
     )
 }
 
-/** HTTP 推送设置（2f）：开关 + 类型（ntfy/bark）+ 推送地址（多个用逗号分隔）。 */
+/** 设置（2f 推送 + 3h 转码开关）。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PushSettingsDialog(
     initial: PushConfig,
+    initialConvertMp4: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (enabled: Boolean, type: String, api: String) -> Unit,
+    onConfirm: (enabled: Boolean, type: String, api: String, convertMp4: Boolean) -> Unit,
 ) {
     var enabled by remember { mutableStateOf(initial.enabled) }
     var type by remember { mutableStateOf(initial.type) }
     var api by remember { mutableStateOf(initial.apis.joinToString(",")) }
+    var convertMp4 by remember { mutableStateOf(initialConvertMp4) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("HTTP 推送") },
+        title = { Text("设置") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
@@ -431,10 +436,22 @@ private fun PushSettingsDialog(
                     label = { Text("推送地址") },
                     modifier = Modifier.fillMaxWidth()
                 )
+                HorizontalDivider()
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("录制完成后自动转 MP4")
+                        Text(
+                            "TS 分片转 mp4（无需重编码，转完删除原分片）",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = convertMp4, onCheckedChange = { convertMp4 = it })
+                }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(enabled, type, api) }) { Text("保存") }
+            TextButton(onClick = { onConfirm(enabled, type, api, convertMp4) }) { Text("保存") }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("取消") }

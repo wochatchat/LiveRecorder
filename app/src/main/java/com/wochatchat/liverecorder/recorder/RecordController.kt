@@ -44,6 +44,11 @@ class RecordController(
      * 传 null 时回退 OkHttp 直下（Phase 1/2 行为）。
      */
     private val ffmpeg: FfmpegRecorder? = null,
+    /**
+     * 3-3h：录制完成后自动转 MP4 开关（对齐上游 config.ini「录制完成后自动转为mp4格式」，默认关）。
+     * ffmpeg 分段会话结束时查询；仅对 TS 分片生效（上游 save_type == 'TS' 同语义）。
+     */
+    private val mp4Convert: suspend () -> Boolean = { false },
     /** 等待注入点（单测收集退避延迟，生产即 delay）。 */
     internal val sleep: suspend (Long) -> Unit = { delay(it) },
 ) {
@@ -149,6 +154,7 @@ class RecordController(
                     lastPath = dir.absolutePath
                     totalBytes += res.estimatedBytes
                     attempt = 0
+                    convertSegmentsAsync(res.segments)
                     if (!backoffOrGiveUp(url, 1, "直播流结束")) return
                 } else {
                     // OkHttp 直下（Phase 1/2 行为）
@@ -183,6 +189,26 @@ class RecordController(
             throw e
         } catch (e: Exception) {
             setState(url, RecordState.Failed("录制异常: ${e.message}"))
+        }
+    }
+
+    /**
+     * 3-3h：会话分片后台转 MP4（fire-and-forget，对齐上游 threading.Thread 不阻塞重连）。
+     * 开关关闭或无 TS 分片时不做任何事；单个分片失败不影响其余。
+     */
+    private fun convertSegmentsAsync(segments: List<File>) {
+        if (segments.none { it.name.endsWith(".ts") }) return
+        scope.launch {
+            val enabled = try { mp4Convert() } catch (e: Exception) { false }
+            if (!enabled) return@launch
+            // 上游仅对 TS 保存类型转 mp4（main.py:454 `converts_to_mp4 and save_type == 'TS'`）
+            segments.filter { it.name.endsWith(".ts") }.forEach { seg ->
+                try {
+                    ffmpeg?.remuxToMp4(seg, deleteOriginal = true)
+                } catch (e: Exception) {
+                    println("TS→MP4 转换失败 (${seg.name}): ${e.message}")
+                }
+            }
         }
     }
 
