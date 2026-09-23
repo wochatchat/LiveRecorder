@@ -39,6 +39,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     val autoConvertMp4: StateFlow<Boolean> = store.autoConvertMp4
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
+    /** 4a：代理设置。 */
+    val proxySettings: StateFlow<ProxySettings> = store.proxySettings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProxySettings())
+
     init {
         // 2b 接线：服务常驻条件 = 监控开启 或 有活动录制；两者皆无则停服。
         viewModelScope.launch {

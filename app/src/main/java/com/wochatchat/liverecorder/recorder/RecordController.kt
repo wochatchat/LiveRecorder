@@ -54,6 +54,12 @@ class RecordController(
      * ffmpeg 分段会话结束时查询；仅对 TS 分片生效（上游 save_type == 'TS' 同语义）。
      */
     private val mp4Convert: suspend () -> Boolean = { false },
+    /**
+     * 4a 代理判定钩子：返回该 URL 应使用的代理地址（null=直连）。
+     * 对齐上游 main.py:558-573（use_proxy + enable_proxy_platform_list URL 关键词匹配），
+     * RecorderApp 按 MonitorStore.proxySettings 接线。
+     */
+    private val resolveProxy: suspend (String) -> String? = { null },
     /** 等待注入点（单测收集退避延迟，生产即 delay）。 */
     internal val sleep: suspend (Long) -> Unit = { delay(it) },
 ) {
