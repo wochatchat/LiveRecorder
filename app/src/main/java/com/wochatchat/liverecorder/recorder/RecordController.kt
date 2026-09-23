@@ -155,9 +155,9 @@ class RecordController(
                     }
                     lastPath = dir.absolutePath
                     totalBytes += res.estimatedBytes
-                    attempt = 0
                     convertSegmentsAsync(res.segments)
-                    if (!backoffOrGiveUp(url, 1, "直播流结束")) return
+                    // ++attempt 留下 attempt=1：下轮探测已关播时按 Finished(completed) 收敛（同 OkHttp 分支语义）
+                    if (!backoffOrGiveUp(url, ++attempt, "直播流结束")) return
                 } else {
                     // OkHttp 直下（Phase 1/2 行为）
                     if (sourceUrl.contains(".m3u8")) {
