@@ -55,7 +55,7 @@ class RecordControllerConvertTest {
         val fake = FakeFfmpeg()
         val controller = RecordController(
             baseDir = tempDir(),
-            fetchInfo = { info(isLive = resolves.incrementAndGet() < 2) },
+            fetchInfo = { _, _ -> info(isLive = resolves.incrementAndGet() < 2) },
             scope = CoroutineScope(UnconfinedTestDispatcher()),
             ffmpeg = fake,
             mp4Convert = converts,

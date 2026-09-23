@@ -20,13 +20,18 @@ class DouyinSpider(
     private val webSpider = DouyinWebSpider(client, cookie)
     private val appSpider = DouyinAppSpider(client, cookie, webSpider)
 
-    /** 源分发 + 画质映射，一步到位。 */
-    suspend fun fetchStreamInfo(url: String, quality: String? = null): DouyinStreamInfo {
-        val room = when (route(url)) {
-            DouyinRoute.WEB -> webSpider.fetch(url)
-            DouyinRoute.APP -> appSpider.fetch(url)
+    /**
+     * 源分发 + 画质映射，一步到位。
+     * @param proxyAddr 非空时本次请求走代理（4a：对齐上游 get_douyin_stream_data proxy_addr 透传），
+     *   内部按代理地址新建 client（轮询/录制频次低，开销可忽略）
+     */
+    suspend fun fetchStreamInfo(url: String, quality: String? = null, proxyAddr: String? = null): DouyinStreamInfo {
+        val spider = if (proxyAddr.isNullOrBlank()) this else DouyinSpider(LiveHttpClient(proxyAddr), cookie)
+        val room = when (spider.route(url)) {
+            DouyinRoute.WEB -> spider.webSpider.fetch(url)
+            DouyinRoute.APP -> spider.appSpider.fetch(url)
         }
-        return DouyinQuality.resolveStream(room, quality, client)
+        return DouyinQuality.resolveStream(room, quality, spider.client)
     }
 
     /**

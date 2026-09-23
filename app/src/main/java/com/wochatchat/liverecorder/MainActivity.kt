@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wochatchat.liverecorder.monitor.MonitorLoop
+import com.wochatchat.liverecorder.data.ProxySettings
 import com.wochatchat.liverecorder.push.PushConfig
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.ui.MonitorViewModel
@@ -182,10 +183,12 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     if (showPushDialog) {
         PushSettingsDialog(
             initial = pushConfig,
+            initialProxy = viewModel.proxySettings.collectAsState().value,
             initialConvertMp4 = viewModel.autoConvertMp4.collectAsState().value,
             onDismiss = { showPushDialog = false },
-            onConfirm = { enabled, type, api, convertMp4 ->
-                viewModel.setPushConfig(enabled, type, api)
+            onConfirm = { push, proxy, convertMp4 ->
+                viewModel.setPushConfig(push.enabled, push.type, push.apis.joinToString(","))
+                viewModel.setProxySettings(proxy)
                 viewModel.setAutoConvertMp4(convertMp4)
                 showPushDialog = false
             }
@@ -397,14 +400,18 @@ private fun EditUrlDialog(
 @Composable
 private fun PushSettingsDialog(
     initial: PushConfig,
+    initialProxy: ProxySettings,
     initialConvertMp4: Boolean,
     onDismiss: () -> Unit,
-    onConfirm: (enabled: Boolean, type: String, api: String, convertMp4: Boolean) -> Unit,
+    onConfirm: (push: PushConfig, proxy: ProxySettings, convertMp4: Boolean) -> Unit,
 ) {
     var enabled by remember { mutableStateOf(initial.enabled) }
     var type by remember { mutableStateOf(initial.type) }
     var api by remember { mutableStateOf(initial.apis.joinToString(",")) }
     var convertMp4 by remember { mutableStateOf(initialConvertMp4) }
+    var proxyEnabled by remember { mutableStateOf(initialProxy.enabled) }
+    var proxyAddr by remember { mutableStateOf(initialProxy.addr) }
+    var proxyPlatforms by remember { mutableStateOf(initialProxy.platformsCsv()) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -437,6 +444,33 @@ private fun PushSettingsDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 HorizontalDivider()
+                // 4a：per-platform 代理（对齐上游「是否使用代理ip / 代理地址 / 使用代理录制的平台」）
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("使用代理录制")
+                        Text(
+                            "仅下方平台列表命中的链接走代理（海外平台用）",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(checked = proxyEnabled, onCheckedChange = { proxyEnabled = it })
+                }
+                OutlinedTextField(
+                    value = proxyAddr,
+                    onValueChange = { proxyAddr = it },
+                    placeholder = { Text("socks5://127.0.0.1:7890 或 http://127.0.0.1:7890") },
+                    label = { Text("代理地址") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = proxyPlatforms,
+                    onValueChange = { proxyPlatforms = it },
+                    placeholder = { Text("tiktok, twitch, ...") },
+                    label = { Text("走代理的平台（逗号分隔关键词）") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                HorizontalDivider()
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("录制完成后自动转 MP4")
@@ -451,7 +485,20 @@ private fun PushSettingsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(enabled, type, api, convertMp4) }) { Text("保存") }
+            TextButton(onClick = {
+                onConfirm(
+                    PushConfig(enabled, type, api),
+                    ProxySettings(
+                        enabled = proxyEnabled,
+                        addr = proxyAddr.trim(),
+                        platforms = ProxySettings.parsePlatforms(
+                            proxyPlatforms,
+                            fallback = initialProxy.platforms,
+                        ),
+                    ),
+                    convertMp4,
+                )
+            }) { Text("保存") }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("取消") }

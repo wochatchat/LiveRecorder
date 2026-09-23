@@ -46,19 +46,21 @@ class DouyuSpider(
     /**
      * 获取房间信息（对照 spider.py get_douyu_info_data）。
      * @param url 斗鱼房间 URL（支持 https://www.douyu.com/xxx 或含 rid= 参数）
+     * @param proxyAddr 非空时本次请求走代理（4a）
      * @return DouyuInfo（主播昵称 / 开播状态 / 标题 / 房间号）
      * @throws IllegalStateException 网络请求或解析失败
      */
-    suspend fun getDouyuInfo(url: String): DouyuInfo {
+    suspend fun getDouyuInfo(url: String, proxyAddr: String? = null): DouyuInfo {
         val rid = parseRidFromUrl(url)
             ?: throw IllegalStateException("douyu: cannot parse rid from url: $url")
+        val c = clientOrProxy(proxyAddr)
 
         // ① 抓 m.douyu.com 获取真实 rid（vike_pageContext 内嵌 JSON 含 room_id）
-        val mHtml = client.get(mRoomUrl(rid), headers = M_HEADERS).text
+        val mHtml = c.get(mRoomUrl(rid), headers = M_HEADERS).text
         val actualRid = extractActualRid(mHtml, rid)
 
         // ② 抓 betard 接口获取房间信息
-        val json = client.get(betardUrl(actualRid), headers = M_HEADERS).text
+        val json = c.get(betardUrl(actualRid), headers = M_HEADERS).text
         return parseBetardInfo(json)
     }
 
@@ -74,9 +76,11 @@ class DouyuSpider(
         rate: String = "-1",
         did: String = DouyuSign.DEFAULT_DID,
         t10: String = (System.currentTimeMillis() / 1000).toString(),
+        proxyAddr: String? = null,
     ): DouyuStreamInfo {
+        val c = clientOrProxy(proxyAddr)
         // ① 抓 m.douyu.com 用于签名提取
-        val mHtml = client.get(mRoomUrl(rid), headers = M_HEADERS).text
+        val mHtml = c.get(mRoomUrl(rid), headers = M_HEADERS).text
         val actualRid = extractActualRid(mHtml, rid)
 
         // ② 生成签名参数
@@ -94,11 +98,15 @@ class DouyuSpider(
             "rid" to actualRid,
             "rate" to rate,
         )
-        val json = client.postForm(h5playUrl(actualRid), M_HEADERS, formData).text
+        val json = c.postForm(h5playUrl(actualRid), M_HEADERS, formData).text
         return parseH5PlayResponse(json, actualRid)
     }
 
     // ---- internal ----
+
+    /** 4a：proxyAddr 非空时按代理地址新建 client（上游 get_douyu_* proxy_addr 透传语义）。 */
+    private fun clientOrProxy(proxyAddr: String?): LiveHttpClient =
+        if (proxyAddr.isNullOrBlank()) client else LiveHttpClient(proxyAddr)
 
     private fun mRoomUrl(rid: String) = M_ROOM_URL.format(rid)
     private fun betardUrl(rid: String) = BETARD_API.format(rid)

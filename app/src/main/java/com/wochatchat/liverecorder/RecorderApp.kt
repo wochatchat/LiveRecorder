@@ -60,13 +60,18 @@ class RecorderApp : Application() {
         } else null
         recordController = RecordController(
             baseDir = File(filesDir, "downloads"),
-            fetchInfo = { router.fetchStreamInfo(it) },
+            fetchInfo = { url, proxyAddr -> router.fetchStreamInfo(url, proxyAddr = proxyAddr) },
             ffmpeg = ffmpegRecorder,
             // 3-3h：录制完成后自动转 MP4（开关持久化在 MonitorStore）
             mp4Convert = { store.autoConvertMp4.first() },
+            // 4a：per-platform 代理（use_proxy + 平台关键词匹配，对齐上游 main.py:558-573）
+            resolveProxy = { url -> store.proxySettings.first().resolveProxy(url) },
         )
         monitorLoop = MonitorLoop(
-            check = { url -> router.fetchStreamInfo(url) },
+            check = { url ->
+                // 轮询探测与录制同源走同一代理判定（上游 check/record 共用 proxy_address）
+                router.fetchStreamInfo(url, proxyAddr = store.proxySettings.first().resolveProxy(url))
+            },
             isRecording = { url -> recordController.isActive(url) },
             onLive = { url, _ -> recordController.start(url) },
             onLiveEvent = { url, anchor, title ->

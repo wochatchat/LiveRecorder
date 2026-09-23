@@ -41,22 +41,22 @@ class PlatformRouter(
     }
 
     /** 源分发 + 画质映射，一步到位（MonitorLoop 轮询与 RecordController 录制共用）。 */
-    suspend fun fetchStreamInfo(url: String, quality: String? = null): DouyinStreamInfo =
-        if (isDouyuUrl(url)) fetchDouyu(url, quality) else douyinSpider.fetchStreamInfo(url, quality)
+    suspend fun fetchStreamInfo(url: String, quality: String? = null, proxyAddr: String? = null): DouyinStreamInfo =
+        if (isDouyuUrl(url)) fetchDouyu(url, quality, proxyAddr) else douyinSpider.fetchStreamInfo(url, quality, proxyAddr)
 
     /**
      * 斗鱼 → 抖音同构映射（上游两步：get_douyu_info_data → get_douyu_stream_url）：
      * - 未开播：透传 anchor_name + is_live=false（不请求流地址）
      * - 开播：getH5Play → FLV（rtmp_url/rtmp_live）作为 flv/record 源；HLS 仅作 m3u8Url 参考
      */
-    private suspend fun fetchDouyu(url: String, quality: String? = null): DouyinStreamInfo {
-        val info = douyuSpider.getDouyuInfo(url)
+    private suspend fun fetchDouyu(url: String, quality: String? = null, proxyAddr: String? = null): DouyinStreamInfo {
+        val info = douyuSpider.getDouyuInfo(url, proxyAddr)
         if (!info.isLive) {
             return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
         }
         val rid = info.roomId ?: DouyuSpider.parseRidFromUrl(url)
             ?: return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
-        val stream = douyuSpider.getDouyuStreamData(rid, rate = douyuRate(quality))
+        val stream = douyuSpider.getDouyuStreamData(rid, rate = douyuRate(quality), proxyAddr = proxyAddr)
         val flv = stream.flvUrl
         val hls = stream.streamUrl
         return DouyinStreamInfo(

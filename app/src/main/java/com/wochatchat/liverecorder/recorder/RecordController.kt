@@ -36,7 +36,12 @@ import java.util.concurrent.ConcurrentHashMap
 class RecordController(
     private val baseDir: File,
     private val downloader: StreamDownloader = StreamDownloader(),
-    private val fetchInfo: suspend (String) -> DouyinStreamInfo = { DouyinSpider().fetchStreamInfo(it) },
+    /**
+     * 直播源解析。[proxyAddr] 为该 URL 应使用的代理地址（4a），
+     * 由 [resolveProxy] 判定后透传（录制探测与后续下载用同一代理，对齐上游 proxy_address）。
+     */
+    private val fetchInfo: suspend (String, String?) -> DouyinStreamInfo =
+        { url, proxyAddr -> DouyinSpider().fetchStreamInfo(url, proxyAddr = proxyAddr) },
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
     /**
      * FFmpeg 分段录制引擎（Phase 3-3g）。
@@ -107,8 +112,15 @@ class RecordController(
         try {
             while (true) {
                 setState(url, RecordState.Resolving)
+                val proxyAddr = try {
+                    resolveProxy(url)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null // 代理配置读取失败按直连处理，不阻塞录制
+                }
                 val info: DouyinStreamInfo = try {
-                    fetchInfo(url)
+                    fetchInfo(url, proxyAddr)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
@@ -171,7 +183,7 @@ class RecordController(
                     var lastUpdate = 0L
                     val segStart = System.currentTimeMillis()
                     var written = 0L
-                    val ok = downloader.download(sourceUrl, saveFile, headers) { bytes ->
+                    val ok = downloader.download(sourceUrl, saveFile, headers, proxyAddr) { bytes ->
                         written = bytes
                         val t = System.currentTimeMillis()
                         if (t - lastUpdate >= PROGRESS_INTERVAL_MS) {

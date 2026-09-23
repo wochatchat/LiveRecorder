@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wochatchat.liverecorder.RecorderApp
 import com.wochatchat.liverecorder.data.MonitorStore
+import com.wochatchat.liverecorder.data.ProxySettings
 import com.wochatchat.liverecorder.push.PushConfig
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.service.MonitorService
@@ -75,6 +76,11 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     /** 3-3h：切换录制完成后自动转 MP4。 */
     fun setAutoConvertMp4(enabled: Boolean) = viewModelScope.launch {
         store.setAutoConvertMp4(enabled)
+    }
+
+    /** 4a：保存代理设置。 */
+    fun setProxySettings(settings: ProxySettings) = viewModelScope.launch {
+        store.setProxySettings(settings)
     }
 
         fun add(url: String) = viewModelScope.launch { store.add(url) }

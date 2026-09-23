@@ -115,6 +115,33 @@ class MonitorStore(private val context: Context) {
     private val pushTypeKey = stringPreferencesKey("push_type")
     private val pushApiKey = stringPreferencesKey("push_api")
 
+    /**
+     * 代理设置（4a，对齐上游「是否使用代理ip / 代理地址 / 使用代理录制的平台」）。
+     * 平台关键词持久化为逗号分隔串；未设置时回落上游默认列表。
+     */
+    private val proxyEnabledKey = booleanPreferencesKey("proxy_enabled")
+    private val proxyAddrKey = stringPreferencesKey("proxy_addr")
+    private val proxyPlatformsKey = stringPreferencesKey("proxy_platforms")
+
+    val proxySettings: Flow<ProxySettings> = context.dataStore.data.map { prefs ->
+        ProxySettings(
+            enabled = prefs[proxyEnabledKey] ?: false,
+            addr = (prefs[proxyAddrKey] ?: "").trim(),
+            platforms = ProxySettings.parsePlatforms(
+                prefs[proxyPlatformsKey] ?: ProxySettings.DEFAULT_PLATFORMS.joinToString(","),
+                fallback = ProxySettings.DEFAULT_PLATFORMS,
+            ),
+        )
+    }
+
+    suspend fun setProxySettings(settings: ProxySettings) {
+        context.dataStore.edit { prefs ->
+            prefs[proxyEnabledKey] = settings.enabled
+            prefs[proxyAddrKey] = settings.addr.trim()
+            prefs[proxyPlatformsKey] = settings.platforms.joinToString(",")
+        }
+    }
+
     val pushConfig: Flow<PushConfig> = context.dataStore.data.map { prefs ->
         PushConfig(
             enabled = prefs[pushEnabledKey] ?: false,

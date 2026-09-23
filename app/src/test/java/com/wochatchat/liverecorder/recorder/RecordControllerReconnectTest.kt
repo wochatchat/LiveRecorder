@@ -26,6 +26,7 @@ class RecordControllerReconnectTest {
             sourceUrl: String,
             saveFile: File,
             headers: Map<String, String>,
+            proxyAddr: String?,
             onProgress: suspend (bytes: Long) -> Unit,
         ): Boolean {
             if (results.isEmpty()) error("unexpected extra download call")
@@ -54,7 +55,7 @@ class RecordControllerReconnectTest {
         val controller = RecordController(
             baseDir = tempDir(),
             downloader = downloader,
-            fetchInfo = {
+            fetchInfo = { _, _ ->
                 resolves++
                 info(isLive = resolves < 3) // 第 3 次解析（重连后探测）转未开播
             },
@@ -76,7 +77,7 @@ class RecordControllerReconnectTest {
         val controller = RecordController(
             baseDir = tempDir(),
             downloader = downloader,
-            fetchInfo = { info(isLive = true) }, // 一直开播但流一直断
+            fetchInfo = { _, _ -> info(isLive = true) }, // 一直开播但流一直断
             sleep = { delays.add(it) },
         )
         controller.runRecord("u")
@@ -93,7 +94,7 @@ class RecordControllerReconnectTest {
         val controller = RecordController(
             baseDir = tempDir(),
             downloader = FakeDownloader(mutableListOf(false)),
-            fetchInfo = {
+            fetchInfo = { _, _ ->
                 resolves++
                 info(isLive = resolves == 1)
             },
@@ -121,6 +122,7 @@ class RecordControllerReconnectTest {
                 sourceUrl: String,
                 saveFile: File,
                 headers: Map<String, String>,
+                proxyAddr: String?,
                 onProgress: suspend (bytes: Long) -> Unit,
             ): Boolean {
                 started.incrementAndGet()
@@ -130,7 +132,7 @@ class RecordControllerReconnectTest {
         val controller = RecordController(
             baseDir = tempDir(),
             downloader = blocking,
-            fetchInfo = { info(isLive = true) },
+            fetchInfo = { _, _ -> info(isLive = true) },
             scope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher(testScheduler)),
             sleep = { },
         )

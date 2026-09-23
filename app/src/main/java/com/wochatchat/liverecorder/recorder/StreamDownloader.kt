@@ -7,6 +7,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import com.wochatchat.liverecorder.net.LiveHttpClient
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -42,6 +43,8 @@ open class StreamDownloader(
 
     /**
      * 流式下载 [sourceUrl] 到 [saveFile]（父目录自动创建）。
+     * @param proxyAddr 非空时该次下载经代理（4a：对齐上游 direct_download_stream 的 proxies 透传；
+     *   上游录制下载与房间探测用同一 proxy_address）
      * @param onProgress 每收到一个 chunk 回调一次（累计字节数，IO 线程）
      * @return true=下载到流结束；false=非 200 / 网络异常
      * @throws kotlinx.coroutines.CancellationException 协程被取消（停止录制）
@@ -50,11 +53,14 @@ open class StreamDownloader(
         sourceUrl: String,
         saveFile: File,
         headers: Map<String, String> = emptyMap(),
+        proxyAddr: String? = null,
         onProgress: suspend (bytes: Long) -> Unit = {},
     ): Boolean = withContext(Dispatchers.IO) {
         val requestBuilder = Request.Builder().url(sourceUrl)
         headers.forEach { (k, v) -> requestBuilder.header(k, v) }
-        val call = client.newCall(requestBuilder.build())
+        val call = proxyAddr?.let { p ->
+            client.newBuilder().proxy(LiveHttpClient.parseProxy(p)).build()
+        }?.newCall(requestBuilder.build()) ?: client.newCall(requestBuilder.build())
 
         try {
             saveFile.parentFile?.mkdirs()
