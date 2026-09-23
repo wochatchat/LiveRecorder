@@ -303,4 +303,59 @@ class MonitorLoopTest {
         assertTrue(round != null)
         assertTrue(loop.states.value["u1"] is MonitorLoop.State.Live)
     }
+
+    // ===== 4c 平台健康徽标 =====
+
+    @Test
+    fun pollOnce_healthMarksAfterConsecutiveFailures() = runTest {
+        val loop = MonitorLoop(check = { throw RuntimeException("platform down") })
+        // 前 2 轮失败：未达阈值，不标记不健康
+        repeat(2) { loop.pollOnce({ listOf("u1", "u2") }) }
+        assertTrue(loop.unhealthy.value.isEmpty())
+        // 第 3 轮连续失败：达到阈值标记
+        loop.pollOnce({ listOf("u1", "u2") })
+        assertEquals(setOf("u1", "u2"), loop.unhealthy.value)
+    }
+
+    @Test
+    fun pollOnce_healthRecoversOnSuccess() = runTest {
+        var fail = true
+        val loop = MonitorLoop(check = { if (fail) throw RuntimeException("down") else liveInfo() })
+        repeat(3) { loop.pollOnce({ listOf("u1") }) }
+        assertTrue(loop.unhealthy.value.contains("u1"))
+        // 恢复成功：立即移出 unhealthy
+        fail = false
+        loop.pollOnce({ listOf("u1") })
+        assertTrue(loop.unhealthy.value.isEmpty())
+    }
+
+    @Test
+    fun pollOnce_unhealthyEntryDoesNotBlockOthers() = runTest {
+        // 单平台持续失效不影响其他条目：u1 连续失败，u2 状态照常更新
+        val loop = MonitorLoop(check = { url ->
+            if (url == "u1") throw RuntimeException("dead platform") else liveInfo()
+        })
+        repeat(MonitorLoop.HEALTH_FAIL_THRESHOLD) { loop.pollOnce({ listOf("u1", "u2") }) }
+        assertTrue(loop.unhealthy.value.contains("u1"))
+        assertFalse(loop.unhealthy.value.contains("u2"))
+        assertTrue(loop.states.value["u2"] is MonitorLoop.State.Live)
+    }
+
+    @Test
+    fun health_clearedOnForgetAndStop() = runTest {
+        val loop = MonitorLoop(check = { throw RuntimeException("down") })
+        repeat(3) { loop.pollOnce({ listOf("u1") }) }
+        assertTrue(loop.unhealthy.value.contains("u1"))
+        loop.forget("u1")
+        assertTrue(loop.unhealthy.value.isEmpty())
+        // 重新累积后 stop 全清
+        repeat(3) { loop.pollOnce({ listOf("u1") }) }
+        loop.stop()
+        assertTrue(loop.unhealthy.value.isEmpty())
+    }
+
+    @Test
+    fun constants_healthThreshold() {
+        assertEquals(3, MonitorLoop.HEALTH_FAIL_THRESHOLD)
+    }
 }

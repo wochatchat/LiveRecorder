@@ -78,6 +78,9 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     /** url → 监控状态（Unknown/Live/Offline/Error），供 UI 状态徽标。 */
     val monitorStates get() = (getApplication() as RecorderApp).monitorLoop.states
 
+    /** 4c：不健康条目集合（连续检查失败 ≥3 轮），UI 置灰「失效」徽标。 */
+    val unhealthyUrls get() = (getApplication() as RecorderApp).monitorLoop.unhealthy
+
     fun setMonitorEnabled(enabled: Boolean) = viewModelScope.launch {
         store.setMonitorEnabled(enabled)
         // 状态由 init 的 combine 驱动服务启停，这里无需重复调用

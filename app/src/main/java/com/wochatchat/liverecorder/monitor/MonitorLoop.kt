@@ -78,8 +78,17 @@ class MonitorLoop(
     /** 手动停止后抑制自动重启的 url，直到该房间转为未开播。 */
     private val suppressed: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
+    /** url → 连续检查失败轮数（4c 健康徽标）。 */
+    private val consecutiveErrors = ConcurrentHashMap<String, Int>()
+
+    /** 连续失败达阈值的 url 集合（4c 健康徽标，UI 置灰「失效」）。 */
+    private val _unhealthy = MutableStateFlow<Set<String>>(emptySet())
+
     /** url → 最新监控状态。 */
     val states: StateFlow<Map<String, State>> = _states.asStateFlow()
+
+    /** 不健康条目集合（4c：连续失败 ≥ [HEALTH_FAIL_THRESHOLD] 轮）。检查成功即恢复。 */
+    val unhealthy: StateFlow<Set<String>> = _unhealthy.asStateFlow()
 
     val isRunning: Boolean get() = job?.isActive == true
 
@@ -112,8 +121,10 @@ class MonitorLoop(
         job?.cancel()
         job = null
         _states.value = emptyMap()
+        _unhealthy.value = emptySet()
         wasRecording.clear()
         suppressed.clear()
+        consecutiveErrors.clear()
         storagePaused = false
     }
 
@@ -128,6 +139,8 @@ class MonitorLoop(
         _states.update { it - url }
         wasRecording.remove(url)
         suppressed.remove(url)
+        consecutiveErrors.remove(url)
+        _unhealthy.update { it - url }
     }
 
     /**
@@ -219,6 +232,15 @@ class MonitorLoop(
                 errors++
                 State.Error(e.message ?: e.javaClass.simpleName)
             }
+            // 4c：检查成功清零连续失败计数；失败则 +1，达阈值标记为不健康
+            if (next !is State.Error) {
+                consecutiveErrors.remove(url)
+                _unhealthy.update { it - url }
+            } else {
+                val n = (consecutiveErrors[url] ?: 0) + 1
+                consecutiveErrors[url] = n
+                if (n >= HEALTH_FAIL_THRESHOLD) _unhealthy.update { it + url }
+            }
             _states.update { it + (url to next) }
         }
         return RoundResult(errors, recordJustEnded)
@@ -237,6 +259,9 @@ class MonitorLoop(
         const val ERROR_BURST_THRESHOLD = 20
 
         const val ERROR_EXTRA_DELAY_SEC = 60L
+
+        /** 4c 健康徽标阈值：连续失败 ≥3 轮（默认间隔 300s ≈ 15 分钟）标记为不健康置灰。 */
+        const val HEALTH_FAIL_THRESHOLD = 3
 
         /** 录制刚结束后的快检间隔（秒），上游 `x = 30`。 */
         const val QUICK_CHECK_SEC = 30L

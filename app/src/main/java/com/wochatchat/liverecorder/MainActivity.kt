@@ -86,6 +86,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     val urls by viewModel.urls.collectAsState()
     val recordStates by viewModel.recordStates.collectAsState()
     val monitorStates by viewModel.monitorStates.collectAsState()
+    val unhealthyUrls by viewModel.unhealthyUrls.collectAsState()
     val disabledUrls by viewModel.disabledUrls.collectAsState()
     val monitorEnabled by viewModel.monitorEnabled.collectAsState()
     val pushConfig by viewModel.pushConfig.collectAsState()
@@ -154,6 +155,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
                         recordState = state,
                         monitorState = monitorStates[url],
                         disabled = url in disabledUrls,
+                        unhealthy = url in unhealthyUrls,
                         onRemove = { viewModel.remove(url) },
                         onEdit = { editUrl = url },
                         onToggleEnabled = { viewModel.setEnabled(url, it) },
@@ -259,7 +261,7 @@ private fun MonitorItem(
             .padding(vertical = 4.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            StatusBadge(recordState, monitorState, disabled)
+            StatusBadge(recordState, monitorState, disabled, unhealthy)
             Spacer(Modifier.weight(1f))
             // 单条启停（2g）：停用后不参与轮询与自动录制（上游 # 注释行语义）
             Switch(checked = !disabled, onCheckedChange = onToggleEnabled)
@@ -316,12 +318,13 @@ private fun describeState(state: RecordController.RecordState?): String = when (
     is RecordController.RecordState.Failed -> "失败: ${state.message}"
 }
 
-/** 状态徽标：录制链路状态优先于监控状态，已停用置灰。 */
+/** 状态徽标：录制链路状态优先于监控状态，已停用置灰；连续失败（4c）置灰「失效」。 */
 @Composable
 private fun StatusBadge(
     recordState: RecordController.RecordState?,
     monitorState: MonitorLoop.State?,
     disabled: Boolean,
+    unhealthy: Boolean = false,
 ) {
     val (text, color) = when {
         disabled -> "已停用" to MaterialTheme.colorScheme.outline
@@ -330,7 +333,9 @@ private fun StatusBadge(
         recordState is RecordController.RecordState.Resolving -> "解析中" to MaterialTheme.colorScheme.primary
         monitorState is MonitorLoop.State.Live -> "直播中" to MaterialTheme.colorScheme.primary
         monitorState is MonitorLoop.State.Offline -> "未开播" to MaterialTheme.colorScheme.onSurfaceVariant
-        monitorState is MonitorLoop.State.Error -> "失效" to MaterialTheme.colorScheme.error
+        // 4c：连续失败达阈值 → 平台失效置灰；偶发错误仍红色「错误」提示
+        monitorState is MonitorLoop.State.Error && unhealthy -> "失效" to MaterialTheme.colorScheme.outline
+        monitorState is MonitorLoop.State.Error -> "错误" to MaterialTheme.colorScheme.error
         else -> "待检测" to MaterialTheme.colorScheme.onSurfaceVariant
     }
     Surface(
