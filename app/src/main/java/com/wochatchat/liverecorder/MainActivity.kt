@@ -487,7 +487,7 @@ private fun PushSettingsDialog(
         confirmButton = {
             TextButton(onClick = {
                 onConfirm(
-                    PushConfig(enabled, type, api),
+                    PushConfig(enabled, type, listOf(api)),
                     ProxySettings(
                         enabled = proxyEnabled,
                         addr = proxyAddr.trim(),
