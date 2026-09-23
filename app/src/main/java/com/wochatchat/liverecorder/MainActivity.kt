@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -29,6 +30,8 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
@@ -36,6 +39,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -57,6 +61,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.monitor.MonitorLoop
 import com.wochatchat.liverecorder.data.ProxySettings
 import com.wochatchat.liverecorder.push.PushConfig
@@ -86,6 +91,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     val pushConfig by viewModel.pushConfig.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var showPushDialog by remember { mutableStateOf(false) }
+    var showCookieDialog by remember { mutableStateOf(false) }
     var editUrl by remember { mutableStateOf<String?>(null) }
 
     // Android 13+ 通知权限：前台服务可无权限运行，但常驻通知需要它（2a/2e 依赖）
@@ -185,12 +191,29 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
             initial = pushConfig,
             initialProxy = viewModel.proxySettings.collectAsState().value,
             initialConvertMp4 = viewModel.autoConvertMp4.collectAsState().value,
+            onOpenCredentials = { showCookieDialog = true },
             onDismiss = { showPushDialog = false },
             onConfirm = { push, proxy, convertMp4 ->
                 viewModel.setPushConfig(push.enabled, push.type, push.apis.joinToString(","))
                 viewModel.setProxySettings(proxy)
                 viewModel.setAutoConvertMp4(convertMp4)
                 showPushDialog = false
+            }
+        )
+    }
+
+    if (showCookieDialog) {
+        CookieDialog(
+            cookies = viewModel.cookies.collectAsState().value,
+            credentials = viewModel.credentials.collectAsState().value,
+            onDismiss = { showCookieDialog = false },
+            onSaveCookie = { platform, cookie ->
+                viewModel.setCookie(platform, cookie)
+                showCookieDialog = false
+            },
+            onSaveCredential = { platform, user, pass ->
+                viewModel.setCredential(platform, user, pass)
+                showCookieDialog = false
             }
         )
     }
@@ -402,6 +425,7 @@ private fun PushSettingsDialog(
     initial: PushConfig,
     initialProxy: ProxySettings,
     initialConvertMp4: Boolean,
+    onOpenCredentials: () -> Unit,
     onDismiss: () -> Unit,
     onConfirm: (push: PushConfig, proxy: ProxySettings, convertMp4: Boolean) -> Unit,
 ) {
@@ -471,6 +495,14 @@ private fun PushSettingsDialog(
                     modifier = Modifier.fillMaxWidth()
                 )
                 HorizontalDivider()
+                // 4b：平台 Cookie / 登录账密入口
+                OutlinedButton(
+                    onClick = onOpenCredentials,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("平台 Cookie / 账号密码…")
+                }
+                HorizontalDivider()
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("录制完成后自动转 MP4")
@@ -498,6 +530,105 @@ private fun PushSettingsDialog(
                     ),
                     convertMp4,
                 )
+            }) { Text("保存") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
+}
+
+/** 平台 Cookie / 登录账密录入（4b，对齐上游 config.ini [Cookie] + [账号密码] 段）。 */
+@Composable
+private fun CookieDialog(
+    cookies: Map<String, String>,
+    credentials: Map<String, Pair<String, String>>,
+    onDismiss: () -> Unit,
+    onSaveCookie: (platform: String, cookie: String) -> Unit,
+    onSaveCredential: (platform: String, username: String, password: String) -> Unit,
+) {
+    val platforms = AuthStore.ALL_PLATFORMS
+    var selectedKey by remember { mutableStateOf(platforms.first().key) }
+    var expanded by remember { mutableStateOf(false) }
+    var cookie by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+
+    // 切换平台时回填当前值（已保存的 cookie / 账密）
+    LaunchedEffect(selectedKey) {
+        cookie = cookies[selectedKey].orEmpty()
+        val cred = credentials[selectedKey]
+        username = cred?.first.orEmpty()
+        password = cred?.second.orEmpty()
+    }
+
+    val isLoginPlatform = selectedKey in AuthStore.LOGIN_PLATFORMS.map { it.key }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("平台 Cookie / 账号密码") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // 平台选择（下拉，含全部 50 平台）
+                Box {
+                    OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(AuthStore.labelOf(selectedKey))
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        platforms.forEach { p ->
+                            DropdownMenuItem(
+                                text = { Text("${p.label} (${p.key})") },
+                                onClick = {
+                                    selectedKey = p.key
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+                if (isLoginPlatform) {
+                    Text(
+                        "该平台使用账密登录，保存后录制时自动登录获取 cookie",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = username,
+                        onValueChange = { username = it },
+                        label = { Text("账号") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = { Text("密码") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else {
+                    Text(
+                        "粘贴浏览器登录后的 Cookie 串（key1=v1; key2=v2）",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    OutlinedTextField(
+                        value = cookie,
+                        onValueChange = { cookie = it },
+                        label = { Text("Cookie") },
+                        minLines = 3,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                Text(
+                    "清空后保存即删除（等价上游配置项置空）",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                if (isLoginPlatform) onSaveCredential(selectedKey, username, password)
+                else onSaveCookie(selectedKey, cookie)
             }) { Text("保存") }
         },
         dismissButton = {

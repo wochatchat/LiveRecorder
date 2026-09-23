@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wochatchat.liverecorder.RecorderApp
+import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.MonitorStore
 import com.wochatchat.liverecorder.data.ProxySettings
 import com.wochatchat.liverecorder.push.PushConfig
@@ -42,6 +43,16 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     /** 4a：代理设置。 */
     val proxySettings: StateFlow<ProxySettings> = store.proxySettings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProxySettings())
+
+    private val authStore = AuthStore(app)
+
+    /** 4b：平台 cookie（平台键 → cookie 串）。 */
+    val cookies: StateFlow<Map<String, String>> = authStore.cookies
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /** 4b：登录平台账密（平台键 → 用户名/密码）。 */
+    val credentials: StateFlow<Map<String, Pair<String, String>>> = authStore.credentials
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     init {
         // 2b 接线：服务常驻条件 = 监控开启 或 有活动录制；两者皆无则停服。
@@ -85,6 +96,16 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     /** 4a：保存代理设置。 */
     fun setProxySettings(settings: ProxySettings) = viewModelScope.launch {
         store.setProxySettings(settings)
+    }
+
+    /** 4b：保存/清除平台 cookie。 */
+    fun setCookie(platform: String, cookie: String) = viewModelScope.launch {
+        authStore.setCookie(platform, cookie)
+    }
+
+    /** 4b：保存登录平台账密。 */
+    fun setCredential(platform: String, username: String, password: String) = viewModelScope.launch {
+        authStore.setCredential(platform, username, password)
     }
 
         fun add(url: String) = viewModelScope.launch { store.add(url) }
