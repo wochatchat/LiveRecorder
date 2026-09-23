@@ -85,7 +85,7 @@ open class LiveHttpClient(
     }
 
     /** POST 原始 body（json 字符串 / bytes 由调用方构造）。 */
-    suspend fun post(
+    open suspend fun post(
         url: String,
         headers: Map<String, String> = emptyMap(),
         body: RequestBody,

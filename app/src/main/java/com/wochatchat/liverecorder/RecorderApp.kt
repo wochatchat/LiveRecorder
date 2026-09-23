@@ -7,6 +7,7 @@ import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
 import com.wochatchat.liverecorder.platform.douyu.DouyuSpider
 import com.wochatchat.liverecorder.recorder.FfmpegRecorder
 import com.wochatchat.liverecorder.recorder.RecordController
+import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.MonitorStore
 import com.wochatchat.liverecorder.push.HttpPusher
 import com.wochatchat.liverecorder.service.EventNotifier
@@ -42,6 +43,9 @@ class RecorderApp : Application() {
 
     private val store by lazy { MonitorStore(this) }
 
+    /** 4b：平台 cookie / 账密（快手等平台爬虫按需取用）。 */
+    private val authStore by lazy { AuthStore(this) }
+
     private fun timeNow(): String =
         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
@@ -60,7 +64,9 @@ class RecorderApp : Application() {
         } else null
         recordController = RecordController(
             baseDir = File(filesDir, "downloads"),
-            fetchInfo = { url, proxyAddr -> router.fetchStreamInfo(url, proxyAddr = proxyAddr) },
+            fetchInfo = { url, proxyAddr ->
+                router.fetchStreamInfo(url, proxyAddr = proxyAddr, cookies = authStore.cookies.first())
+            },
             ffmpeg = ffmpegRecorder,
             // 3-3h：录制完成后自动转 MP4（开关持久化在 MonitorStore）
             mp4Convert = { store.autoConvertMp4.first() },
@@ -70,7 +76,11 @@ class RecorderApp : Application() {
         monitorLoop = MonitorLoop(
             check = { url ->
                 // 轮询探测与录制同源走同一代理判定（上游 check/record 共用 proxy_address）
-                router.fetchStreamInfo(url, proxyAddr = store.proxySettings.first().resolveProxy(url))
+                router.fetchStreamInfo(
+                    url,
+                    proxyAddr = store.proxySettings.first().resolveProxy(url),
+                    cookies = authStore.cookies.first(),
+                )
             },
             isRecording = { url -> recordController.isActive(url) },
             onLive = { url, _ -> recordController.start(url) },

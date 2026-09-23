@@ -246,7 +246,11 @@ class RecordController(
     internal fun reconnectDelaySec(attempt: Int): Long =
         (BASE_BACKOFF_SEC shl (attempt - 1)).coerceAtMost(MAX_BACKOFF_SEC)
 
-    private fun platformName(url: String): String = if (url.contains("douyu.com/")) "斗鱼直播" else "抖音直播"
+    private fun platformName(url: String): String = when {
+        url.contains("kuaishou.com/") -> "快手直播"
+        url.contains("douyu.com/") -> "斗鱼直播"
+        else -> "抖音直播"
+    }
 
     private fun setState(url: String, state: RecordState) {
         _states.update { it + (url to state) }
