@@ -17,7 +17,7 @@ import com.wochatchat.liverecorder.platform.huya.HuyaSpider
 import com.wochatchat.liverecorder.platform.yy.YySpider
 import com.wochatchat.liverecorder.platform.yy.YyStreamInfo
 import com.wochatchat.liverecorder.platform.bigo.BigoSpider
-import com.wochatchat.liverecorder.platform.bigo.BigoStreamInfo
+import com.wochatchat.liverecorder.platform.bigo.BigoSpider.BigoStreamInfo
 import com.wochatchat.liverecorder.sign.RhinoJsEngine
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject

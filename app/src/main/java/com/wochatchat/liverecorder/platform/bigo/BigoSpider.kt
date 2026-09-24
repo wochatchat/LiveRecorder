@@ -56,7 +56,11 @@ open class BigoSpider(
             if (m2.find()) return m2.group(1) ?: ""
             return ""
         }
-    }/** Bigo 流信息（对齐上游 get_bigo_stream_url）。 */
+
+        /** al:web:url content（…&amp;h={roomId}）→ roomId（spider.py:846-848）。 */
+        fun webUrlToRoomId(webUrl: String): String? =
+            webUrl.substringAfter("&amp;h=", "").ifEmpty { null }
+    }
     data class BigoStreamInfo(
         val anchorName: String = "",
         val title: String = "",
@@ -111,10 +115,4 @@ open class BigoSpider(
         return webUrlToRoomId(webUrl)
     }
 
-    /** al:web:url content（…&amp;h={roomId}）→ roomId（spider.py:846-848）。 */
-    fun webUrlToRoomId(webUrl: String): String? =
-        webUrl.substringAfter("&amp;h=", "").ifEmpty { null }
-
     private fun clientOrProxy(proxyAddr: String?): LiveHttpClient =
-        if (proxyAddr.isNullOrBlank()) client else LiveHttpClient(proxyAddr)
-}
