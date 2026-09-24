@@ -43,6 +43,17 @@ data class AppSettings(
     val pushOnOffline: Boolean = false,
     /** 只推送通知不录制（上游 disable_record，默认否）。 */
     val onlyNotify: Boolean = false,
+    // ----- 5b：文件命名规则（上游 main.py:1803-1807，默认值逐项对照） -----
+    /** 保存文件夹是否以作者区分（上游默认是）。 */
+    val folderByAuthor: Boolean = true,
+    /** 保存文件夹是否以时间区分（上游默认否）。 */
+    val folderByTime: Boolean = false,
+    /** 保存文件夹是否以标题区分（上游默认否）。 */
+    val folderByTitle: Boolean = false,
+    /** 保存文件名是否包含标题（上游默认否）。 */
+    val filenameByTitle: Boolean = false,
+    /** 是否去除名称中的表情符号（上游默认是）。 */
+    val cleanEmoji: Boolean = true,
 )
 
 /** Phase 5a：全局录制设置持久化（独立 "settings" DataStore，不动既有 MonitorStore 键）。 */
@@ -57,6 +68,11 @@ class AppSettingsStore(private val context: android.content.Context) {
     private val pushOnLiveKey = booleanPreferencesKey("push_on_live")
     private val pushOnOfflineKey = booleanPreferencesKey("push_on_offline")
     private val onlyNotifyKey = booleanPreferencesKey("only_notify")
+    private val folderByAuthorKey = booleanPreferencesKey("folder_by_author")
+    private val folderByTimeKey = booleanPreferencesKey("folder_by_time")
+    private val folderByTitleKey = booleanPreferencesKey("folder_by_title")
+    private val filenameByTitleKey = booleanPreferencesKey("filename_by_title")
+    private val cleanEmojiKey = booleanPreferencesKey("clean_emoji")
 
     val settings: Flow<AppSettings> = context.settingsDataStore.data.map { prefs ->
         AppSettings(
@@ -69,6 +85,11 @@ class AppSettingsStore(private val context: android.content.Context) {
             pushOnLive = prefs[pushOnLiveKey] ?: true,
             pushOnOffline = prefs[pushOnOfflineKey] ?: false,
             onlyNotify = prefs[onlyNotifyKey] ?: false,
+            folderByAuthor = prefs[folderByAuthorKey] ?: true,
+            folderByTime = prefs[folderByTimeKey] ?: false,
+            folderByTitle = prefs[folderByTitleKey] ?: false,
+            filenameByTitle = prefs[filenameByTitleKey] ?: false,
+            cleanEmoji = prefs[cleanEmojiKey] ?: true,
         )
     }
 
@@ -84,6 +105,11 @@ class AppSettingsStore(private val context: android.content.Context) {
             prefs[pushOnLiveKey] = settings.pushOnLive
             prefs[pushOnOfflineKey] = settings.pushOnOffline
             prefs[onlyNotifyKey] = settings.onlyNotify
+            prefs[folderByAuthorKey] = settings.folderByAuthor
+            prefs[folderByTimeKey] = settings.folderByTime
+            prefs[folderByTitleKey] = settings.folderByTitle
+            prefs[filenameByTitleKey] = settings.filenameByTitle
+            prefs[cleanEmojiKey] = settings.cleanEmoji
         }
     }
 }

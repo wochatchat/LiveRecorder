@@ -31,7 +31,8 @@ import java.util.concurrent.ConcurrentHashMap
  * - 指数退避 2s×2^n 封顶 60s，连续 [MAX_RECONNECT_ATTEMPTS] 次失败放弃
  * - ffmpeg 可用时：HLS(m3u8) + FLV 均走 ffmpeg 分段录制（3-3g）；无 ffmpeg 时
  *   回退 OkHttp 直下（Phase 1/2 行为）
- * - 文件命名：{baseDir}/{平台目录}/{主播}/{主播}_{时间戳}.flv（3e：斗鱼=斗鱼直播，其余=抖音直播）
+ * - 文件命名（5b，上游 main.py:1117-1146）：{baseDir}/{平台}/[{主播}/][{日期}/][{标题}_{主播}|{日期}_{标题}/]
+ *   {主播}_{标题_}{时间戳}.{ext}；主播名与标题均经 clean_name（emoji 开关）
  */
 class RecordController(
     private val baseDir: File,
@@ -68,6 +69,11 @@ class RecordController(
     private val forceHttps: suspend () -> Boolean = { false },
     /** 5a：TS→MP4 转换后是否删除原分片（上游「追加格式后删除原文件」，默认是）。 */
     private val deleteOriginalOnConvert: suspend () -> Boolean = { true },
+    /**
+     * 5b：文件命名选项（作者/时间/标题区分、文件名含标题、去表情）。
+     * 对齐上游 config.ini「录制设置」5 项，RecorderApp 按 AppSettings 接线。
+     */
+    private val namingOptions: suspend () -> RecordSource.NamingOptions = { RecordSource.NamingOptions() },
     /** 等待注入点（单测收集退避延迟，生产即 delay）。 */
     internal val sleep: suspend (Long) -> Unit = { delay(it) },
 ) {
@@ -169,13 +175,33 @@ class RecordController(
                     sourceUrl0 // 配置读取失败按默认（不改协议）处理
                 }
 
-                val anchor = RecordSource.cleanName(info.anchorName)
-                val dir = File(File(baseDir, PLATFORM_DIR), anchor)
+                // 5b：文件命名（上游 main.py:1117-1146）——主播名/标题均经 clean_name（含 emoji 开关）
+                val naming = try {
+                    namingOptions()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    RecordSource.NamingOptions() // 配置读取失败按默认（作者区分 + 去 emoji）
+                }
+                val now = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
+                val anchor = RecordSource.cleanName(info.anchorName, naming.cleanEmoji)
+                val liveTitle = if (info.title.isBlank()) "" else RecordSource.cleanName(info.title, naming.cleanEmoji)
+                val dir = RecordSource.buildSaveDir(
+                    baseDir = baseDir,
+                    platform = platformName(url),
+                    anchor = anchor,
+                    liveTitle = liveTitle,
+                    date = now.substring(0, 10),
+                    opts = naming,
+                )
                 // ffmpeg 不会创建输出目录（OkHttp 路径由 StreamDownloader mkdirs），首次录制需先建
                 dir.mkdirs()
                 val headers = RecordSource.getRecordHeaders(platformName(url), url)
                     ?.let { mapOf(it.first to it.second) }
                     ?: emptyMap()
+
+                // 5b：文件名主干 {主播}_{标题_}{时间戳}（上游 main.py:1122 title_in_name）
+                val baseName = RecordSource.buildBaseName(anchor, liveTitle, now, naming.filenameByTitle)
 
                 // 5a：分段开关（上游「分段录制是否开启」）；ffmpeg 可用但分段关闭 → OkHttp 直下
                 val effectiveFfmpeg = if (ffmpeg != null && runCatching { useSegmented() }.getOrDefault(true)) {
@@ -188,6 +214,7 @@ class RecordController(
                         outputDir = dir,
                         headers = headers,
                         anchorName = anchor,
+                        fileNameBase = baseName,
                         segmentSec = runCatching { segmentTimeSec() }
                             .getOrNull()?.coerceAtLeast(1) ?: 1800,
                     ) { bytes ->
@@ -204,8 +231,7 @@ class RecordController(
                         setState(url, RecordState.Failed("HLS(m3u8) 源需 ffmpeg 支持（Phase 3）"))
                         return
                     }
-                    val now = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
-                    val saveFile = File(dir, "${anchor}_$now.flv")
+                    val saveFile = File(dir, "$baseName.flv")
                     setState(url, RecordState.Recording(saveFile.absolutePath, 0, info.quality))
 
                     var lastUpdate = 0L
@@ -273,6 +299,8 @@ class RecordController(
     private fun platformName(url: String): String = when {
         url.contains("kuaishou.com/") -> "快手直播"
         url.contains("douyu.com/") -> "斗鱼直播"
+        url.contains("huya.com/") -> "虎牙直播"
+        url.contains("bilibili.com/") -> "B站直播"
         else -> "抖音直播"
     }
 
@@ -281,7 +309,6 @@ class RecordController(
     }
 
     private companion object {
-        const val PLATFORM_DIR = "抖音直播"
         const val PROGRESS_INTERVAL_MS = 500L
         const val BASE_BACKOFF_SEC = 2L
         const val MAX_BACKOFF_SEC = 60L

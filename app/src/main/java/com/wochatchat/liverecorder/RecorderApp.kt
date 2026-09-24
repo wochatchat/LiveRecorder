@@ -90,6 +90,17 @@ class RecorderApp : Application() {
             segmentTimeSec = { appSettings.settings.first().segmentTimeSec },
             forceHttps = { appSettings.settings.first().forceHttps },
             deleteOriginalOnConvert = { appSettings.settings.first().deleteOriginalOnConvert },
+            // 5b：文件命名规则（作者/时间/标题区分、文件名含标题、去表情）
+            namingOptions = {
+                val s = appSettings.settings.first()
+                RecordSource.NamingOptions(
+                    folderByAuthor = s.folderByAuthor,
+                    folderByTime = s.folderByTime,
+                    folderByTitle = s.folderByTitle,
+                    filenameByTitle = s.filenameByTitle,
+                    cleanEmoji = s.cleanEmoji,
+                )
+            },
         )
         monitorLoop = MonitorLoop(
             check = { url ->

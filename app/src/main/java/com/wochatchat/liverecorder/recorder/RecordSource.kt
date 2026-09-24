@@ -1,5 +1,6 @@
 package com.wochatchat.liverecorder.recorder
 
+import java.io.File
 import java.net.URLDecoder
 
 /**
@@ -74,12 +75,63 @@ object RecordSource {
         }
     }
 
-    /** 文件名清洗（上游 clean_name：rstr 正则替换为 _，全角括号转半角，去 emoji，空名兜底）。 */
-    fun cleanName(inputText: String): String {
+    /** 文件名清洗（上游 clean_name：rstr 正则替换为 _，全角括号转半角，去 emoji，空名兜底）。
+     *  [cleanEmoji] 对齐上游「是否去除名称中的表情符号」（默认是）。 */
+    fun cleanName(inputText: String, cleanEmoji: Boolean = true): String {
         var cleaned = RSTR_REGEX.replace(inputText.trim(), "_").trim('_')
         cleaned = cleaned.replace("（", "(").replace("）", ")")
-        cleaned = EMOJI_PATTERN.replace(cleaned, "_").trim('_')
+        if (cleanEmoji) cleaned = EMOJI_PATTERN.replace(cleaned, "_").trim('_')
         return cleaned.ifEmpty { "空白昵称" }
+    }
+
+    // ---------- 5b：文件命名规则（上游 main.py:1117-1146 路径/文件名拼接） ----------
+
+    /**
+     * 文件命名选项（对齐上游 config.ini [录制设置] 5 项 + 默认值）。
+     * @param folderByAuthor  保存文件夹是否以作者区分（上游默认是）
+     * @param folderByTime    保存文件夹是否以时间区分（上游默认否）
+     * @param folderByTitle   保存文件夹是否以标题区分（上游默认否）
+     * @param filenameByTitle 保存文件名是否包含标题（上游默认否）
+     * @param cleanEmoji      是否去除名称中的表情符号（上游默认是）
+     */
+    data class NamingOptions(
+        val folderByAuthor: Boolean = true,
+        val folderByTime: Boolean = false,
+        val folderByTitle: Boolean = false,
+        val filenameByTitle: Boolean = false,
+        val cleanEmoji: Boolean = true,
+    )
+
+    /**
+     * 保存目录（上游 main.py:1124-1143 full_path 拼接顺序逐行对齐）：
+     * {base}/{平台}[/{主播}] → +/{日期} → 标题开关且标题非空时
+     * +/{标题}_{主播}（已按时间）或 +/{日期}_{标题}（未按时间）。
+     */
+    fun buildSaveDir(
+        baseDir: File,
+        platform: String,
+        anchor: String,
+        liveTitle: String,
+        date: String,
+        opts: NamingOptions,
+    ): File {
+        var dir = File(baseDir, platform)
+        if (opts.folderByAuthor) dir = File(dir, anchor)
+        if (opts.folderByTime) dir = File(dir, date)
+        if (opts.folderByTitle && liveTitle.isNotEmpty()) {
+            dir = if (opts.folderByTime) File(dir, "${liveTitle}_$anchor")
+            else File(dir, "${date}_$liveTitle")
+        }
+        return dir
+    }
+
+    /**
+     * 文件名主干（上游 `anchor_name + f'_{title_in_name}' + now`，
+     * title_in_name = clean 后标题 + '_' 仅当开关开且标题非空）。
+     */
+    fun buildBaseName(anchor: String, liveTitle: String, timestamp: String, filenameByTitle: Boolean): String {
+        val titleInName = if (filenameByTitle && liveTitle.isNotEmpty()) "${liveTitle}_" else ""
+        return "${anchor}_$titleInName$timestamp"
     }
 
     /** 画质名 → 画质码（上游 get_quality_code，缺失返回 null）。 */

@@ -596,6 +596,64 @@ private fun PushSettingsDialog(
                             onCheckedChange = { settings = settings.copy(deleteOriginalOnConvert = it) }
                         )
                     }
+                    HorizontalDivider()
+                    // 5b：文件命名规则（上游 config.ini [录制设置] 命名 5 项）
+                    Text("文件命名", style = MaterialTheme.typography.labelMedium)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("保存文件夹以作者区分")
+                            Text(
+                                "下载/{平台}/{主播}/…（默认开）",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = settings.folderByAuthor, onCheckedChange = { settings = settings.copy(folderByAuthor = it) })
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("保存文件夹以时间区分")
+                            Text(
+                                "追加一层当天日期（2026-09-24）",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = settings.folderByTime, onCheckedChange = { settings = settings.copy(folderByTime = it) })
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("保存文件夹以标题区分")
+                            Text(
+                                "再按直播标题/日期+标题建目录",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = settings.folderByTitle, onCheckedChange = { settings = settings.copy(folderByTitle = it) })
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("文件名包含标题")
+                            Text(
+                                "{主播}_{标题}_{时间}.flv",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = settings.filenameByTitle, onCheckedChange = { settings = settings.copy(filenameByTitle = it) })
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("去除名称中的表情符号")
+                            Text(
+                                "主播名与标题同步生效（默认开）",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = settings.cleanEmoji, onCheckedChange = { settings = settings.copy(cleanEmoji = it) })
+                    }
                 }
                 // 4a：per-platform 代理（对齐上游「是否使用代理ip / 代理地址 / 使用代理录制的平台」）
                 HorizontalDivider()

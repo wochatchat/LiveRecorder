@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.File
 
 /** 上游 main.py clean_name / select_source_url / get_record_headers / get_quality_code 行为对照。 */
 class RecordSourceTest {
@@ -167,5 +168,93 @@ class RecordSourceTest {
             "http://migu.example.com/stream.flv",
             RecordSource.applyRecordingScheme("https://migu.example.com/stream.flv", forceHttps = true, platform = "migu"),
         )
+    }
+
+        // ---------- 5b：文件命名规则（上游 main.py:1117-1146） ----------
+
+    private val OPTS_DEFAULT = RecordSource.NamingOptions() // 作者区分=是，其余否
+
+    @Test
+    fun saveDir_authorOnlyByDefault() {
+        val dir = RecordSource.buildSaveDir(File("/base"), "抖音直播", "主播A", "", "2026-09-24", OPTS_DEFAULT)
+        assertEquals("/base/抖音直播/主播A", dir.path)
+    }
+
+    @Test
+    fun saveDir_noAuthorWhenDisabled() {
+        val dir = RecordSource.buildSaveDir(
+            File("/base"), "抖音直播", "主播A", "标题", "2026-09-24",
+            OPTS_DEFAULT.copy(folderByAuthor = false),
+        )
+        assertEquals("/base/抖音直播", dir.path)
+    }
+
+    @Test
+    fun saveDir_timeLayer() {
+        val dir = RecordSource.buildSaveDir(
+            File("/base"), "快手直播", "主播A", "", "2026-09-24",
+            OPTS_DEFAULT.copy(folderByTime = true),
+        )
+        assertEquals("/base/快手直播/主播A/2026-09-24", dir.path)
+    }
+
+    @Test
+    fun saveDir_titleWithTime_usesTitleAuthor() {
+        // 上游 folder_by_title && folder_by_time → {标题}_{主播}
+        val dir = RecordSource.buildSaveDir(
+            File("/base"), "抖音直播", "主播A", "标题X", "2026-09-24",
+            OPTS_DEFAULT.copy(folderByTime = true, folderByTitle = true),
+        )
+        assertEquals("/base/抖音直播/主播A/2026-09-24/标题X_主播A", dir.path)
+    }
+
+    @Test
+    fun saveDir_titleWithoutTime_usesDateTitle() {
+        // 上游 folder_by_title 且未按时间 → {日期}_{标题}
+        val dir = RecordSource.buildSaveDir(
+            File("/base"), "抖音直播", "主播A", "标题X", "2026-09-24",
+            OPTS_DEFAULT.copy(folderByTitle = true),
+        )
+        assertEquals("/base/抖音直播/主播A/2026-09-24_标题X", dir.path)
+    }
+
+    @Test
+    fun saveDir_titleEmpty_fallsBackPlain() {
+        // 标题为空时标题开关无效（上游 `and port_info.get('title')`）
+        val dir = RecordSource.buildSaveDir(
+            File("/base"), "抖音直播", "主播A", "", "2026-09-24",
+            OPTS_DEFAULT.copy(folderByTitle = true),
+        )
+        assertEquals("/base/抖音直播/主播A", dir.path)
+    }
+
+    @Test
+    fun baseName_withoutTitle() {
+        assertEquals(
+            "主播A_2026-09-24_10-00-00",
+            RecordSource.buildBaseName("主播A", "", "2026-09-24_10-00-00", filenameByTitle = true),
+        )
+    }
+
+    @Test
+    fun baseName_withTitle() {
+        // 上游 anchor_name + f'_{title_in_name}' + now：标题开关开且标题非空 → {主播}_{标题}_{时间}
+        assertEquals(
+            "主播A_标题X_2026-09-24_10-00-00",
+            RecordSource.buildBaseName("主播A", "标题X", "2026-09-24_10-00-00", filenameByTitle = true),
+        )
+        // 开关关 → 标题不进文件名
+        assertEquals(
+            "主播A_2026-09-24_10-00-00",
+            RecordSource.buildBaseName("主播A", "标题X", "2026-09-24_10-00-00", filenameByTitle = false),
+        )
+    }
+
+    @Test
+    fun cleanName_keepsEmojiWhenDisabled() {
+        // clean_emoji=否：表情符号原样保留
+        assertEquals("主播😀", RecordSource.cleanName("主播😀", cleanEmoji = false))
+        // 默认（是）：表情符号去除
+        assertEquals("主播", RecordSource.cleanName("主播😀", cleanEmoji = true))
     }
 }

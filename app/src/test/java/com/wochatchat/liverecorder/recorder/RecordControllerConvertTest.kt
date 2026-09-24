@@ -26,6 +26,7 @@ class RecordControllerConvertTest {
             outputDir: File,
             headers: Map<String, String>,
             anchorName: String,
+            fileNameBase: String?,
             segmentSec: Int,
             onProgress: ProgressCallback,
         ): RecordResult {

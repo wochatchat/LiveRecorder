@@ -50,7 +50,8 @@ open class FfmpegRecorder(
      * @param sourceUrl   直播流地址（m3u8 或 flv）
      * @param outputDir   输出目录（ffmpeg 在此写入 {anchor}_{ts}_*.{ext}）
      * @param headers     HTTP 头（referer/origin 等）
-     * @param anchorName  主播名（用于文件名）
+     * @param anchorName  主播名（用于文件名；[fileNameBase] 缺省时经 cleanName 清洗）
+     * @param fileNameBase 5b：调用方预拼好的文件名主干（含标题/时间戳），非空时优先
      * @param segmentSec  分段时长（秒），默认 [DEFAULT_SEGMENT_SEC]
      * @param onProgress  进度回调（估算字节数，外部据此更新 UI）
      * @return 录制结果
@@ -61,10 +62,11 @@ open class FfmpegRecorder(
         outputDir: File,
         headers: Map<String, String>,
         anchorName: String,
+        fileNameBase: String? = null,
         segmentSec: Int = DEFAULT_SEGMENT_SEC,
         onProgress: ProgressCallback = {},
     ): RecordResult = coroutineScope {
-        val baseName = "${RecordSource.cleanName(anchorName)}_${
+        val baseName = fileNameBase ?: "${RecordSource.cleanName(anchorName)}_${
             SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
         }"
 
