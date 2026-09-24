@@ -57,7 +57,7 @@ class AppLogTest {
     @Test
     fun rotationAt300KB() {
         val big = "x".repeat(600)
-        repeat(20) { AppLog.i("T", big) }
+        repeat(600) { AppLog.i("T", big) }  // 600 × ~630B ≈ 378KB，超 300KB 轮转阈值
         val f = File(dir, "playurl.log")
         assertTrue("应触发轮转", f.length() < 350 * 1024)
         val backup = File(dir, "playurl.log.1")
