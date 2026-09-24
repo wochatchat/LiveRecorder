@@ -261,7 +261,6 @@ class PlatformRouterTest {
                             })
                         })
                     })
-                }
         }
         val router = PlatformRouter(yySpider = fakeYy)
         val info = router.fetchStreamInfo("https://www.yy.com/54880976")
