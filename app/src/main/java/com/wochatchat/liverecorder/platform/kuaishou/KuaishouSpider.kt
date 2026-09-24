@@ -166,8 +166,8 @@ class KuaishouSpider(
         }
         val playList = try {
             val m = RE_PLAY_LIST.find(jsonStr) ?: return KsStreamData(type = 1, isLive = false)
-            // 正则捕获 liveStream 对象本身（末尾已是完整 JSON，勿追加任何后缀）
-            JSONObject(m.groupValues[1])
+            // 正则捕获 liveStream 对象（末尾缺 }，追加后闭合）
+            JSONObject(m.groupValues[1] + "}")
         } catch (e: Exception) {
             return KsStreamData(type = 1, isLive = false)
         }

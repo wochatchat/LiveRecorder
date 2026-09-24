@@ -134,8 +134,9 @@ class PlatformRouter(
         proxyAddr: String?,
         cookie: String?,
     ): DouyinStreamInfo {
-        // 虎牙 selectStream 需要完整房间信息才能按画质选路径（web anti-code 重算 / app TX 优先）
-        val info = huyaSpider.getHuyaInfo(url, proxyAddr, cookie)
+        // 上游 main.py:618-630：OD/BD/UHD → app 路径（get_huya_app_stream_url），
+        // HD/SD/LD → web 路径（get_huya_stream_data + get_huya_stream_url），按画质分流取房间信息
+        val info = huyaSpider.getHuyaInfo(url, quality, proxyAddr, cookie)
         val play = huyaSpider.selectStream(info, quality)
             ?: return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
         return DouyinStreamInfo(

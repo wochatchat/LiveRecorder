@@ -131,9 +131,10 @@ class KuaishouSpiderTest {
         // UHD → 2000；HD → 1000
         assertEquals("u2000", spider.selectStream(info, "UHD")!!.flvUrl)
         assertEquals("u1000", spider.selectStream(info, "HD")!!.flvUrl)
-        // SD/LD 阈值(800/600)低于全部真实档位 → 取最高档（上游 quality_index=None → len-1）
-        assertEquals("u8000", spider.selectStream(info, "SD")!!.flvUrl)
-        assertEquals("u8000", spider.selectStream(info, "LD")!!.flvUrl)
+        // SD/LD 阈值(800/600)低于全部真实档位 → 无命中取降序列表末位（上游 quality_index=None
+        // → len(flv_url_list)-1，即最低档 u1000）
+        assertEquals("u1000", spider.selectStream(info, "SD")!!.flvUrl)
+        assertEquals("u1000", spider.selectStream(info, "LD")!!.flvUrl)
         // 画质名回填
         assertEquals("HD", spider.selectStream(info, "HD")!!.quality)
     }
@@ -159,12 +160,13 @@ class KuaishouSpiderTest {
         assertEquals("https://f.example.com/l1.flv", spider.pickReversed(list, 0).url)
         assertEquals("https://f.example.com/l3.flv", spider.pickReversed(list, 1).url)
         assertEquals("https://f.example.com/l0.flv", spider.pickReversed(list, 2).url)
-        // 下标越界（不足 5 档，越界下标）→ 末档兜底
+        // 下标越界：补齐沿用当前末位 → [b,a,a,a,a]（上游 while len<5 append(list[-1])），
+        // 下标 3 → a
         val two = listOf(
             KuaishouSpider.KsStreamUrl("https://f.example.com/a.flv"),
             KuaishouSpider.KsStreamUrl("https://f.example.com/b.flv"),
         )
-        assertEquals("https://f.example.com/b.flv", spider.pickReversed(two, 3).url)
+        assertEquals("https://f.example.com/a.flv", spider.pickReversed(two, 3).url)
     }
 }
 

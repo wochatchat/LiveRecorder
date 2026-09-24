@@ -41,6 +41,9 @@ class HuyaSpider(
         private val RE_PROFILE_ROOM = Regex("""ProfileRoom":(.*?),"sPrivateHost""")
         private val RE_EXSPHD = Regex("""(?<=264_)\d+""")
 
+        /** 上游 main.py:618：这些画质走 wx app 路径（mp.huya.com）。 */
+        val APP_QUALITIES = setOf("OD", "BD", "UHD")
+
         fun isHuyaUrl(url: String): Boolean = url.contains("huya.com/")
 
         /** 房间号段（spider.py:434：? 前最后一段）；含字母返回 null（需 HTML 提 ProfileRoom）。 */
@@ -82,14 +85,13 @@ class HuyaSpider(
     )
 
     /**
-     * 获取虎牙房间信息：web 路径优先（上游主链路），异常/无流回落 app 路径。
+     * 获取虎牙房间信息（上游 main.py:618-630 按画质分流，与 URL 无关）：
+     * OD/BD/UHD → app 路径（TX CDN 优先，anti-code 预计算）；其余（HD/SD/LD）→ web 路径
+     * （anti-code 实时重算）。与上游一致，两条路径互不回退（异常向上抛，由调用层按轮次处理）。
      */
-    suspend fun getHuyaInfo(url: String, proxyAddr: String? = null, cookie: String? = null): HuyaInfo {
-        val web = runCatching { getHuyaInfoByWeb(url, proxyAddr, cookie) }.getOrNull()
-        if (web != null && web.streams.isNotEmpty()) return web
-        val app = runCatching { getHuyaInfoByApp(url, proxyAddr, cookie) }.getOrNull()
-        return app ?: web ?: HuyaInfo()
-    }
+    suspend fun getHuyaInfo(url: String, quality: String?, proxyAddr: String? = null, cookie: String? = null): HuyaInfo =
+        if (normalizeQuality(quality) in APP_QUALITIES) getHuyaInfoByApp(url, proxyAddr, cookie)
+        else getHuyaInfoByWeb(url, proxyAddr, cookie)
 
     // ---- web 路径（spider.py:408）----
 
@@ -107,7 +109,10 @@ class HuyaSpider(
     internal fun parseWebResponse(html: String): HuyaInfo {
         val jsonStr = RE_STREAM.find(html)?.groupValues?.get(1) ?: return HuyaInfo()
         val data0 = runCatching {
-            val arr = JSONObject(jsonStr + "]}").optJSONArray("data") ?: return@runCatching null
+            // 上游 json.loads(json_str + '}')：真实页面 ,"iWebDefaultBitRate" 在 data 数组之后、
+            // 外层对象内部，捕获组只缺最外层 '}'（实测 www.huya.com 页面验证）
+            val arr = JSONObject(jsonStr + "}")
+                .optJSONArray("data") ?: return@runCatching null
             arr.optJSONObject(0)
         }.getOrNull() ?: return HuyaInfo()
         val live = data0.optJSONObject("gameLiveInfo")
@@ -224,7 +229,7 @@ class HuyaSpider(
     }
 
     /** 数字画质 → QUALITY_MAPPING 命名（上游 get_quality_index 语义），缺失默认 OD。 */
-    private fun normalizeQuality(quality: String?): String {
+    internal fun normalizeQuality(quality: String?): String {
         val s = (quality ?: "").uppercase()
         if (s.isEmpty()) return "OD"
         if (s.first().isDigit()) {

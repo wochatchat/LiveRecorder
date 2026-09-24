@@ -33,9 +33,11 @@ class HuyaSpiderTest {
     // ---- 2. web 页解析（spider.py:408）----
 
     private fun webHtml(streamListJson: String): String {
+        // 真实页面结构：,"iWebDefaultBitRate" 是外层对象的字段（data 数组之后），
+        // 正则捕获组缺最外层 '}'，实现侧补 '}'（上游 json.loads(json_str + '}') 语义）
         val json = """{"data":[{"gameLiveInfo":{"nick":"测试主播","introduction":"测试标题"},
-            "gameStreamInfoList":$streamListJson}]}"""
-        return "<html><script>stream: $json,\"iWebDefaultBitRate\":0</script></html>"
+            "gameStreamInfoList":$streamListJson}],"iWebDefaultBitRate":0}"""
+        return "<html><script>stream: $json</script></html>"
     }
 
     private val alStream = """{"sCdnType":"AL","sFlvUrl":"http://al.flv.huya.com/src",
@@ -99,7 +101,8 @@ class HuyaSpiderTest {
         // TX CDN 优先 + ctype/fs 替换 + 强转 https（spider.py:487-506）
         assertTrue(play.recordUrl.startsWith("https://tx.flv.huya.com/src/"))
         assertTrue(play.recordUrl.contains("113524-txstream-1-10057-A.flv?"))
-        assertTrue(play.recordUrl.endsWith("?fm=y&ctype=tars_mp&fs=bhct"))
+        // TX CDN 替换：ctype=tars_mp→huya_webh5、fs=bhct→bgct（spider.py:502-504）
+        assertTrue(play.recordUrl.endsWith("?fm=y&ctype=huya_webh5&fs=bgct"))
         // m3u8/flv 参考字段取 play_url_list[0]（AL）
         assertTrue(play.m3u8Url.startsWith("http://al.hls.huya.com/"))
         assertTrue(play.flvUrl.startsWith("http://al.flv.huya.com/src/"))
