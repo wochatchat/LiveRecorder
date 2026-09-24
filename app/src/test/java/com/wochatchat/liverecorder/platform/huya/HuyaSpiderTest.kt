@@ -122,10 +122,13 @@ class HuyaSpiderTest {
     }
 
     @Test
-    fun selectStream_UHD_webPathFirstRatio() {
+    fun selectStream_SD_webPathThirdRatio() {
         val info = spider.parseWebResponse(webHtml("[$alStream]"))
-        val play = spider.selectStream(info, "UHD")!!
-        assertTrue(play.recordUrl.contains("&ratio=600"))
+        val play = spider.selectStream(info, "SD")!!
+        // exsphd 倒序 [600,800,1000,2000,4000]，SD 档 = quality_list[2] = 1000
+        // （上游 main.py:618 UHD/OD/BD 走 app 路径，web 路径只有 HD/SD/LD 可达）
+        assertTrue(play.recordUrl.contains("&ratio=1000"))
+        assertEquals("SD", play.quality)
     }
 
     // ---- 5. anti-code 重算（stream.py:220-262）----
