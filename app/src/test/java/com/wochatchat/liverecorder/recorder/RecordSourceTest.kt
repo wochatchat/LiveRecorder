@@ -140,4 +140,32 @@ class RecordSourceTest {
         assertEquals("LD", RecordSource.getQualityCode("流畅"))
         assertNull(RecordSource.getQualityCode("不存在"))
     }
+
+    // ---------- applyRecordingScheme（5a，上游 main.py:1150-1156） ----------
+
+    @Test
+    fun recordingScheme_forceHttpsRewritesHttp() {
+        assertEquals(
+            "https://cdn.example.com/live.flv",
+            RecordSource.applyRecordingScheme("http://cdn.example.com/live.flv", forceHttps = true, platform = "抖音直播"),
+        )
+        assertEquals(
+            "http://cdn.example.com/live.flv",
+            RecordSource.applyRecordingScheme("http://cdn.example.com/live.flv", forceHttps = false, platform = "抖音直播"),
+        )
+        // https 源不受影响
+        assertEquals(
+            "https://hls.example.com/x.m3u8",
+            RecordSource.applyRecordingScheme("https://hls.example.com/x.m3u8", forceHttps = true, platform = "虎牙直播"),
+        )
+    }
+
+    @Test
+    fun recordingScheme_shopeeMiguForcedHttp() {
+        // 上游 http_record_list：shopee/migu 无论开关强制 http
+        assertEquals(
+            "http://migu.example.com/stream.flv",
+            RecordSource.applyRecordingScheme("https://migu.example.com/stream.flv", forceHttps = true, platform = "migu"),
+        )
+    }
 }

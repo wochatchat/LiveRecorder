@@ -85,6 +85,20 @@ object RecordSource {
     /** 画质名 → 画质码（上游 get_quality_code，缺失返回 null）。 */
     fun getQualityCode(qualityZh: String): String? = QUALITY_CODE[qualityZh]
 
+    /**
+     * 录制地址协议处理（上游 main.py:1150-1156）：
+     * - forceHttps（是否强制启用https录制）：http:// 前缀改写为 https://
+     * - shopee / migu 平台例外，强制 http（上游 http_record_list，无论开关）
+     */
+    fun applyRecordingScheme(url: String, forceHttps: Boolean, platform: String): String {
+        if (platform == "shopee" || platform == "migu") {
+            return url.replace("https://", "http://")
+        }
+        return if (forceHttps && url.startsWith("http://")) {
+            url.replace("http://", "https://")
+        } else url
+    }
+
     private val RSTR_REGEX = Regex("[/\\\\:*？?\"<>|&#.。,， ~！·]")
 
     // 上游 remove_emojis 的 Unicode 区间（utils.py:118），\x{...} 语法 JVM Pattern 原生支持

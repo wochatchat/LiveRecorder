@@ -60,6 +60,14 @@ class RecordController(
      * RecorderApp 按 MonitorStore.proxySettings 接线。
      */
     private val resolveProxy: suspend (String) -> String? = { null },
+    /** 5a：分段录制是否开启（上游「分段录制是否开启」，默认开）。 */
+    private val useSegmented: suspend () -> Boolean = { true },
+    /** 5a：视频分段时间(秒)（上游 config.ini「视频分段时间(秒)」，默认 1800）。 */
+    private val segmentTimeSec: suspend () -> Int = { FfmpegRecorder.DEFAULT_SEGMENT_SEC },
+    /** 5a：是否强制启用 https 录制（上游 main.py:1150）。 */
+    private val forceHttps: suspend () -> Boolean = { false },
+    /** 5a：TS→MP4 转换后是否删除原分片（上游「追加格式后删除原文件」，默认是）。 */
+    private val deleteOriginalOnConvert: suspend () -> Boolean = { true },
     /** 等待注入点（单测收集退避延迟，生产即 delay）。 */
     internal val sleep: suspend (Long) -> Unit = { delay(it) },
 ) {
@@ -147,10 +155,18 @@ class RecordController(
                     return
                 }
 
-                val sourceUrl = RecordSource.selectSourceUrl(url, info.flvUrl, info.recordUrl)
-                if (sourceUrl.isNullOrEmpty()) {
+                val sourceUrl0 = RecordSource.selectSourceUrl(url, info.flvUrl, info.recordUrl)
+                if (sourceUrl0.isNullOrEmpty()) {
                     setState(url, RecordState.Failed("未获取到直播流地址"))
                     return
+                }
+                // 5a：强制 https 录制（上游 main.py:1150；shopee/migu 平台例外走 http）
+                val sourceUrl = try {
+                    RecordSource.applyRecordingScheme(sourceUrl0, forceHttps(), platformName(url))
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    sourceUrl0 // 配置读取失败按默认（不改协议）处理
                 }
 
                 val anchor = RecordSource.cleanName(info.anchorName)
@@ -161,13 +177,19 @@ class RecordController(
                     ?.let { mapOf(it.first to it.second) }
                     ?: emptyMap()
 
-                if (ffmpeg != null) {
+                // 5a：分段开关（上游「分段录制是否开启」）；ffmpeg 可用但分段关闭 → OkHttp 直下
+                val effectiveFfmpeg = if (ffmpeg != null && runCatching { useSegmented() }.getOrDefault(true)) {
+                    ffmpeg
+                } else null
+                if (effectiveFfmpeg != null) {
                     // ffmpeg 分段录制（3-3g）：m3u8 必须走 ffmpeg；FLV 也走 ffmpeg
-                    val res = ffmpeg.record(
+                    val res = effectiveFfmpeg.record(
                         sourceUrl = sourceUrl,
                         outputDir = dir,
                         headers = headers,
                         anchorName = anchor,
+                        segmentSec = runCatching { segmentTimeSec() }
+                            .getOrNull()?.coerceAtLeast(1) ?: FfmpegRecorder.DEFAULT_SEGMENT_SEC,
                     ) { bytes ->
                         setState(url, RecordState.Recording(dir.absolutePath, totalBytes + bytes, info.quality))
                     }
@@ -221,10 +243,12 @@ class RecordController(
         scope.launch {
             val enabled = try { mp4Convert() } catch (e: Exception) { false }
             if (!enabled) return@launch
+            // 5a：转完是否删除原分片（上游「追加格式后删除原文件」，默认是）
+            val delOriginal = runCatching { deleteOriginalOnConvert() }.getOrDefault(true)
             // 上游仅对 TS 保存类型转 mp4（main.py:454 `converts_to_mp4 and save_type == 'TS'`）
             segments.filter { it.name.endsWith(".ts") }.forEach { seg ->
                 try {
-                    ffmpeg?.remuxToMp4(seg, deleteOriginal = true)
+                    ffmpeg?.remuxToMp4(seg, deleteOriginal = delOriginal)
                 } catch (e: Exception) {
                     println("TS→MP4 转换失败 (${seg.name}): ${e.message}")
                 }

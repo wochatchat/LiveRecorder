@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wochatchat.liverecorder.data.AuthStore
+import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.monitor.MonitorLoop
 import com.wochatchat.liverecorder.data.ProxySettings
 import com.wochatchat.liverecorder.push.PushConfig
@@ -193,12 +194,14 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
             initial = pushConfig,
             initialProxy = viewModel.proxySettings.collectAsState().value,
             initialConvertMp4 = viewModel.autoConvertMp4.collectAsState().value,
+            initialSettings = viewModel.appSettings.collectAsState().value,
             onOpenCredentials = { showCookieDialog = true },
             onDismiss = { showPushDialog = false },
-            onConfirm = { push, proxy, convertMp4 ->
+            onConfirm = { push, proxy, convertMp4, settings ->
                 viewModel.setPushConfig(push.enabled, push.type, push.apis.joinToString(","))
                 viewModel.setProxySettings(proxy)
                 viewModel.setAutoConvertMp4(convertMp4)
+                viewModel.setAppSettings(settings)
                 showPushDialog = false
             }
         )
@@ -424,16 +427,17 @@ private fun EditUrlDialog(
     )
 }
 
-/** 设置（2f 推送 + 3h 转码开关）。 */
+/** 设置（2f 推送 + 3h 转码开关 + 5a 全局配置，常用/高级两级）。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PushSettingsDialog(
     initial: PushConfig,
     initialProxy: ProxySettings,
     initialConvertMp4: Boolean,
+    initialSettings: AppSettings = AppSettings(),
     onOpenCredentials: () -> Unit,
     onDismiss: () -> Unit,
-    onConfirm: (push: PushConfig, proxy: ProxySettings, convertMp4: Boolean) -> Unit,
+    onConfirm: (push: PushConfig, proxy: ProxySettings, convertMp4: Boolean, settings: AppSettings) -> Unit,
 ) {
     var enabled by remember { mutableStateOf(initial.enabled) }
     var type by remember { mutableStateOf(initial.type) }
@@ -442,39 +446,159 @@ private fun PushSettingsDialog(
     var proxyEnabled by remember { mutableStateOf(initialProxy.enabled) }
     var proxyAddr by remember { mutableStateOf(initialProxy.addr) }
     var proxyPlatforms by remember { mutableStateOf(initialProxy.platformsCsv()) }
+    // 5a：全局录制设置 + 常用/高级分页
+    var settings by remember { mutableStateOf(initialSettings) }
+    var tab by remember { mutableStateOf(0) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("设置") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    "开播/关播时推送到 ntfy 或 bark。地址支持多个，用逗号分隔。",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("启用推送", modifier = Modifier.weight(1f))
-                    Switch(checked = enabled, onCheckedChange = { enabled = it })
-                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("ntfy" to "ntfy", "bark" to "bark").forEach { (value, label) ->
-                        FilterChip(
-                            selected = type == value,
-                            onClick = { type = value },
-                            label = { Text(value) }
+                    listOf("常用", "高级").forEachIndexed { idx, label ->
+                        FilterChip(selected = tab == idx, onClick = { tab = idx }, label = { Text(label) })
+                    }
+                }
+                if (tab == 0) {
+                    Text(
+                        "开播/关播时推送到 ntfy 或 bark。地址支持多个，用逗号分隔。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("启用推送", modifier = Modifier.weight(1f))
+                        Switch(checked = enabled, onCheckedChange = { enabled = it })
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("ntfy" to "ntfy", "bark" to "bark").forEach { (value, label) ->
+                            FilterChip(
+                                selected = type == value,
+                                onClick = { type = value },
+                                label = { Text(value) }
+                            )
+                        }
+                    }
+                    OutlinedTextField(
+                        value = api,
+                        onValueChange = { api = it },
+                        placeholder = { Text(if (type == "bark") "https://api.day.app/你的Key" else "https://ntfy.sh/你的主题") },
+                        label = { Text("推送地址") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    HorizontalDivider()
+                    // 5a：画质（上游「原画|超清|高清|标清|流畅」，经 get_quality_code 映射）
+                    Text("录制画质", style = MaterialTheme.typography.labelMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf("原画", "超清", "高清", "标清", "流畅").forEach { q ->
+                            FilterChip(
+                                selected = settings.quality == q,
+                                onClick = { settings = settings.copy(quality = q) },
+                                label = { Text(q) }
+                            )
+                        }
+                    }
+                    OutlinedTextField(
+                        value = if (settings.loopIntervalSec == 0L) "" else settings.loopIntervalSec.toString(),
+                        onValueChange = { text ->
+                            text.toLongOrNull()?.let {
+                                settings = settings.copy(loopIntervalSec = it.coerceIn(60, 86400))
+                            }
+                        },
+                        label = { Text("循环时间(秒) — 每轮检查开播的间隔") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    HorizontalDivider()
+                    // 4b：平台 Cookie / 登录账密入口
+                    OutlinedButton(
+                        onClick = onOpenCredentials,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("平台 Cookie / 账号密码…")
+                    }
+                } else {
+                    // 5a 高级段：对齐上游 config.ini 高级项
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("只推送通知不录制")
+                            Text(
+                                "开播时仅推送，不自动录制",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = settings.onlyNotify, onCheckedChange = { settings = settings.copy(onlyNotify = it) })
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("开播推送", modifier = Modifier.weight(1f))
+                        Switch(checked = settings.pushOnLive, onCheckedChange = { settings = settings.copy(pushOnLive = it) })
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("关播推送", modifier = Modifier.weight(1f))
+                        Switch(checked = settings.pushOnOffline, onCheckedChange = { settings = settings.copy(pushOnOffline = it) })
+                    }
+                    HorizontalDivider()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("分段录制")
+                            Text(
+                                "关闭时 FLV 直下为单文件（不支持 m3u8）",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = settings.segmented, onCheckedChange = { settings = settings.copy(segmented = it) })
+                    }
+                    OutlinedTextField(
+                        value = settings.segmentTimeSec.toString(),
+                        onValueChange = { text ->
+                            text.toIntOrNull()?.let { settings = settings.copy(segmentTimeSec = it.coerceIn(10, 86400)) }
+                        },
+                        label = { Text("视频分段时间(秒)") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("强制启用 https 录制")
+                            Text(
+                                "直播源 http:// 强制改写为 https://",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = settings.forceHttps, onCheckedChange = { settings = settings.copy(forceHttps = it) })
+                    }
+                    HorizontalDivider()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("录制完成后自动转 MP4")
+                            Text(
+                                "TS 分片转 mp4（无需重编码）",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = convertMp4, onCheckedChange = { convertMp4 = it })
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("转码后删除原 TS 分片")
+                            Text(
+                                "对齐上游「追加格式后删除原文件」",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = settings.deleteOriginalOnConvert,
+                            onCheckedChange = { settings = settings.copy(deleteOriginalOnConvert = it) }
                         )
                     }
                 }
-                OutlinedTextField(
-                    value = api,
-                    onValueChange = { api = it },
-                    placeholder = { Text(if (type == "bark") "https://api.day.app/你的Key" else "https://ntfy.sh/你的主题") },
-                    label = { Text("推送地址") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                HorizontalDivider()
                 // 4a：per-platform 代理（对齐上游「是否使用代理ip / 代理地址 / 使用代理录制的平台」）
+                HorizontalDivider()
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text("使用代理录制")
@@ -500,26 +624,6 @@ private fun PushSettingsDialog(
                     label = { Text("走代理的平台（逗号分隔关键词）") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                HorizontalDivider()
-                // 4b：平台 Cookie / 登录账密入口
-                OutlinedButton(
-                    onClick = onOpenCredentials,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("平台 Cookie / 账号密码…")
-                }
-                HorizontalDivider()
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("录制完成后自动转 MP4")
-                        Text(
-                            "TS 分片转 mp4（无需重编码，转完删除原分片）",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(checked = convertMp4, onCheckedChange = { convertMp4 = it })
-                }
             }
         },
         confirmButton = {
@@ -535,6 +639,7 @@ private fun PushSettingsDialog(
                         ),
                     ),
                     convertMp4,
+                    settings,
                 )
             }) { Text("保存") }
         },

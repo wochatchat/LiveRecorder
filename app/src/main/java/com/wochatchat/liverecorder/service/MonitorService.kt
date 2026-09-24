@@ -82,7 +82,10 @@ class MonitorService : Service() {
     private fun startMonitoring() {
         val app = application as RecorderApp
         val store = MonitorStore(application)
-        app.monitorLoop.start(scope, urls = { store.enabledUrls.first() })
+        // 5a：循环时间(秒)（上游 config.ini，默认 300）
+        val intervalSec = runCatching { app.appSettings.settings.first().loopIntervalSec }
+            .getOrDefault(MonitorLoop.DEFAULT_INTERVAL_SEC)
+        app.monitorLoop.start(scope, urls = { store.enabledUrls.first() }, intervalSec = intervalSec)
     }
 
     private fun stopMonitoring() {

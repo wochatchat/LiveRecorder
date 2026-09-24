@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wochatchat.liverecorder.RecorderApp
+import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.MonitorStore
 import com.wochatchat.liverecorder.data.ProxySettings
@@ -43,6 +44,10 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     /** 4a：代理设置。 */
     val proxySettings: StateFlow<ProxySettings> = store.proxySettings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), ProxySettings())
+
+    /** 5a：全局录制设置（画质/循环时间/分段/https/推送开关等）。 */
+    val appSettings: StateFlow<AppSettings> = (app as RecorderApp).appSettings.settings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettings())
 
     private val authStore = AuthStore(app)
 
@@ -99,6 +104,11 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     /** 4a：保存代理设置。 */
     fun setProxySettings(settings: ProxySettings) = viewModelScope.launch {
         store.setProxySettings(settings)
+    }
+
+    /** 5a：保存全局录制设置。 */
+    fun setAppSettings(settings: AppSettings) = viewModelScope.launch {
+        (app as RecorderApp).appSettings.set(settings)
     }
 
     /** 4b：保存/清除平台 cookie。 */
