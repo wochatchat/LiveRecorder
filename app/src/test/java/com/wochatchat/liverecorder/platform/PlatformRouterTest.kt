@@ -14,6 +14,10 @@ import com.wochatchat.liverecorder.platform.bilibili.BilibiliSpider
 import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
 import com.wochatchat.liverecorder.platform.douyu.DouyuSpider
 import com.wochatchat.liverecorder.platform.huya.HuyaSpider
+import com.wochatchat.liverecorder.platform.yy.YySpider
+import com.wochatchat.liverecorder.platform.yy.YyStreamInfo
+import com.wochatchat.liverecorder.platform.bigo.BigoSpider
+import com.wochatchat.liverecorder.platform.bigo.BigoStreamInfo
 import com.wochatchat.liverecorder.sign.RhinoJsEngine
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
@@ -231,5 +235,88 @@ class PlatformRouterTest {
         val info = router.fetchStreamInfo("https://live.bilibili.com/26066074", "OD")
         assertFalse(info.isLive)
         assertEquals("离线主播", info.anchorName)
+    }
+
+    // ---- YY 路由 ----
+
+    @Test
+    fun isYyUrl_routing() {
+        assertTrue(PlatformRouter.isYyUrl("https://www.yy.com/123456"))
+        assertTrue(PlatformRouter.isYyUrl("https://www.yy.com/1355280876?q=test"))
+        assertFalse(PlatformRouter.isYyUrl("https://live.bilibili.com/1"))
+        assertFalse(PlatformRouter.isYyUrl("https://m.yy.com/123"))
+    }
+
+    @Test
+    fun fetchYy_live() = runTest {
+        val fakeYy = object : YySpider() {
+            override suspend fun getYyStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                YyStreamInfo(anchorName = "YY主播", cid = "54880976", title = "YY直播",
+                    avpInfoRes = JSONObject().apply {
+                        put("stream_line_addr", JSONObject().apply {
+                            put("cdn_1", JSONObject().apply {
+                                put("cdn_info", JSONObject().apply {
+                                    put("url", "https://ks-flv-web.yy.com/live/a.flv")
+                                })
+                            })
+                        })
+                    })
+                }
+        }
+        val router = PlatformRouter(yySpider = fakeYy)
+        val info = router.fetchStreamInfo("https://www.yy.com/54880976")
+        assertTrue(info.isLive)
+        assertEquals("YY主播", info.anchorName)
+        assertEquals("YY直播", info.title)
+        assertEquals("OD", info.quality)
+        assertEquals("https://ks-flv-web.yy.com/live/a.flv", info.flvUrl)
+    }
+
+    @Test
+    fun fetchYy_offline() = runTest {
+        val fakeYy = object : YySpider() {
+            override suspend fun getYyStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                YyStreamInfo(anchorName = "离线YY", cid = "54880976")
+        }
+        val router = PlatformRouter(yySpider = fakeYy)
+        val info = router.fetchStreamInfo("https://www.yy.com/54880976")
+        assertFalse(info.isLive)
+        assertEquals("离线YY", info.anchorName)
+    }
+
+    // ---- Bigo 路由 ----
+
+    @Test
+    fun isBigoUrl_routing() {
+        assertTrue(PlatformRouter.isBigoUrl("https://www.bigo.tv/600024469"))
+        assertTrue(PlatformRouter.isBigoUrl("https://slink.bigovideo.tv/x/abc?e=1&h=123"))
+        assertFalse(PlatformRouter.isBigoUrl("https://live.bilibili.com/1"))
+    }
+
+    @Test
+    fun fetchBigo_live() = runTest {
+        val fakeBigo = object : BigoSpider() {
+            override suspend fun getBigoStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                BigoStreamInfo(anchorName = "Bigo主播", title = "Bigo标题", isLive = true,
+                    m3u8Url = "https://hls.bigo.tv/a.m3u8", recordUrl = "https://hls.bigo.tv/a.m3u8")
+        }
+        val router = PlatformRouter(bigoSpider = fakeBigo)
+        val info = router.fetchStreamInfo("https://www.bigo.tv/600024469")
+        assertTrue(info.isLive)
+        assertEquals("Bigo主播", info.anchorName)
+        assertEquals("Bigo标题", info.title)
+        assertEquals("https://hls.bigo.tv/a.m3u8", info.m3u8Url)
+    }
+
+    @Test
+    fun fetchBigo_offline() = runTest {
+        val fakeBigo = object : BigoSpider() {
+            override suspend fun getBigoStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                BigoStreamInfo(anchorName = "离线Bigo", isLive = false)
+        }
+        val router = PlatformRouter(bigoSpider = fakeBigo)
+        val info = router.fetchStreamInfo("https://www.bigo.tv/600024469")
+        assertFalse(info.isLive)
+        assertEquals("离线Bigo", info.anchorName)
     }
 }

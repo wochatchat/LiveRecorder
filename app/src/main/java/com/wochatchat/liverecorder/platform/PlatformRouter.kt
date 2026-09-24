@@ -19,11 +19,13 @@
 package com.wochatchat.liverecorder.platform
 
 import com.wochatchat.liverecorder.platform.bilibili.BilibiliSpider
+import com.wochatchat.liverecorder.platform.bigo.BigoSpider
 import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
 import com.wochatchat.liverecorder.platform.douyin.DouyinStreamInfo
 import com.wochatchat.liverecorder.platform.douyu.DouyuSpider
 import com.wochatchat.liverecorder.platform.huya.HuyaSpider
 import com.wochatchat.liverecorder.platform.kuaishou.KuaishouSpider
+import com.wochatchat.liverecorder.platform.yy.YySpider
 
 class PlatformRouter(
     private val douyinSpider: DouyinSpider = DouyinSpider(),
@@ -31,6 +33,8 @@ class PlatformRouter(
     private val kuaishouSpider: KuaishouSpider = KuaishouSpider(),
     private val huyaSpider: HuyaSpider = HuyaSpider(),
     private val bilibiliSpider: BilibiliSpider = BilibiliSpider(),
+    private val yySpider: YySpider = YySpider(),
+    private val bigoSpider: BigoSpider = BigoSpider(),
 ) {
     companion object {
         /** 斗鱼画质码映射（上游 stream.py get_douyu_stream_url video_quality_options）。 */
@@ -53,6 +57,13 @@ class PlatformRouter(
 
         /** 上游 main.py:651：live.bilibili.com → B 站直播链路。 */
         fun isBilibiliUrl(url: String): Boolean = url.contains("live.bilibili.com/")
+
+        /** 上游 main.py:643：https://www.yy.com/ → YY 直播链路。 */
+        fun isYyUrl(url: String): Boolean = url.contains("www.yy.com/")
+
+        /** 上游 main.py:665：www.bigo.tv/ 或 slink.bigovideo.tv/ → Bigo 直播链路。 */
+        fun isBigoUrl(url: String): Boolean =
+            url.contains("www.bigo.tv/") || url.contains("slink.bigovideo.tv/")
     }
 
     /** 源分发 + 画质映射，一步到位（MonitorLoop 轮询与 RecordController 录制共用）。
@@ -67,6 +78,8 @@ class PlatformRouter(
         isKuaishouUrl(url) -> fetchKuaishou(url, quality, proxyAddr, cookies["kuaishou"])
         isHuyaUrl(url) -> fetchHuya(url, quality, proxyAddr, cookies["huya"])
         isBilibiliUrl(url) -> fetchBilibili(url, quality, proxyAddr, cookies["bilibili"])
+        isYyUrl(url) -> fetchYy(url, quality, proxyAddr, cookies["yy"])
+        isBigoUrl(url) -> fetchBigo(url, quality, proxyAddr, cookies["bigo"])
         else -> douyinSpider.fetchStreamInfo(url, quality, proxyAddr)
     }
 
@@ -170,6 +183,53 @@ class PlatformRouter(
             quality = quality ?: "OD",
             recordUrl = playUrl.orEmpty(),
             flvUrl = playUrl.orEmpty(),
+        )
+    }
+
+    /** YY → 抖音同构映射（上游 spider.get_yy_stream_data + stream.get_yy_stream_url）：
+     * - 未开播（无 avp_info_res）：is_live=false，flvUrl 空
+     * - 开播：flvUrl = stream_line_addr 第一个 CDN 的 url，quality 固定 OD
+     * recordUrl = flvUrl（Bigo 用 m3u8，YY 用 FLV）。 */
+    private suspend fun fetchYy(
+        url: String,
+        quality: String?,
+        proxyAddr: String?,
+        cookie: String?,
+    ): DouyinStreamInfo {
+        val info = yySpider.getYyStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName,
+            isLive = true,
+            title = info.title,
+            quality = info.quality,
+            flvUrl = info.flvUrl,
+            recordUrl = info.flvUrl,
+        )
+    }
+
+    /** Bigo → 抖音同构映射（上游 spider.get_bigo_stream_url）：
+     * - 未开播：anchorName 填充，is_live=false，m3u8Url 空
+     * - 开播：m3u8Url = data.hls_src，recordUrl = m3u8Url（m3u8 → ffmpeg 分段录制）*/
+    private suspend fun fetchBigo(
+        url: String,
+        quality: String?,
+        proxyAddr: String?,
+        cookie: String?,
+    ): DouyinStreamInfo {
+        val info = bigoSpider.getBigoStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName,
+            isLive = true,
+            title = info.title,
+            quality = "OD",
+            m3u8Url = info.m3u8Url,
+            recordUrl = info.recordUrl,
         )
     }
 

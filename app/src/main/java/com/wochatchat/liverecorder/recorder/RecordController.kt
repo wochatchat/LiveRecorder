@@ -351,6 +351,8 @@ class RecordController(
         url.contains("douyu.com/") -> "斗鱼直播"
         url.contains("huya.com/") -> "虎牙直播"
         url.contains("bilibili.com/") -> "B站直播"
+        url.contains("www.yy.com/") -> "YY直播"
+        url.contains("www.bigo.tv/") || url.contains("slink.bigovideo.tv/") -> "Bigo直播"
         else -> "抖音直播"
     }
 
