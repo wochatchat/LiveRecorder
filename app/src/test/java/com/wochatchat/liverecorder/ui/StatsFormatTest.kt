@@ -11,7 +11,7 @@ class StatsFormatTest {
         assertEquals("00:00", StatsFormat.duration(0))
         assertEquals("00:59", StatsFormat.duration(59_999))
         assertEquals("12:34", StatsFormat.duration(754_000))
-        assertEquals("1:02:03", StatsFormat.duration(3_780_000))
+        assertEquals("1:02:03", StatsFormat.duration(3_723_000))
     }
 
     @Test
