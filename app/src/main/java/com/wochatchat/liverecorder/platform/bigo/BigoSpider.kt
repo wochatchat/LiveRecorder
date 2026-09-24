@@ -116,3 +116,5 @@ open class BigoSpider(
     }
 
     private fun clientOrProxy(proxyAddr: String?): LiveHttpClient =
+        if (proxyAddr.isNullOrBlank()) client else LiveHttpClient(proxyAddr)
+}
