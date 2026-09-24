@@ -33,10 +33,10 @@ class HuyaSpiderTest {
     // ---- 2. web 页解析（spider.py:408）----
 
     private fun webHtml(streamListJson: String): String {
-        // 真实页面结构：,"iWebDefaultBitRate" 是外层对象的字段（data 数组之后），
-        // 正则捕获组缺最外层 '}'，实现侧补 '}'（上游 json.loads(json_str + '}') 语义）
-        val json = """{"data":[{"gameLiveInfo":{"nick":"测试主播","introduction":"测试标题"},
-            "gameStreamInfoList":$streamListJson}],"iWebDefaultBitRate":0}"""
+        // 真实页面 stream: {...} 段为单行（正则 . 不跨行，上游 Python 语义相同）；
+        // ,"iWebDefaultBitRate" 是外层对象字段（data 数组之后），捕获组缺最外层 '}'，
+        // 实现侧补 '}'（上游 json.loads(json_str + '}') 语义）→ fixture 必须保持单行
+        val json = """{"data":[{"gameLiveInfo":{"nick":"测试主播","introduction":"测试标题"},"gameStreamInfoList":$streamListJson}],"iWebDefaultBitRate":0}"""
         return "<html><script>stream: $json</script></html>"
     }
 

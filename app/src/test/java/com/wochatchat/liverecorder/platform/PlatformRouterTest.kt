@@ -136,10 +136,8 @@ class PlatformRouterTest {
 
 // ---- 4. 虎牙路由（HuyaSpider web 路径 + app 路径）----
 
-    private val huyaWebLive = """<script>stream: {"data":[{"gameLiveInfo":{"nick":"虎牙主播","introduction":"虎牙标题"},
-        "gameStreamInfoList":[{"sCdnType":"AL","sFlvUrl":"http://al.flv.huya.com/src","sHlsUrl":"http://al.hls.huya.com/src",
-        "sStreamName":"113524-abc-1-10057-A","sFlvAntiCode":"fm=bW9iaWxlXw&ctype=tars_mp&fs=bhct&exsphd=264_4000,264_2000,264_1000,264_800,264_600",
-        "sHlsAntiCode":"fm=x","sFlvUrlSuffix":"flv","sHlsUrlSuffix":"m3u8"}]}],"iWebDefaultBitRate":0}</script>"""
+    // 注意：stream: {...} 段必须单行（解析正则 . 不跨行，与真实页面/上游语义一致）
+    private val huyaWebLive = """<script>stream: {"data":[{"gameLiveInfo":{"nick":"虎牙主播","introduction":"虎牙标题"},"gameStreamInfoList":[{"sCdnType":"AL","sFlvUrl":"http://al.flv.huya.com/src","sHlsUrl":"http://al.hls.huya.com/src","sStreamName":"113524-abc-1-10057-A","sFlvAntiCode":"fm=bW9iaWxlXw&ctype=tars_mp&fs=bhct&exsphd=264_4000,264_2000,264_1000,264_800,264_600","sHlsAntiCode":"fm=x","sFlvUrlSuffix":"flv","sHlsUrlSuffix":"m3u8"}]}],"iWebDefaultBitRate":0}</script>"""
 
     private val huyaAppLive = """{"data":{"profileInfo":{"nick":"App虎牙"},"liveData":{"introduction":"App标题"},
         "realLiveStatus":"ON","stream":{"baseSteamInfoList":[
