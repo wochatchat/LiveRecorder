@@ -63,7 +63,7 @@ class RecordController(
     /** 5a：分段录制是否开启（上游「分段录制是否开启」，默认开）。 */
     private val useSegmented: suspend () -> Boolean = { true },
     /** 5a：视频分段时间(秒)（上游 config.ini「视频分段时间(秒)」，默认 1800）。 */
-    private val segmentTimeSec: suspend () -> Int = { FfmpegRecorder.DEFAULT_SEGMENT_SEC },
+    private val segmentTimeSec: suspend () -> Int = { 1800 },
     /** 5a：是否强制启用 https 录制（上游 main.py:1150）。 */
     private val forceHttps: suspend () -> Boolean = { false },
     /** 5a：TS→MP4 转换后是否删除原分片（上游「追加格式后删除原文件」，默认是）。 */
@@ -189,7 +189,7 @@ class RecordController(
                         headers = headers,
                         anchorName = anchor,
                         segmentSec = runCatching { segmentTimeSec() }
-                            .getOrNull()?.coerceAtLeast(1) ?: FfmpegRecorder.DEFAULT_SEGMENT_SEC,
+                            .getOrNull()?.coerceAtLeast(1) ?: 1800,
                     ) { bytes ->
                         setState(url, RecordState.Recording(dir.absolutePath, totalBytes + bytes, info.quality))
                     }

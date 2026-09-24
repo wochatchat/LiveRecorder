@@ -58,7 +58,7 @@ class AppSettingsStore(private val context: android.content.Context) {
     private val pushOnOfflineKey = booleanPreferencesKey("push_on_offline")
     private val onlyNotifyKey = booleanPreferencesKey("only_notify")
 
-    val settings: Flow<AppSettings> = context.dataStore.data.map { prefs ->
+    val settings: Flow<AppSettings> = context.settingsDataStore.data.map { prefs ->
         AppSettings(
             loopIntervalSec = prefs[loopIntervalKey] ?: 300,
             quality = prefs[qualityKey] ?: "原画",
@@ -74,7 +74,7 @@ class AppSettingsStore(private val context: android.content.Context) {
 
     /** 整体保存（设置对话框确认时一次性写入）。 */
     suspend fun set(settings: AppSettings) {
-        context.dataStore.edit { prefs ->
+        context.settingsDataStore.edit { prefs ->
             prefs[loopIntervalKey] = settings.loopIntervalSec
             prefs[qualityKey] = settings.quality
             prefs[segmentedKey] = settings.segmented

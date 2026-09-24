@@ -105,10 +105,12 @@ class RecorderApp : Application() {
             isRecording = { url -> recordController.isActive(url) },
             onLive = { url, _ ->
                 // 5a：只推送通知不录制（上游 disable_record）
-                if (runCatching { appSettings.settings.first().onlyNotify }.getOrDefault(false)) {
-                    Log.i("RecorderApp", "只推送不录制: $url")
-                } else {
-                    recordController.start(url)
+                appScope.launch {
+                    if (runCatching { appSettings.settings.first().onlyNotify }.getOrDefault(false)) {
+                        Log.i("RecorderApp", "只推送不录制: $url")
+                    } else {
+                        recordController.start(url)
+                    }
                 }
             },
             onLiveEvent = { url, anchor, title ->
