@@ -76,6 +76,8 @@ class RecordController(
     private val namingOptions: suspend () -> RecordSource.NamingOptions = { RecordSource.NamingOptions() },
     /** 等待注入点（单测收集退避延迟，生产即 delay）。 */
     internal val sleep: suspend (Long) -> Unit = { delay(it) },
+    /** 5c 时钟（单测推演录制时长，生产即系统时钟）。 */
+    private val nowMs: () -> Long = System::currentTimeMillis,
 ) {
 
     sealed class RecordState {
