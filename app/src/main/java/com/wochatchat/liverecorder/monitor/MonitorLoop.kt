@@ -1,6 +1,6 @@
 package com.wochatchat.liverecorder.monitor
 
-import android.util.Log
+import com.wochatchat.liverecorder.data.AppLog
 import com.wochatchat.liverecorder.platform.douyin.DouyinStreamInfo
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -107,11 +107,11 @@ class MonitorLoop(
                     delay(intervalSec * 1000)
                     continue
                 }
-                if (round.errors > 0) Log.w(TAG, "本轮检查错误 ${round.errors} 条")
+                if (round.errors > 0) AppLog.w(TAG, "本轮检查错误 ${round.errors} 条")
                 val jitter = (-JITTER_SEC..JITTER_SEC).random().coerceAtLeast(0)
                 val roundSec = (System.currentTimeMillis() - t0) / 1000
                 val delaySec = nextDelaySec(intervalSec, jitter, round.errors, round.recordJustEnded, roundSec)
-                Log.d(TAG, "下一轮延迟 ${delaySec}s")
+                AppLog.d(TAG, "下一轮延迟 ${delaySec}s")
                 delay(delaySec * 1000)
             }
         }
@@ -131,7 +131,7 @@ class MonitorLoop(
     /** 手动停止录制后抑制该条目的自动重启，直到房间转为未开播。 */
     fun suppressAutoStart(url: String) {
         suppressed.add(url)
-        Log.i(TAG, "抑制自动录制: $url")
+        AppLog.i(TAG, "抑制自动录制: $url")
     }
 
     /** 移除/改名条目后清理其监控状态、录制结束标记与抑制标记（2g）。 */
@@ -176,20 +176,20 @@ class MonitorLoop(
         val ok = try {
             storageOk()
         } catch (e: Exception) {
-            Log.w(TAG, "存储检查失败，按充足处理: ${e.message}")
+            AppLog.w(TAG, "存储检查失败，按充足处理: ${e.message}")
             true
         }
         if (!ok) {
             if (!storagePaused) {
                 storagePaused = true
-                Log.w(TAG, "存储空间低于阈值，暂停监控录制")
+                AppLog.w(TAG, "存储空间低于阈值，暂停监控录制")
                 onLowStorage()
             }
             return null
         }
         if (storagePaused) {
             storagePaused = false
-            Log.i(TAG, "存储空间恢复，继续监控")
+            AppLog.i(TAG, "存储空间恢复，继续监控")
             onStorageResumed()
         }
         return pollOnce(urls)
@@ -214,10 +214,10 @@ class MonitorLoop(
                     // 开播事件：仅状态切换时触发一次（抑制中也不错过通知，2e）
                     if (prev !is State.Live) onLiveEvent(url, info.anchorName, info.title)
                     if (url !in suppressed) {
-                        Log.i(TAG, "开播检测: $url → ${info.anchorName}「${info.title}」→ 启动录制")
+                        AppLog.i(TAG, "开播检测: $url → ${info.anchorName}「${info.title}」→ 启动录制")
                         onLive(url, info)
                     } else {
-                        Log.i(TAG, "开播检测: $url（已抑制自动录制）")
+                        AppLog.i(TAG, "开播检测: $url（已抑制自动录制）")
                     }
                     State.Live(info.anchorName, info.title)
                 } else {

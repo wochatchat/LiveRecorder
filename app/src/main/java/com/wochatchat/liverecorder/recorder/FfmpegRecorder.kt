@@ -1,5 +1,6 @@
 package com.wochatchat.liverecorder.recorder
 
+import com.wochatchat.liverecorder.data.AppLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -167,7 +168,7 @@ open class FfmpegRecorder(
         val process = try {
             ProcessBuilder(cmd).redirectErrorStream(false).start()
         } catch (e: Exception) {
-            println("ffmpeg 转换启动失败 (${input.name}): ${e.message}")
+            AppLog.e(TAG, "ffmpeg 转换启动失败 (${input.name}): ${e.message}")
             return null
         }
         // 消费 stderr 防管道阻塞（错误内容随异常路径丢弃，成功无碍）
@@ -177,7 +178,7 @@ open class FfmpegRecorder(
             if (deleteOriginal) input.delete()
             output
         } else {
-            println("ffmpeg 转换失败 exitCode=$exitCode (${input.name}): ${String(stderr)}")
+            AppLog.e(TAG, "ffmpeg 转换失败 exitCode=$exitCode (${input.name}): ${String(stderr)}")
             null
         }
     }
@@ -233,6 +234,7 @@ open class FfmpegRecorder(
     }
 
     private companion object {
+        private const val TAG = "FfmpegRecorder"
         const val DEFAULT_SEGMENT_SEC = 1800
         const val DEFAULT_UA = "Mozilla/5.0 (Linux; Android 11; Pixel 5) " +
             "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.91 Mobile Safari/537.36"

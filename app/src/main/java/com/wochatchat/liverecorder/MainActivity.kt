@@ -1,7 +1,9 @@
 package com.wochatchat.liverecorder
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -21,8 +23,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
@@ -58,10 +63,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.core.content.FileProvider
 import com.wochatchat.liverecorder.ui.StatsFormat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wochatchat.liverecorder.data.AppLog
 import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.monitor.MonitorLoop
@@ -95,6 +103,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     var showAddDialog by remember { mutableStateOf(false) }
     var showPushDialog by remember { mutableStateOf(false) }
     var showCookieDialog by remember { mutableStateOf(false) }
+    var showLogDialog by remember { mutableStateOf(false) }
     var editUrl by remember { mutableStateOf<String?>(null) }
 
     // Android 13+ 通知权限：前台服务可无权限运行，但常驻通知需要它（2a/2e 依赖）
@@ -223,6 +232,79 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
             }
         )
     }
+
+    if (showLogDialog) {
+        LogDialog(onDismiss = { showLogDialog = false })
+    }
+}
+
+/** 5d：运行日志页——查看日志尾部，支持刷新/清空/导出分享。 */
+@Composable
+private fun LogDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var content by remember { mutableStateOf(AppLog.readTail()) }
+    var cleared by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("运行日志") },
+        text = {
+            Column {
+                if (cleared) Text("日志已清空", style = MaterialTheme.typography.bodySmall)
+                Text(
+                    text = content.ifBlank { "(暂无日志)" },
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(360.dp)
+                        .verticalScroll(rememberScrollState()),
+                )
+            }
+        },
+        confirmButton = {
+            Row {
+                TextButton(onClick = { content = AppLog.readTail() }) { Text("刷新") }
+                TextButton(onClick = {
+                    AppLog.clear()
+                    content = ""
+                    cleared = true
+                }) { Text("清空") }
+                TextButton(onClick = { exportLogs(context) }) { Text("导出分享") }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("关闭") }
+        }
+    )
+}
+
+/** 5d：导出日志——FileProvider 分享日志文件（验收：导出文件可读）。 */
+private fun exportLogs(context: android.content.Context) {
+    val files = AppLog.streamgetFiles() + AppLog.playurlFiles()
+    if (files.isEmpty()) return
+    val uris = ArrayList<Uri>()
+    for (f in files) {
+        try {
+            uris.add(FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", f))
+        } catch (e: Exception) {
+            AppLog.e("LogDialog", "导出失败(${f.name}): ${e.message}")
+        }
+    }
+    if (uris.isEmpty()) return
+    val intent = if (uris.size == 1) {
+        Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_STREAM, uris[0])
+        }
+    } else {
+        Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+            type = "text/plain"
+            putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+        }
+    }
+    intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    context.startActivity(Intent.createChooser(intent, "分享日志"))
 }
 
 @Composable

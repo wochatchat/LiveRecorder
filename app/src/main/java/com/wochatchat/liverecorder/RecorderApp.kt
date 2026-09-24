@@ -1,7 +1,7 @@
 package com.wochatchat.liverecorder
 
 import android.app.Application
-import android.util.Log
+import com.wochatchat.liverecorder.data.AppLog
 import com.wochatchat.liverecorder.monitor.MonitorLoop
 import com.wochatchat.liverecorder.platform.PlatformRouter
 import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
@@ -58,6 +58,8 @@ class RecorderApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // 5d：文件日志尽早初始化（logs/ 落 app 私有目录，日志页可查看/导出）
+        AppLog.init(File(filesDir, "logs"))
         // 事件渠道尽早创建（2e：开播/关播通知）
         val notifier = EventNotifier(this)
         notifier.createChannel()
@@ -118,7 +120,7 @@ class RecorderApp : Application() {
                 // 5a：只推送通知不录制（上游 disable_record）
                 appScope.launch {
                     if (runCatching { appSettings.settings.first().onlyNotify }.getOrDefault(false)) {
-                        Log.i("RecorderApp", "只推送不录制: $url")
+                        AppLog.i("RecorderApp", "只推送不录制: $url")
                     } else {
                         recordController.start(url)
                     }

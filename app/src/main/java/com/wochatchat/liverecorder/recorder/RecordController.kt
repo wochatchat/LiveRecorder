@@ -1,5 +1,6 @@
 package com.wochatchat.liverecorder.recorder
 
+import com.wochatchat.liverecorder.data.AppLog
 import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
 import com.wochatchat.liverecorder.platform.douyin.DouyinStreamInfo
 import kotlinx.coroutines.CancellationException
@@ -161,6 +162,7 @@ class RecordController(
                     throw e
                 } catch (e: Exception) {
                     if (attempt == 0) {
+                        AppLog.e(TAG, "解析直播源失败: ${e.message} ($url)")
                         setState(url, RecordState.Failed("解析直播源失败: ${e.message}"))
                         return
                     }
@@ -212,6 +214,7 @@ class RecordController(
                 )
                 // ffmpeg 不会创建输出目录（OkHttp 路径由 StreamDownloader mkdirs），首次录制需先建
                 dir.mkdirs()
+                AppLog.i(TAG, "开始录制: $url → ${dir.absolutePath}")
                 val headers = RecordSource.getRecordHeaders(platformName(url), url)
                     ?.let { mapOf(it.first to it.second) }
                     ?: emptyMap()
@@ -293,12 +296,14 @@ class RecordController(
         } catch (e: CancellationException) {
             // 5c：取消时并入进行中分段的字节与时长（手动停止面板数据准确）
             val segDurMs = if (segActive) nowMs() - segStartMs else 0
+            AppLog.i(TAG, "录制手动停止: $url (已录 ${totalBytes + segBytes} 字节)")
             setState(
                 url,
                 RecordState.Finished(lastPath, totalBytes + segBytes, completed = false, durationMs = accMs + segDurMs),
             )
             throw e
         } catch (e: Exception) {
+            AppLog.e(TAG, "录制异常: ${e.message} ($url)")
             setState(url, RecordState.Failed("录制异常: ${e.message}"))
         }
     }
@@ -319,7 +324,7 @@ class RecordController(
                 try {
                     ffmpeg?.remuxToMp4(seg, deleteOriginal = delOriginal)
                 } catch (e: Exception) {
-                    println("TS→MP4 转换失败 (${seg.name}): ${e.message}")
+                    AppLog.e(TAG, "TS→MP4 转换失败 (${seg.name}): ${e.message}")
                 }
             }
         }
@@ -327,10 +332,12 @@ class RecordController(
 
     private suspend fun backoffOrGiveUp(url: String, attempt: Int, message: String): Boolean {
         if (attempt > MAX_RECONNECT_ATTEMPTS) {
+            AppLog.e(TAG, "断流重连失败（已重试 $MAX_RECONNECT_ATTEMPTS 次），已保留已录文件: $url")
             setState(url, RecordState.Failed("断流重连失败（已重试 $MAX_RECONNECT_ATTEMPTS 次），已保留已录文件"))
             return false
         }
         val delaySec = reconnectDelaySec(attempt)
+        AppLog.w(TAG, "断流重连 #$attempt (${delaySec}s 后): $message ($url)")
         setState(url, RecordState.Reconnecting(attempt, delaySec, message))
         sleep(delaySec * 1000)
         return true
@@ -352,6 +359,7 @@ class RecordController(
     }
 
     private companion object {
+        private const val TAG = "RecordController"
         const val PROGRESS_INTERVAL_MS = 500L
         const val BASE_BACKOFF_SEC = 2L
         const val MAX_BACKOFF_SEC = 60L

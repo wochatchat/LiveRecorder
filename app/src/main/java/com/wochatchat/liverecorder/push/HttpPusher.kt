@@ -1,6 +1,6 @@
 package com.wochatchat.liverecorder.push
 
-import android.util.Log
+import com.wochatchat.liverecorder.data.AppLog
 import com.wochatchat.liverecorder.net.LiveHttpClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,7 +56,7 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
         if (!config.isValid) return
         scope.launch {
             val failed = push(config, event, anchorName, timeStr, liveUrl)
-            if (failed.isNotEmpty()) Log.w(TAG, "推送失败: $failed")
+            if (failed.isNotEmpty()) AppLog.w(TAG, "推送失败: $failed")
         }
     }
 
@@ -127,7 +127,7 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
         val resp = client.post(server, body = body.toRequestBody(JSON_MEDIA))
         resp.isSuccess && !resp.text.contains("\"error\"")
     } catch (e: Exception) {
-        Log.w(TAG, "ntfy推送失败, 推送地址：$api, 错误信息:${e.message}")
+        AppLog.w(TAG, "ntfy推送失败, 推送地址：$api, 错误信息:${e.message}")
         false
     }
 
@@ -136,7 +136,7 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
         val resp = client.post(api, body = body.toRequestBody(JSON_MEDIA))
         resp.isSuccess && runCatching { JSONObject(resp.text).optInt("code") == 200 }.getOrDefault(false)
     } catch (e: Exception) {
-        Log.w(TAG, "Bark推送失败, 推送地址：$api, 错误信息:${e.message}")
+        AppLog.w(TAG, "Bark推送失败, 推送地址：$api, 错误信息:${e.message}")
         false
     }
 
