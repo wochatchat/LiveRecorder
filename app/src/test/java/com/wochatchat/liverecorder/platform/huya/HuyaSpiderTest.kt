@@ -40,15 +40,10 @@ class HuyaSpiderTest {
         return "<html><script>stream: $json</script></html>"
     }
 
-    private val alStream = """{"sCdnType":"AL","sFlvUrl":"http://al.flv.huya.com/src",
-        "sHlsUrl":"http://al.hls.huya.com/src","sStreamName":"113524-1234567-524288-1-10057-A",
-        "sFlvAntiCode":"fm=bW9iaWxlXw&ctype=tars_mp&fs=bhct&exsphd=264_4000,264_2000,264_1000,264_800,264_600",
-        "sHlsAntiCode":"fm=x","sFlvUrlSuffix":"flv","sHlsUrlSuffix":"m3u8"}"""
+    // fixture 保持单行（外层 stream: 正则 . 不跨行；内部 JSON 换行不影响解析器但影响正则）
+    private val alStream = """{"sCdnType":"AL","sFlvUrl":"http://al.flv.huya.com/src","sHlsUrl":"http://al.hls.huya.com/src","sStreamName":"113524-1234567-524288-1-10057-A","sFlvAntiCode":"fm=bW9iaWxlXw&ctype=tars_mp&fs=bhct&exsphd=264_4000,264_2000,264_1000,264_800,264_600","sHlsAntiCode":"fm=x","sFlvUrlSuffix":"flv","sHlsUrlSuffix":"m3u8"}"""
 
-    private val txStream = """{"sCdnType":"TX","sFlvUrl":"http://tx.flv.huya.com/src",
-        "sHlsUrl":"http://tx.hls.huya.com/src","sStreamName":"113524-txstream-1-10057-A",
-        "sFlvAntiCode":"fm=y&ctype=tars_mp&fs=bhct","sHlsAntiCode":"fm=y",
-        "sFlvUrlSuffix":"flv","sHlsUrlSuffix":"m3u8"}"""
+    private val txStream = """{"sCdnType":"TX","sFlvUrl":"http://tx.flv.huya.com/src","sHlsUrl":"http://tx.hls.huya.com/src","sStreamName":"113524-txstream-1-10057-A","sFlvAntiCode":"fm=y&ctype=tars_mp&fs=bhct","sHlsAntiCode":"fm=y","sFlvUrlSuffix":"flv","sHlsUrlSuffix":"m3u8"}"""
 
     @Test
     fun parseWebResponse_live() {
