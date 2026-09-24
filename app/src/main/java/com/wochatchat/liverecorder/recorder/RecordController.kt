@@ -84,15 +84,26 @@ class RecordController(
 
         /**
          * 录制中。[savePath] 落盘路径（OkHttp 单文件模式为具体文件；
-         * ffmpeg 分段模式为目录路径）；[bytes] 累计字节数；[quality] 画质。
+         * ffmpeg 分段模式为目录路径）；[bytes] 累计字节数；[quality] 画质；
+         * [durationMs] 累计录制时长（剔除解析/重连等待，5c 统计面板）。
          */
-        data class Recording(val savePath: String, val bytes: Long, val quality: String) : RecordState()
+        data class Recording(
+            val savePath: String,
+            val bytes: Long,
+            val quality: String,
+            val durationMs: Long = 0,
+        ) : RecordState()
 
         /** 断流重连中：第 [attempt] 次重试前等待 [nextDelaySec] 秒。[message] 为中断原因。 */
         data class Reconnecting(val attempt: Int, val nextDelaySec: Long, val message: String) : RecordState()
 
         /** 已结束（直播结束或手动停止，文件保留）。 */
-        data class Finished(val savePath: String, val bytes: Long, val completed: Boolean) : RecordState()
+        data class Finished(
+            val savePath: String,
+            val bytes: Long,
+            val completed: Boolean,
+            val durationMs: Long = 0,
+        ) : RecordState()
 
         /** 失败（未开播 / 无流 / 下载错误 / 重连次数耗尽）。 */
         data class Failed(val message: String) : RecordState()
@@ -127,7 +138,10 @@ class RecordController(
         var attempt = 0
         var totalBytes = 0L
         var lastPath = ""
-        var lastBytes = 0L
+        var accMs = 0L // 5c：累计录制时长（只计 Recording 段，剔除解析/重连等待）
+        var segBytes = 0L // 5c：当前分段已写字节（取消时并入 Finished，面板数据准确）
+        var segStartMs = 0L
+        var segActive = false
 
         try {
             while (true) {
@@ -155,7 +169,7 @@ class RecordController(
                 if (!info.isLive) {
                     setState(
                         url,
-                        if (attempt > 0) RecordState.Finished(lastPath, totalBytes, completed = true)
+                        if (attempt > 0) RecordState.Finished(lastPath, totalBytes, completed = true, durationMs = accMs)
                         else RecordState.Failed("未在直播"),
                     )
                     return
@@ -209,6 +223,9 @@ class RecordController(
                 } else null
                 if (effectiveFfmpeg != null) {
                     // ffmpeg 分段录制（3-3g）：m3u8 必须走 ffmpeg；FLV 也走 ffmpeg
+                    segStartMs = nowMs()
+                    segActive = true
+                    segBytes = 0
                     val res = effectiveFfmpeg.record(
                         sourceUrl = sourceUrl,
                         outputDir = dir,
@@ -218,10 +235,20 @@ class RecordController(
                         segmentSec = runCatching { segmentTimeSec() }
                             .getOrNull()?.coerceAtLeast(1) ?: 1800,
                     ) { bytes ->
-                        setState(url, RecordState.Recording(dir.absolutePath, totalBytes + bytes, info.quality))
+                        segBytes = bytes
+                        setState(
+                            url,
+                            RecordState.Recording(
+                                dir.absolutePath, totalBytes + bytes, info.quality,
+                                durationMs = accMs + (nowMs() - segStartMs),
+                            ),
+                        )
                     }
+                    accMs += nowMs() - segStartMs
+                    segActive = false
                     lastPath = dir.absolutePath
                     totalBytes += res.estimatedBytes
+                    segBytes = 0
                     convertSegmentsAsync(res.segments)
                     // ++attempt 留下 attempt=1：下轮探测已关播时按 Finished(completed) 收敛（同 OkHttp 分支语义）
                     if (!backoffOrGiveUp(url, ++attempt, "直播流结束")) return
@@ -232,28 +259,42 @@ class RecordController(
                         return
                     }
                     val saveFile = File(dir, "$baseName.flv")
-                    setState(url, RecordState.Recording(saveFile.absolutePath, 0, info.quality))
+                    setState(url, RecordState.Recording(saveFile.absolutePath, 0, info.quality, durationMs = accMs))
 
                     var lastUpdate = 0L
-                    val segStart = System.currentTimeMillis()
-                    var written = 0L
+                    segStartMs = nowMs()
+                    segActive = true
+                    segBytes = 0
                     val ok = downloader.download(sourceUrl, saveFile, headers, proxyAddr) { bytes ->
-                        written = bytes
-                        val t = System.currentTimeMillis()
+                        segBytes = bytes
+                        val t = nowMs()
                         if (t - lastUpdate >= PROGRESS_INTERVAL_MS) {
                             lastUpdate = t
-                            setState(url, RecordState.Recording(saveFile.absolutePath, totalBytes + bytes, info.quality))
+                            setState(
+                                url,
+                                RecordState.Recording(
+                                    saveFile.absolutePath, totalBytes + bytes, info.quality,
+                                    durationMs = accMs + (t - segStartMs),
+                                ),
+                            )
                         }
                     }
                     lastPath = saveFile.absolutePath
-                    totalBytes += written
-                    val segMs = System.currentTimeMillis() - segStart
+                    totalBytes += segBytes
+                    accMs += nowMs() - segStartMs
+                    segActive = false
+                    val segMs = nowMs() - segStartMs
                     if (ok || segMs >= SEGMENT_RESET_MS) attempt = 0
                     if (!backoffOrGiveUp(url, ++attempt, if (ok) "直播流结束" else "下载中断")) return
                 }
             }
         } catch (e: CancellationException) {
-            setState(url, RecordState.Finished(lastPath, lastBytes, completed = false))
+            // 5c：取消时并入进行中分段的字节与时长（手动停止面板数据准确）
+            val segDurMs = if (segActive) nowMs() - segStartMs else 0
+            setState(
+                url,
+                RecordState.Finished(lastPath, totalBytes + segBytes, completed = false, durationMs = accMs + segDurMs),
+            )
             throw e
         } catch (e: Exception) {
             setState(url, RecordState.Failed("录制异常: ${e.message}"))

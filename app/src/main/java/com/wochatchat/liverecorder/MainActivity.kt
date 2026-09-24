@@ -59,6 +59,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.wochatchat.liverecorder.ui.StatsFormat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wochatchat.liverecorder.data.AuthStore
@@ -284,11 +285,16 @@ private fun MonitorItem(
                 maxLines = 1
             )
         }
-        Text(
-            describeState(recordState),
-            style = MaterialTheme.typography.labelSmall,
-            color = stateColor(recordState, disabled)
-        )
+        if (recordState is RecordController.RecordState.Recording) {
+            // 5c：录制统计行（时长/大小/码率，每秒刷新）
+            RecordingStatsLine(recordState)
+        } else {
+            Text(
+                describeState(recordState),
+                style = MaterialTheme.typography.labelSmall,
+                color = stateColor(recordState, disabled)
+            )
+        }
         Row {
             IconButton(onClick = if (recording) onStop else onStart, enabled = !disabled) {
                 Icon(
@@ -313,13 +319,37 @@ private fun describeState(state: RecordController.RecordState?): String = when (
     null -> "未监控"
     is RecordController.RecordState.Resolving -> "解析直播源…"
     is RecordController.RecordState.Recording ->
-        "录制中 · ${state.bytes / 1024 / 1024} MB · ${state.savePath.substringAfterLast('/')}"
+        "录制中 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)} · ${state.savePath.substringAfterLast('/')}"
     is RecordController.RecordState.Reconnecting ->
         "断流重连中(第 ${state.attempt} 次,${state.nextDelaySec}s 后) · ${state.message}"
     is RecordController.RecordState.Finished ->
-        if (state.completed) "完成 · ${state.bytes / 1024 / 1024} MB · ${state.savePath.substringAfterLast('/')}"
-        else "已停止 · ${state.bytes / 1024 / 1024} MB"
+        if (state.completed)
+            "完成 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)} · ${state.savePath.substringAfterLast('/')}"
+        else "已停止 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)}"
     is RecordController.RecordState.Failed -> "失败: ${state.message}"
+}
+
+/** 5c 录制统计行：时长/大小/平均码率，每秒自刷新（时长剔除解析/重连等待）。 */
+@Composable
+private fun RecordingStatsLine(state: RecordController.RecordState.Recording) {
+    // 两次状态发射之间也保持走秒：在最近快照的 durationMs 基础上累加本秒表
+    var extraSec by remember { mutableStateOf(0L) }
+    LaunchedEffect(state) {
+        extraSec = 0
+        while (true) {
+            kotlinx.coroutines.delay(1000)
+            extraSec++
+        }
+    }
+    val shownMs = state.durationMs + extraSec * 1000
+    Text(
+        "录制中 · ${StatsFormat.duration(shownMs)} · ${StatsFormat.bytes(state.bytes)}" +
+            " · ${StatsFormat.bitrate(state.bytes, shownMs)}" +
+            " · ${state.savePath.substringAfterLast('/')}",
+        style = MaterialTheme.typography.labelSmall,
+        color = stateColor(state, disabled = false),
+        maxLines = 2,
+    )
 }
 
 /** 状态徽标：录制链路状态优先于监控状态，已停用置灰；连续失败（4c）置灰「失效」。 */
