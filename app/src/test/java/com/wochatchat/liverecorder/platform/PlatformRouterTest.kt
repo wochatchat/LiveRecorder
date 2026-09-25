@@ -15,7 +15,7 @@ import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
 import com.wochatchat.liverecorder.platform.douyu.DouyuSpider
 import com.wochatchat.liverecorder.platform.huya.HuyaSpider
 import com.wochatchat.liverecorder.platform.yy.YySpider
-import com.wochatchat.liverecorder.platform.yy.YyStreamInfo
+import com.wochatchat.liverecorder.platform.yy.YySpider.YyStreamInfo
 import com.wochatchat.liverecorder.platform.bigo.BigoSpider
 import com.wochatchat.liverecorder.platform.bigo.BigoSpider.BigoStreamInfo
 import com.wochatchat.liverecorder.sign.RhinoJsEngine
