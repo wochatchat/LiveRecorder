@@ -75,6 +75,7 @@ C/NDK 组件：**QuickJS**（斗鱼 ub98484234 动态 JS 签名，上游 JS 原�
 
 ## 文档
 
+- 移植完成度审计（逐模块对照上游 v4.0.7）：[docs/porting-completeness.md](docs/porting-completeness.md)
 - 移植评估与进度（活文档）：`PORTING.md`
 - 详细设计 / 阶段记录：shared 仓库 `douyin-recorder-android/`（docs + phases + CHANGELOG）
 

@@ -5,6 +5,11 @@ name: Compile Check
 on:
   push:
     branches: [fix, 'refactor/**', 'feature/**']
+    # 纯文档改动不触发（含本文件的修改本身）
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - '.github/**'
   pull_request:
   workflow_dispatch:
 
