@@ -28,7 +28,7 @@ open class YySpider(
 
         /** 房间号 = ? 前最后一段（上游入口 url 即房间页）。 */
         fun parseSid(url: String): String? =
-            url.split("?").first().trimEnd('/').substringAfterLast("/").ifEmpty { null }
+            url.split("?").first().substringAfterLast("/").ifEmpty { null }
 
         /** buildStreamManagerBody：上游 spider.py:630 的固定 JSON body（gear=4 ssl=1）。 */
         private fun buildStreamManagerBody(cid: String, seq: Long, sendTime: Long): String {
