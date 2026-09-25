@@ -77,3 +77,4 @@ class BigoSpiderTest {
         assertFalse(info.isLive)
         assertEquals("未播主播", info.anchorName)
     }
+}
