@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Adaptive icon safe zone: 18dp inset on each side = 72dp icon area centered at 54,54 -->
+    <!-- Background -->
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M0,0h108v108h-108z" />
+
+    <!-- Camera body: rounded rect, center -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,42h32c2.2,0 4,1.8 4,4v20c0,2.2 -1.8,4 -4,4h-32c-2.2,0 -4,-1.8 -4,-4v-20c0,-2.2 1.8,-4 4,-4z" />
+
+    <!-- Camera lens: circle, center -->
+    <path
+        android:fillColor="#2196F3"
+        android:pathData="M54,56m-8,0a8,8 0,1 1,16 0a8,8 0,1 1,-16 0" />
+
+    <!-- Record dot in center of lens -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,56m-4,0a4,4 0,1 1,8 0a4,4 0,1 1,-8 0" />
+
+    <!-- Camera top bump -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M46,38h16l2,-4h-20z" />
+</vector>

@@ -36,7 +36,7 @@ class EventNotifier(private val context: Context) {
             id = notificationId(url),
             title = context.getString(R.string.notif_event_live_title),
             text = context.getString(R.string.notif_event_live_text, text),
-            icon = android.R.drawable.ic_media_play,
+            icon = R.drawable.ic_notification,
         )
     }
 
@@ -46,7 +46,7 @@ class EventNotifier(private val context: Context) {
             id = notificationId(url),
             title = context.getString(R.string.notif_event_offline_title),
             text = context.getString(R.string.notif_event_offline_text, anchorName),
-            icon = android.R.drawable.ic_menu_close_clear_cancel,
+            icon = R.drawable.ic_notification,
         )
     }
 
@@ -56,7 +56,7 @@ class EventNotifier(private val context: Context) {
             id = STORAGE_NOTIFICATION_ID,
             title = context.getString(R.string.notif_storage_low_title),
             text = context.getString(R.string.notif_storage_low_text, thresholdGb, freeGb),
-            icon = android.R.drawable.ic_dialog_alert,
+            icon = R.drawable.ic_notification,
         )
     }
 
@@ -66,7 +66,7 @@ class EventNotifier(private val context: Context) {
             id = STORAGE_NOTIFICATION_ID,
             title = context.getString(R.string.notif_storage_resumed_title),
             text = context.getString(R.string.notif_storage_resumed_text),
-            icon = android.R.drawable.stat_sys_download_done,
+            icon = R.drawable.ic_notification,
         )
     }
 

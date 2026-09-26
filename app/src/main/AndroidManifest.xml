@@ -9,7 +9,7 @@
     <application
         android:name=".RecorderApp"
         android:label="@string/app_name"
-        android:icon="@android:drawable/ic_media_play"
+        android:icon="@mipmap/ic_launcher"
         android:theme="@style/Theme.LiveRecorder"
         android:allowBackup="false">
         <activity
