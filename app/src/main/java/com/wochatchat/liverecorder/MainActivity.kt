@@ -411,18 +411,31 @@ private fun MonitorItem(
     }
 }
 
-private fun describeState(state: RecordController.RecordState?): String = when (state) {
-    null -> "未监控"
-    is RecordController.RecordState.Resolving -> "解析直播源…"
-    is RecordController.RecordState.Recording ->
+@Composable
+private fun stateColor(
+    recordState: RecordController.RecordState?,
+    disabled: Boolean,
+): Color = when {
+    disabled -> MaterialTheme.colorScheme.outline
+    recordState is RecordController.RecordState.Recording -> MaterialTheme.colorScheme.error
+    recordState is RecordController.RecordState.Reconnecting -> MaterialTheme.colorScheme.tertiary
+    recordState is RecordController.RecordState.Failed -> MaterialTheme.colorScheme.error
+    else -> MaterialTheme.colorScheme.onSurfaceVariant
+}
+
+@Composable
+private fun describeState(state: RecordController.RecordState?): String = when {
+    state == null -> "未监控"
+    state is RecordController.RecordState.Resolving -> "解析直播源…"
+    state is RecordController.RecordState.Recording ->
         "录制中 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)} · ${state.savePath.substringAfterLast('/')}"
-    is RecordController.RecordState.Reconnecting ->
+    state is RecordController.RecordState.Reconnecting ->
         "断流重连中(第 ${state.attempt} 次,${state.nextDelaySec}s 后) · ${state.message}"
-    is RecordController.RecordState.Finished ->
+    state is RecordController.RecordState.Finished ->
         if (state.completed)
             "完成 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)} · ${state.savePath.substringAfterLast('/')}"
         else "已停止 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)}"
-    is RecordController.RecordState.Failed -> "失败: ${state.message}"
+    state is RecordController.RecordState.Failed -> "失败: ${state.message}"
 }
 
 /** R2：删除确认对话框——录制中提示停止风险，非录制时确认移除。 */
@@ -512,16 +525,17 @@ private fun StatusBadge(
     }
 }
 
-/** 状态行颜色（录制链路优先；已停用一律置灰）。 */
+/** 状态行颜色（走 MaterialTheme 色板，深色模式自动适配）。 */
+@Composable
 private fun stateColor(
     recordState: RecordController.RecordState?,
     disabled: Boolean,
 ): Color = when {
-    disabled -> Color(0xFF9E9E9E)
-    recordState is RecordController.RecordState.Recording -> Color(0xFFD32F2F)
-    recordState is RecordController.RecordState.Reconnecting -> Color(0xFF1976D2)
-    recordState is RecordController.RecordState.Failed -> Color(0xFFD32F2F)
-    else -> Color(0xFF666666)
+    disabled -> MaterialTheme.colorScheme.outline
+    recordState is RecordController.RecordState.Recording -> MaterialTheme.colorScheme.error
+    recordState is RecordController.RecordState.Reconnecting -> MaterialTheme.colorScheme.tertiary
+    recordState is RecordController.RecordState.Failed -> MaterialTheme.colorScheme.error
+    else -> MaterialTheme.colorScheme.onSurfaceVariant
 }
 
 @Composable
