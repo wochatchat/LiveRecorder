@@ -525,19 +525,6 @@ private fun StatusBadge(
     }
 }
 
-/** 状态行颜色（走 MaterialTheme 色板，深色模式自动适配）。 */
-@Composable
-private fun stateColor(
-    recordState: RecordController.RecordState?,
-    disabled: Boolean,
-): Color = when {
-    disabled -> MaterialTheme.colorScheme.outline
-    recordState is RecordController.RecordState.Recording -> MaterialTheme.colorScheme.error
-    recordState is RecordController.RecordState.Reconnecting -> MaterialTheme.colorScheme.tertiary
-    recordState is RecordController.RecordState.Failed -> MaterialTheme.colorScheme.error
-    else -> MaterialTheme.colorScheme.onSurfaceVariant
-}
-
 @Composable
 private fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
