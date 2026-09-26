@@ -342,6 +342,20 @@ private fun MonitorItem(
     val recording = recordState is RecordController.RecordState.Resolving ||
         recordState is RecordController.RecordState.Recording ||
         recordState is RecordController.RecordState.Reconnecting
+    var showConfirmDelete by remember { mutableStateOf(false) }
+
+    if (showConfirmDelete) {
+        ConfirmDeleteDialog(
+            url = url,
+            willStopRecording = recording,
+            onConfirm = {
+                onRemove()
+                showConfirmDelete = false
+            },
+            onDismiss = { showConfirmDelete = false }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -390,7 +404,7 @@ private fun MonitorItem(
             IconButton(onClick = onEdit, enabled = !disabled) {
                 Icon(Icons.Default.Edit, contentDescription = "编辑", tint = MaterialTheme.colorScheme.primary)
             }
-            IconButton(onClick = onRemove) {
+            IconButton(onClick = { showConfirmDelete = true }) {
                 Icon(Icons.Default.Close, contentDescription = "删除", tint = MaterialTheme.colorScheme.outline)
             }
         }
@@ -409,6 +423,37 @@ private fun describeState(state: RecordController.RecordState?): String = when (
             "完成 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)} · ${state.savePath.substringAfterLast('/')}"
         else "已停止 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)}"
     is RecordController.RecordState.Failed -> "失败: ${state.message}"
+}
+
+/** R2：删除确认对话框——录制中提示停止风险，非录制时确认移除。 */
+@Composable
+private fun ConfirmDeleteDialog(
+    url: String,
+    willStopRecording: Boolean,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (willStopRecording) "停止并移除监控？" else "移除监控？") },
+        text = {
+            Text(
+                if (willStopRecording) {
+                    "当前正在录制或解析直播源，立即移除将停止本次录制且无法恢复。确认移除？"
+                } else {
+                    "将从监控列表移除此直播间。已录制的文件不受影响。"
+                }
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("移除", color = MaterialTheme.colorScheme.error)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
+        }
+    )
 }
 
 /** 5c 录制统计行：时长/大小/平均码率，每秒自刷新（时长剔除解析/重连等待）。 */
