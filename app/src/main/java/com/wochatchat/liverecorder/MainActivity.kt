@@ -566,7 +566,10 @@ private fun PushSettingsDialog(
         onDismissRequest = onDismiss,
         title = { Text("设置") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("常用", "高级").forEachIndexed { idx, label ->
                         FilterChip(selected = tab == idx, onClick = { tab = idx }, label = { Text(label) })
@@ -766,7 +769,7 @@ private fun PushSettingsDialog(
                         }
                         Switch(checked = settings.cleanEmoji, onCheckedChange = { settings = settings.copy(cleanEmoji = it) })
                     }
-                }
+                } else {
                 // 4a：per-platform 代理（对齐上游「是否使用代理ip / 代理地址 / 使用代理录制的平台」）
                 HorizontalDivider()
                 Row(verticalAlignment = Alignment.CenterVertically) {
