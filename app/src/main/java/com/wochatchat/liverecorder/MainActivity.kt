@@ -420,7 +420,7 @@ private fun stateColor(
     recordState is RecordController.RecordState.Recording -> MaterialTheme.colorScheme.error
     recordState is RecordController.RecordState.Reconnecting -> MaterialTheme.colorScheme.tertiary
     recordState is RecordController.RecordState.Failed -> MaterialTheme.colorScheme.error
-    else -> MaterialTheme.colorScheme.onSurfaceVariant
+    else -> MaterialTheme.colorScheme.onSurfaceVariant // Kotlin 2.0: sealed class when as expression requires else
 }
 
 @Composable
@@ -436,6 +436,7 @@ private fun describeState(state: RecordController.RecordState?): String = when {
             "完成 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)} · ${state.savePath.substringAfterLast('/')}"
         else "已停止 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)}"
     state is RecordController.RecordState.Failed -> "失败: ${state.message}"
+    else -> "未知状态: $state"
 }
 
 /** R2：删除确认对话框——录制中提示停止风险，非录制时确认移除。 */
