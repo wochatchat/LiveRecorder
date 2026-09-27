@@ -816,7 +816,6 @@ private fun PushSettingsDialog(
                         }
                         Switch(checked = settings.cleanEmoji, onCheckedChange = { settings = settings.copy(cleanEmoji = it) })
                     }
-                } else {
                     // 4a：per-platform 代理（对齐上游「是否使用代理ip / 代理地址 / 使用代理录制的平台」）
                     HorizontalDivider()
                     Row(verticalAlignment = Alignment.CenterVertically) {
