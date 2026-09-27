@@ -33,6 +33,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.wochatchat.liverecorder.monitor.MonitorLoop
 import com.wochatchat.liverecorder.recorder.RecordController
+// 临时引用 screens 包的状态辅助函数（R13 RecordStatusLine 收口后随 stateColor/describeState 一起消除）
+import com.wochatchat.liverecorder.ui.screens.ConfirmDeleteDialog
+import com.wochatchat.liverecorder.ui.screens.describeState
+import com.wochatchat.liverecorder.ui.screens.stateColor
 import com.wochatchat.liverecorder.ui.StatsFormat
 
 /** 根据 URL 域名推断平台键（PLATFORM_LABELS 映射键，未单独接入的回落 douyin）。 */
