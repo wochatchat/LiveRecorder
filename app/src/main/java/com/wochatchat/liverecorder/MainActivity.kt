@@ -817,33 +817,34 @@ private fun PushSettingsDialog(
                         Switch(checked = settings.cleanEmoji, onCheckedChange = { settings = settings.copy(cleanEmoji = it) })
                     }
                 } else {
-                // 4a：per-platform 代理（对齐上游「是否使用代理ip / 代理地址 / 使用代理录制的平台」）
-                HorizontalDivider()
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text("使用代理录制")
-                        Text(
-                            "仅下方平台列表命中的链接走代理（海外平台用）",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    // 4a：per-platform 代理（对齐上游「是否使用代理ip / 代理地址 / 使用代理录制的平台」）
+                    HorizontalDivider()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("使用代理录制")
+                            Text(
+                                "仅下方平台列表命中的链接走代理（海外平台用）",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(checked = proxyEnabled, onCheckedChange = { proxyEnabled = it })
                     }
-                    Switch(checked = proxyEnabled, onCheckedChange = { proxyEnabled = it })
+                    OutlinedTextField(
+                        value = proxyAddr,
+                        onValueChange = { proxyAddr = it },
+                        placeholder = { Text("socks5://127.0.0.1:7890 或 http://127.0.0.1:7890") },
+                        label = { Text("代理地址") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = proxyPlatforms,
+                        onValueChange = { proxyPlatforms = it },
+                        placeholder = { Text("tiktok, twitch, ...") },
+                        label = { Text("走代理的平台（逗号分隔关键词）") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
-                OutlinedTextField(
-                    value = proxyAddr,
-                    onValueChange = { proxyAddr = it },
-                    placeholder = { Text("socks5://127.0.0.1:7890 或 http://127.0.0.1:7890") },
-                    label = { Text("代理地址") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-                OutlinedTextField(
-                    value = proxyPlatforms,
-                    onValueChange = { proxyPlatforms = it },
-                    placeholder = { Text("tiktok, twitch, ...") },
-                    label = { Text("走代理的平台（逗号分隔关键词）") },
-                    modifier = Modifier.fillMaxWidth()
-                )
             }
         },
         confirmButton = {
