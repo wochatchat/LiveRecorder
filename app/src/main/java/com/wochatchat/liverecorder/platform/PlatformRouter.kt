@@ -64,6 +64,13 @@ class PlatformRouter(
         /** 上游 main.py:665：www.bigo.tv/ 或 slink.bigovideo.tv/ → Bigo 直播链路。 */
         fun isBigoUrl(url: String): Boolean =
             url.contains("www.bigo.tv/") || url.contains("slink.bigovideo.tv/")
+
+        /** 6d R14：URL 是否属于已接入平台（域名判断，与 fetchStreamInfo 分流同源）。 */
+        fun isSupported(url: String): Boolean = when {
+            isDouyuUrl(url) || isKuaishouUrl(url) || isHuyaUrl(url) ||
+                isBilibiliUrl(url) || isYyUrl(url) || isBigoUrl(url) -> true
+            else -> url.contains("douyin.com/") || url.contains("iesdouyin.com/")
+        }
     }
 
     /** 源分发 + 画质映射，一步到位（MonitorLoop 轮询与 RecordController 录制共用）。

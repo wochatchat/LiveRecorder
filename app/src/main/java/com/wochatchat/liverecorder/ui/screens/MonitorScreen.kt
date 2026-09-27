@@ -59,6 +59,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.data.AppLog
+import com.wochatchat.liverecorder.platform.PlatformRouter
 import com.wochatchat.liverecorder.ui.MonitorViewModel
 import com.wochatchat.liverecorder.ui.components.MonitorCard
 
@@ -174,16 +175,16 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     if (showAddDialog) {
         AddUrlDialog(
             onDismiss = { showAddDialog = false },
-            onConfirm = { url ->
-                viewModel.add(url)
+            onConfirm = { urls ->
+                urls.forEach { viewModel.add(it) }
                 showAddDialog = false
                 scope.launch {
                     val result = snackbarHostState.showSnackbar(
-                        message = "已添加 $url",
+                        message = if (urls.size == 1) "已添加 ${urls[0]}" else "已添加 ${urls.size} 个直播",
                         actionLabel = "撤销",
                         duration = SnackbarDuration.Long
                     )
-                    if (result == SnackbarResult.ActionPerformed) viewModel.remove(url)
+                    if (result == SnackbarResult.ActionPerformed) urls.forEach { viewModel.remove(it) }
                 }
             }
         )
@@ -362,29 +363,45 @@ fun ConfirmDeleteDialog(
 
 
 @Composable
-fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
+fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (List<String>) -> Unit) {
     var text by remember { mutableStateOf("") }
+    // R14/U10：多行/空格/逗号分隔均可，批量添加
+    val urls = text.lines()
+        .flatMap { it.split(',', '，', ' ', '\t') }
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+    val allSupported = urls.isNotEmpty() && urls.all { PlatformRouter.isSupported(it) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("添加直播间") },
         text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                placeholder = { Text("粘贴直播间链接") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true
-            )
+            Column {
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    placeholder = { Text("粘贴直播间链接\n支持多行/逗号分隔批量添加") },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 1,
+                    maxLines = 4
+                )
+                if (urls.isNotEmpty() && !allSupported) {
+                    Text(
+                        "包含暂不支持的平台链接，点击「添加」仍会加入监控",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.tertiary
+                    )
+                }
+            }
         },
         confirmButton = {
-            IconButton(onClick = { if (text.isNotBlank()) onConfirm(text) }) {
-                Icon(Icons.Default.Add, contentDescription = "添加")
-            }
+            TextButton(
+                onClick = { if (urls.isNotEmpty()) onConfirm(urls) },
+                enabled = urls.isNotEmpty()
+            ) { Text("添加") }
         },
         dismissButton = {
-            IconButton(onClick = onDismiss) {
-                Icon(Icons.Default.Close, contentDescription = "取消")
-            }
+            TextButton(onClick = onDismiss) { Text("取消") }
         }
     )
 }

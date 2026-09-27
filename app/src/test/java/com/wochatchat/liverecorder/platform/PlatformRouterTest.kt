@@ -318,4 +318,20 @@ class PlatformRouterTest {
         assertFalse(info.isLive)
         assertEquals("离线Bigo", info.anchorName)
     }
+
+    // 6d R14：isSupported 域名白名单（添加对话框预校验）
+    @Test
+    fun isSupported_routedPlatforms() {
+        val router = PlatformRouter()
+        assertTrue(PlatformRouter.isSupported("https://live.douyin.com/123456"))
+        assertTrue(PlatformRouter.isSupported("https://v.douyin.com/abc/"))
+        assertTrue(PlatformRouter.isSupported("https://www.douyu.com/9999"))
+        assertTrue(PlatformRouter.isSupported("https://live.kuaishou.com/u/anchor"))
+        assertTrue(PlatformRouter.isSupported("https://www.huya.com/888888"))
+        assertTrue(PlatformRouter.isSupported("https://live.bilibili.com/6"))
+        assertTrue(PlatformRouter.isSupported("https://www.yy.com/12345678"))
+        assertTrue(PlatformRouter.isSupported("https://www.bigo.tv/600024469"))
+        assertFalse(PlatformRouter.isSupported("https://www.xiaohongshu.com/user/profile/x"))
+        assertFalse(PlatformRouter.isSupported("https://example.com/live/1"))
+    }
 }
