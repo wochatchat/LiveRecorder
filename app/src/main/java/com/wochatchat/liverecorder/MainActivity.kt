@@ -5,11 +5,16 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.wochatchat.liverecorder.ui.navigation.AppNavigation
+import com.wochatchat.liverecorder.ui.theme.LiveRecorderTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { AppNavigation() }
+        setContent {
+            LiveRecorderTheme {
+                AppNavigation()
+            }
+        }
     }
 }
