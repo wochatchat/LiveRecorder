@@ -14,14 +14,16 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.wochatchat.liverecorder.R
 
 /** 6b-2 占位：设置页（6d 全屏化实现）。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen() {
     Scaffold(
-        topBar = { TopAppBar(title = { Text("设置") }) }
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.screen_settings_title)) }) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -30,7 +32,7 @@ fun SettingsScreen() {
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("设置", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.screen_settings_title), style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(8.dp))
             Text(
                 "推送 / 代理 / 画质 / 文件名等全量配置",

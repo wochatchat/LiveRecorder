@@ -51,11 +51,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.data.AppLog
 import com.wochatchat.liverecorder.monitor.MonitorLoop
 import com.wochatchat.liverecorder.recorder.RecordController
@@ -98,7 +100,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("直播监控") },
+                title = { Text(stringResource(R.string.screen_monitor_title)) },
                 actions = {
                     IconButton(onClick = { showPushDialog = true }) {
                         Icon(
@@ -121,7 +123,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "添加直播")
+                Icon(Icons.Default.Add, contentDescription = stringResource(R.string.fab_add_live))
             }
         }
     ) { padding ->
@@ -238,17 +240,17 @@ fun LogDialog(onDismiss: () -> Unit) {
         },
         confirmButton = {
             Row {
-                TextButton(onClick = { content = AppLog.readTail() }) { Text("刷新") }
+                TextButton(onClick = { content = AppLog.readTail() }) { Text(stringResource(R.string.action_refresh)) }
                 TextButton(onClick = {
                     AppLog.clear()
                     content = ""
                     cleared = true
-                }) { Text("清空") }
-                TextButton(onClick = { exportLogs(context) }) { Text("导出分享") }
+                }) { Text(stringResource(R.string.action_clear)) }
+                TextButton(onClick = { exportLogs(context) }) { Text(stringResource(R.string.action_export_share)) }
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("关闭") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
         }
     )
 }
@@ -291,10 +293,10 @@ private fun EmptyState(padding: PaddingValues) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("还没有监控的直播间", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.empty_monitor_title), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
         Text(
-            "点击右下角 + 添加直播间链接\n支持抖音 / 快手 / 虎牙 / 斗鱼 / B站等",
+            stringResource(R.string.empty_monitor_hint),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -439,7 +441,7 @@ fun ConfirmDeleteDialog(
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("移除", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.action_remove), color = MaterialTheme.colorScheme.error)
             }
         },
         dismissButton = {

@@ -1,5 +1,6 @@
 package com.wochatchat.liverecorder.ui.navigation
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -18,21 +19,23 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.ui.screens.MonitorScreen
 import com.wochatchat.liverecorder.ui.screens.RecordsScreen
 import com.wochatchat.liverecorder.ui.screens.SettingsScreen
 
 /** 导航目标（6b-2：3 Tab 骨架）。 */
-sealed class Destination(val route: String, val label: String, val icon: ImageVector) {
-    data object Monitor : Destination("monitor", "监控", Icons.Default.PlayArrow)
-    data object Records : Destination("records", "记录", Icons.Default.Folder)
-    data object Settings : Destination("settings", "设置", Icons.Default.Settings)
+sealed class Destination(val route: String, @StringRes val labelRes: Int, val icon: ImageVector) {
+    data object Monitor : Destination("monitor", R.string.tab_monitor, Icons.Default.PlayArrow)
+    data object Records : Destination("records", R.string.tab_records, Icons.Default.Folder)
+    data object Settings : Destination("settings", R.string.tab_settings, Icons.Default.Settings)
 }
 
 private val bottomNavItems = listOf(
@@ -54,8 +57,8 @@ fun AppNavigation() {
             NavigationBar {
                 bottomNavItems.forEach { dest ->
                     NavigationBarItem(
-                        icon = { Icon(dest.icon, contentDescription = dest.label) },
-                        label = { Text(dest.label) },
+                        icon = { Icon(dest.icon, contentDescription = stringResource(dest.labelRes)) },
+                        label = { Text(stringResource(dest.labelRes)) },
                         selected = currentDestination?.hierarchy?.any { it.route == dest.route } == true,
                         onClick = {
                             navController.navigate(dest.route) {

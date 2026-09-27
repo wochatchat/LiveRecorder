@@ -17,4 +17,20 @@
     <string name="notif_storage_low_text">剩余 %2$.2f GB，低于阈值 %1$.1f GB，监控录制已暂停；清理空间后自动恢复</string>
     <string name="notif_storage_resumed_title">存储已恢复</string>
     <string name="notif_storage_resumed_text">剩余空间充足，监控录制已自动继续</string>
+    <string name="tab_monitor">监控</string>
+    <string name="tab_records">记录</string>
+    <string name="tab_settings">设置</string>
+    <string name="screen_monitor_title">直播监控</string>
+    <string name="screen_records_title">录制记录</string>
+    <string name="screen_settings_title">设置</string>
+    <string name="action_save">保存</string>
+    <string name="action_cancel">取消</string>
+    <string name="action_close">关闭</string>
+    <string name="action_remove">移除</string>
+    <string name="action_refresh">刷新</string>
+    <string name="action_clear">清空</string>
+    <string name="action_export_share">导出分享</string>
+    <string name="fab_add_live">添加直播</string>
+    <string name="empty_monitor_title">还没有监控的直播间</string>
+    <string name="empty_monitor_hint">点击右下角 + 添加直播间链接\n支持抖音 / 快手 / 虎牙 / 斗鱼 / B站等</string>
 </resources>
