@@ -23,7 +23,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -33,6 +32,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -42,6 +45,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -53,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.coroutines.launch
 import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.data.AppLog
 import com.wochatchat.liverecorder.monitor.MonitorLoop
@@ -78,6 +83,20 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     var showLogDialog by remember { mutableStateOf(false) }
     var editUrl by remember { mutableStateOf<String?>(null) }
 
+    // R11：操作反馈 Snackbar（添加/删除可撤销，4s 自动消失）
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    fun notifyRemoved(url: String) {
+        scope.launch {
+            val result = snackbarHostState.showSnackbar(
+                message = "已移除",
+                actionLabel = "撤销",
+                duration = SnackbarDuration.Long
+            )
+            if (result == SnackbarResult.ActionPerformed) viewModel.add(url)
+        }
+    }
+
     // Android 13+ 通知权限：前台服务可无权限运行，但常驻通知需要它（2a/2e 依赖）
     val notifPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -94,6 +113,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.screen_monitor_title)) },
@@ -106,11 +126,11 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
                             else MaterialTheme.colorScheme.outline
                         )
                     }
-                    IconButton(onClick = { viewModel.setMonitorEnabled(!monitorEnabled) }) {
-                        Icon(
-                            Icons.Default.Notifications,
-                            contentDescription = if (monitorEnabled) "关闭监控" else "开启监控",
-                            tint = if (monitorEnabled) MaterialTheme.colorScheme.primary
+                    // R12/U8：总开关改文字按钮，状态一目了然
+                    TextButton(onClick = { viewModel.setMonitorEnabled(!monitorEnabled) }) {
+                        Text(
+                            if (monitorEnabled) "监控中" else "已暂停",
+                            color = if (monitorEnabled) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.outline
                         )
                     }
@@ -139,7 +159,10 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
                         monitorState = monitorStates[url],
                         disabled = url in disabledUrls,
                         unhealthy = url in unhealthyUrls,
-                        onRemove = { viewModel.remove(url) },
+                        onRemove = {
+                            viewModel.remove(url)
+                            notifyRemoved(url)
+                        },
                         onEdit = { editUrl = url },
                         onToggleEnabled = { viewModel.setEnabled(url, it) },
                         onStart = { viewModel.startRecord(url) },
@@ -156,6 +179,14 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
             onConfirm = { url ->
                 viewModel.add(url)
                 showAddDialog = false
+                scope.launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = "已添加 $url",
+                        actionLabel = "撤销",
+                        duration = SnackbarDuration.Long
+                    )
+                    if (result == SnackbarResult.ActionPerformed) viewModel.remove(url)
+                }
             }
         )
     }
@@ -185,6 +216,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
                 viewModel.setAutoConvertMp4(convertMp4)
                 viewModel.setAppSettings(settings)
                 showPushDialog = false
+                scope.launch { snackbarHostState.showSnackbar("设置已保存") }
             }
         )
     }
