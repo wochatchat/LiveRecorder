@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -28,16 +27,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.wochatchat.liverecorder.monitor.MonitorLoop
 import com.wochatchat.liverecorder.recorder.RecordController
-// 临时引用 screens 包的状态辅助函数（R13 RecordStatusLine 收口后随 stateColor/describeState 一起消除）
 import com.wochatchat.liverecorder.ui.screens.ConfirmDeleteDialog
-import com.wochatchat.liverecorder.ui.screens.describeState
-import com.wochatchat.liverecorder.ui.screens.stateColor
-import com.wochatchat.liverecorder.ui.StatsFormat
 
 /** 根据 URL 域名推断平台键（PLATFORM_LABELS 映射键，未单独接入的回落 douyin）。 */
 fun platformKeyForUrl(url: String): String = when {
@@ -139,15 +133,8 @@ fun MonitorCard(
             )
 
             Spacer(Modifier.height(6.dp))
-            when (recordState) {
-                is RecordController.RecordState.Recording -> RecordingStatsBlock(recordState)
-                else -> Text(
-                    text = describeState(recordState),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = stateColor(recordState, disabled),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+            if (recordState != null) {
+                RecordStatusLine(recordState)
             }
 
             Row {
@@ -173,41 +160,5 @@ fun MonitorCard(
                 }
             }
         }
-    }
-}
-
-/** 录制中统计块：大字时长（16sp）+ 不定进度条 + 大小/码率/文件名 caption。 */
-@Composable
-private fun RecordingStatsBlock(state: RecordController.RecordState.Recording) {
-    // 两次状态发射之间也保持走秒：在最近快照的 durationMs 基础上累加本秒表
-    var extraSec by remember { mutableStateOf(0L) }
-    LaunchedEffect(state) {
-        extraSec = 0
-        while (true) {
-            kotlinx.coroutines.delay(1000)
-            extraSec++
-        }
-    }
-    val shownMs = state.durationMs + extraSec * 1000
-    Column {
-        Text(
-            text = StatsFormat.duration(shownMs),
-            style = MaterialTheme.typography.titleMedium,
-            fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.error
-        )
-        LinearProgressIndicator(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(3.dp)
-        )
-        Text(
-            "↓ ${StatsFormat.bytes(state.bytes)} · ${StatsFormat.bitrate(state.bytes, shownMs)}" +
-                " · ${state.savePath.substringAfterLast('/')}",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
     }
 }

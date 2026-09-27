@@ -2,4 +2,6 @@
 <!-- 5d：日志导出 FileProvider 路径 -->
 <paths>
     <files-path name="logs" path="logs/" />
+    <!-- R13：录制文件播放入口（filesDir/downloads） -->
+    <files-path name="downloads" path="downloads/" />
 </paths>

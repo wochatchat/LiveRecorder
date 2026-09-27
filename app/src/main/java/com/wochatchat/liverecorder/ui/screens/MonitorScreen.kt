@@ -49,7 +49,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -60,10 +59,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.data.AppLog
-import com.wochatchat.liverecorder.monitor.MonitorLoop
-import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.ui.MonitorViewModel
-import com.wochatchat.liverecorder.ui.StatsFormat
 import com.wochatchat.liverecorder.ui.components.MonitorCard
 
 /** 监控主页 */
@@ -333,36 +329,6 @@ private fun EmptyState(padding: PaddingValues) {
 
 
 @Composable
-fun stateColor(
-    recordState: RecordController.RecordState?,
-    disabled: Boolean,
-): Color = when {
-    disabled -> MaterialTheme.colorScheme.outline
-    recordState is RecordController.RecordState.Recording -> MaterialTheme.colorScheme.error
-    recordState is RecordController.RecordState.Reconnecting -> MaterialTheme.colorScheme.tertiary
-    recordState is RecordController.RecordState.Failed -> MaterialTheme.colorScheme.error
-    else -> MaterialTheme.colorScheme.onSurfaceVariant // Kotlin 2.0: sealed class when as expression requires else
-}
-
-
-@Composable
-fun describeState(state: RecordController.RecordState?): String = when {
-    state == null -> "未监控"
-    state is RecordController.RecordState.Resolving -> "解析直播源…"
-    state is RecordController.RecordState.Recording ->
-        "录制中 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)} · ${state.savePath.substringAfterLast('/')}"
-    state is RecordController.RecordState.Reconnecting ->
-        "断流重连中(第 ${state.attempt} 次,${state.nextDelaySec}s 后) · ${state.message}"
-    state is RecordController.RecordState.Finished ->
-        if (state.completed)
-            "完成 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)} · ${state.savePath.substringAfterLast('/')}"
-        else "已停止 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)}"
-    state is RecordController.RecordState.Failed -> "失败: ${state.message}"
-    else -> "未知状态: $state"
-}
-
-
-@Composable
 fun ConfirmDeleteDialog(
     url: String,
     willStopRecording: Boolean,
@@ -389,29 +355,6 @@ fun ConfirmDeleteDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("取消") }
         }
-    )
-}
-
-
-@Composable
-fun RecordingStatsLine(state: RecordController.RecordState.Recording) {
-    // 两次状态发射之间也保持走秒：在最近快照的 durationMs 基础上累加本秒表
-    var extraSec by remember { mutableStateOf(0L) }
-    LaunchedEffect(state) {
-        extraSec = 0
-        while (true) {
-            kotlinx.coroutines.delay(1000)
-            extraSec++
-        }
-    }
-    val shownMs = state.durationMs + extraSec * 1000
-    Text(
-        "录制中 · ${StatsFormat.duration(shownMs)} · ${StatsFormat.bytes(state.bytes)}" +
-            " · ${StatsFormat.bitrate(state.bytes, shownMs)}" +
-            " · ${state.savePath.substringAfterLast('/')}",
-        style = MaterialTheme.typography.labelSmall,
-        color = stateColor(state, disabled = false),
-        maxLines = 2,
     )
 }
 
