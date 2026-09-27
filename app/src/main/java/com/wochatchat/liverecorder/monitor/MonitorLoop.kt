@@ -90,6 +90,10 @@ class MonitorLoop(
     /** 不健康条目集合（4c：连续失败 ≥ [HEALTH_FAIL_THRESHOLD] 轮）。检查成功即恢复。 */
     val unhealthy: StateFlow<Set<String>> = _unhealthy.asStateFlow()
 
+    /** 6c-4：轮次时间信息（上次检查/下一轮），供卡片摘要展示。 */
+    private val _roundInfo = MutableStateFlow(MonitorRoundInfo())
+    val roundInfo: StateFlow<MonitorRoundInfo> = _roundInfo.asStateFlow()
+
     val isRunning: Boolean get() = job?.isActive == true
 
     /**
@@ -104,6 +108,10 @@ class MonitorLoop(
                 val round = runRound(urls)
                 if (round == null) {
                     // 低存储暂停：仍按正常间隔定期复查空间（恢复后自动继续）
+                    _roundInfo.value = MonitorRoundInfo(
+                        lastCheckMs = System.currentTimeMillis(),
+                        nextCheckMs = System.currentTimeMillis() + intervalSec * 1000,
+                    )
                     delay(intervalSec * 1000)
                     continue
                 }
@@ -112,6 +120,10 @@ class MonitorLoop(
                 val roundSec = (System.currentTimeMillis() - t0) / 1000
                 val delaySec = nextDelaySec(intervalSec, jitter, round.errors, round.recordJustEnded, roundSec)
                 AppLog.d(TAG, "下一轮延迟 ${delaySec}s")
+                _roundInfo.value = MonitorRoundInfo(
+                    lastCheckMs = System.currentTimeMillis(),
+                    nextCheckMs = System.currentTimeMillis() + delaySec * 1000,
+                )
                 delay(delaySec * 1000)
             }
         }
@@ -122,6 +134,7 @@ class MonitorLoop(
         job = null
         _states.value = emptyMap()
         _unhealthy.value = emptySet()
+        _roundInfo.value = MonitorRoundInfo()
         wasRecording.clear()
         suppressed.clear()
         consecutiveErrors.clear()
@@ -270,3 +283,9 @@ class MonitorLoop(
         const val QUICK_CHECK_WINDOW_SEC = 60L
     }
 }
+
+/** 轮询轮次时间信息（6c-4，卡片「上次检查/下一轮」摘要）。0 值表示尚无轮次。 */
+data class MonitorRoundInfo(
+    val lastCheckMs: Long = 0L,
+    val nextCheckMs: Long = 0L,
+)

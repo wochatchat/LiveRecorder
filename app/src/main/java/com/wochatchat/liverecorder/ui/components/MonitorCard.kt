@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.wochatchat.liverecorder.monitor.MonitorLoop
+import com.wochatchat.liverecorder.monitor.MonitorRoundInfo
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.ui.screens.ConfirmDeleteDialog
 
@@ -59,6 +60,7 @@ fun MonitorCard(
     monitorState: MonitorLoop.State?,
     disabled: Boolean,
     unhealthy: Boolean = false,
+    roundInfo: MonitorRoundInfo = MonitorRoundInfo(),
     onRemove: () -> Unit,
     onEdit: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
@@ -135,6 +137,8 @@ fun MonitorCard(
             Spacer(Modifier.height(6.dp))
             if (recordState != null) {
                 RecordStatusLine(recordState)
+            } else {
+                RoundSummaryCaption(roundInfo)
             }
 
             Row {
@@ -161,4 +165,46 @@ fun MonitorCard(
             }
         }
     }
+}
+
+/** 空闲卡片轮次摘要：上次检查 + 下一轮相对时间（30s 自刷新，6c-4）。 */
+@Composable
+private fun RoundSummaryCaption(info: MonitorRoundInfo) {
+    var tick by remember { mutableStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            kotlinx.coroutines.delay(30_000)
+            tick++
+        }
+    }
+    val now = remember(tick, info) { System.currentTimeMillis() }
+    val parts = buildList {
+        if (info.lastCheckMs > 0) {
+            add("上次检查 " + relativeAgo(now - info.lastCheckMs))
+        }
+        if (info.nextCheckMs > now) {
+            add("下轮 " + relativeIn(info.nextCheckMs - now))
+        }
+    }
+    if (parts.isNotEmpty()) {
+        Text(
+            parts.joinToString(" · "),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.outline
+        )
+    }
+}
+
+/** 毫秒差 → 「刚刚 / X 分钟前 / X 小时前」。 */
+private fun relativeAgo(deltaMs: Long): String = when {
+    deltaMs < 60_000L -> "刚刚"
+    deltaMs < 3_600_000L -> "${deltaMs / 60_000L} 分钟前"
+    else -> "${deltaMs / 3_600_000L} 小时前"
+}
+
+/** 毫秒差 → 「1 分钟内 / X 分钟后 / X 小时后」。 */
+private fun relativeIn(deltaMs: Long): String = when {
+    deltaMs < 60_000L -> "1 分钟内"
+    deltaMs < 3_600_000L -> "${deltaMs / 60_000L} 分钟后"
+    else -> "${deltaMs / 3_600_000L} 小时后"
 }

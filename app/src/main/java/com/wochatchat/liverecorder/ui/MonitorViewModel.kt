@@ -86,6 +86,9 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     /** 4c：不健康条目集合（连续检查失败 ≥3 轮），UI 置灰「失效」徽标。 */
     val unhealthyUrls get() = (getApplication() as RecorderApp).monitorLoop.unhealthy
 
+    /** 6c-4：轮次时间信息（上次检查/下一轮），监控卡片摘要用。 */
+    val roundInfo get() = (getApplication() as RecorderApp).monitorLoop.roundInfo
+
     fun setMonitorEnabled(enabled: Boolean) = viewModelScope.launch {
         store.setMonitorEnabled(enabled)
         // 状态由 init 的 combine 驱动服务启停，这里无需重复调用

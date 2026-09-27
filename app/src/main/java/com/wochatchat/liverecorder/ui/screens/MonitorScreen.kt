@@ -72,6 +72,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     val unhealthyUrls by viewModel.unhealthyUrls.collectAsState()
     val disabledUrls by viewModel.disabledUrls.collectAsState()
     val monitorEnabled by viewModel.monitorEnabled.collectAsState()
+    val roundInfo by viewModel.roundInfo.collectAsState()
     val pushConfig by viewModel.pushConfig.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
     var showPushDialog by remember { mutableStateOf(false) }
@@ -155,6 +156,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
                         monitorState = monitorStates[url],
                         disabled = url in disabledUrls,
                         unhealthy = url in unhealthyUrls,
+                        roundInfo = roundInfo,
                         onRemove = {
                             viewModel.remove(url)
                             notifyRemoved(url)
