@@ -23,11 +23,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -36,7 +33,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -63,7 +59,7 @@ import com.wochatchat.liverecorder.monitor.MonitorLoop
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.ui.MonitorViewModel
 import com.wochatchat.liverecorder.ui.StatsFormat
-import com.wochatchat.liverecorder.ui.components.StatusBadge
+import com.wochatchat.liverecorder.ui.components.MonitorCard
 
 /** 监控主页 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -137,7 +133,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
             ) {
                 items(urls, key = { it }) { url ->
                     val state = recordStates[url]
-                    MonitorItem(
+                    MonitorCard(
                         url = url,
                         recordState = state,
                         monitorState = monitorStates[url],
@@ -300,92 +296,6 @@ private fun EmptyState(padding: PaddingValues) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-    }
-}
-
-
-@Composable
-fun MonitorItem(
-    url: String,
-    recordState: RecordController.RecordState?,
-    monitorState: MonitorLoop.State?,
-    disabled: Boolean,
-    unhealthy: Boolean = false,
-    onRemove: () -> Unit,
-    onEdit: () -> Unit,
-    onToggleEnabled: (Boolean) -> Unit,
-    onStart: () -> Unit,
-    onStop: () -> Unit,
-) {
-    val recording = recordState is RecordController.RecordState.Resolving ||
-        recordState is RecordController.RecordState.Recording ||
-        recordState is RecordController.RecordState.Reconnecting
-    var showConfirmDelete by remember { mutableStateOf(false) }
-
-    if (showConfirmDelete) {
-        ConfirmDeleteDialog(
-            url = url,
-            willStopRecording = recording,
-            onConfirm = {
-                onRemove()
-                showConfirmDelete = false
-            },
-            onDismiss = { showConfirmDelete = false }
-        )
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp)
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            StatusBadge(recordState, monitorState, disabled, unhealthy)
-            Spacer(Modifier.weight(1f))
-            // 单条启停（2g）：停用后不参与轮询与自动录制（上游 # 注释行语义）
-            Switch(checked = !disabled, onCheckedChange = onToggleEnabled)
-        }
-        Text(
-            url,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 2,
-            color = if (disabled) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface
-        )
-        if (monitorState is MonitorLoop.State.Live) {
-            Text(
-                "${monitorState.anchorName}「${monitorState.title}」",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
-            )
-        }
-        if (recordState is RecordController.RecordState.Recording) {
-            // 5c：录制统计行（时长/大小/码率，每秒刷新）
-            RecordingStatsLine(recordState)
-        } else {
-            Text(
-                describeState(recordState),
-                style = MaterialTheme.typography.labelSmall,
-                color = stateColor(recordState, disabled)
-            )
-        }
-        Row {
-            IconButton(onClick = if (recording) onStop else onStart, enabled = !disabled) {
-                Icon(
-                    if (recording) Icons.Default.Stop
-                    else Icons.Default.PlayArrow,
-                    contentDescription = if (recording) "停止" else "录制",
-                    tint = if (recording)
-                        MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
-                )
-            }
-            IconButton(onClick = onEdit, enabled = !disabled) {
-                Icon(Icons.Default.Edit, contentDescription = "编辑", tint = MaterialTheme.colorScheme.primary)
-            }
-            IconButton(onClick = { showConfirmDelete = true }) {
-                Icon(Icons.Default.Close, contentDescription = "删除", tint = MaterialTheme.colorScheme.outline)
-            }
-        }
     }
 }
 

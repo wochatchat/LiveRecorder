@@ -1,0 +1,209 @@
+package com.wochatchat.liverecorder.ui.components
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import com.wochatchat.liverecorder.monitor.MonitorLoop
+import com.wochatchat.liverecorder.recorder.RecordController
+import com.wochatchat.liverecorder.ui.StatsFormat
+
+/** 根据 URL 域名推断平台键（PLATFORM_LABELS 映射键，未单独接入的回落 douyin）。 */
+fun platformKeyForUrl(url: String): String = when {
+    url.contains("douyu.com/") -> "douyu"
+    url.contains("live.kuaishou.com/") -> "kuaishou"
+    url.contains("huya.com/") -> "huya"
+    url.contains("live.bilibili.com/") -> "bilibili"
+    url.contains("www.yy.com/") -> "yy"
+    url.contains("bigo.tv/") || url.contains("bigovideo.tv/") -> "bigo"
+    url.contains("xiaohongshu.com/") || url.contains("xhslink.com/") -> "xiaohongshu"
+    url.contains("tiktok.com/") -> "tiktok"
+    url.contains("twitch.tv/") -> "twitch"
+    url.contains("youtube.com/") || url.contains("youtu.be/") -> "youtube"
+    else -> "douyin"
+}
+
+/**
+ * 监控卡片（R10 / U6）：Surface 卡片包装，平台徽标 + 主播名大字标题 + URL 降级 caption。
+ * 状态区：录制中 → 大字时长 + 进度条；其余状态 → 描述行（R13 由 RecordStatusLine 统一接管）。
+ */
+@Composable
+fun MonitorCard(
+    url: String,
+    recordState: RecordController.RecordState?,
+    monitorState: MonitorLoop.State?,
+    disabled: Boolean,
+    unhealthy: Boolean = false,
+    onRemove: () -> Unit,
+    onEdit: () -> Unit,
+    onToggleEnabled: (Boolean) -> Unit,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+) {
+    val recording = recordState is RecordController.RecordState.Resolving ||
+        recordState is RecordController.RecordState.Recording ||
+        recordState is RecordController.RecordState.Reconnecting
+    var showConfirmDelete by remember { mutableStateOf(false) }
+
+    if (showConfirmDelete) {
+        ConfirmDeleteDialog(
+            url = url,
+            willStopRecording = recording,
+            onConfirm = {
+                onRemove()
+                showConfirmDelete = false
+            },
+            onDismiss = { showConfirmDelete = false }
+        )
+    }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        shadowElevation = 1.dp,
+        tonalElevation = 1.dp,
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                PlatformBadge(platformKeyForUrl(url))
+                StatusBadge(recordState, monitorState, disabled, unhealthy)
+                Spacer(Modifier.weight(1f))
+                // 单条启停（2g）：停用后不参与轮询与自动录制（上游 # 注释行语义）
+                Switch(checked = !disabled, onCheckedChange = onToggleEnabled)
+            }
+
+            Spacer(Modifier.height(4.dp))
+            // 主标题：主播名为主（U6）；未解析到时回落平台名
+            val live = monitorState as? MonitorLoop.State.Live
+            Text(
+                text = live?.anchorName?.takeIf { it.isNotBlank() }
+                    ?: (PLATFORM_LABELS[platformKeyForUrl(url)]?.plus("直播") ?: url),
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (disabled) MaterialTheme.colorScheme.outline
+                else MaterialTheme.colorScheme.onSurface
+            )
+            // 直播标题副行
+            if (live != null && live.title.isNotBlank()) {
+                Text(
+                    "「${live.title}」",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+            // URL 降级为 caption（U6）
+            Text(
+                url,
+                style = MaterialTheme.typography.bodySmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                color = if (disabled) MaterialTheme.colorScheme.outline
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(6.dp))
+            when (recordState) {
+                is RecordController.RecordState.Recording -> RecordingStatsBlock(recordState)
+                else -> Text(
+                    text = describeState(recordState),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = stateColor(recordState, disabled),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            Row {
+                IconButton(onClick = if (recording) onStop else onStart, enabled = !disabled) {
+                    Icon(
+                        if (recording) Icons.Default.Stop else Icons.Default.PlayArrow,
+                        contentDescription = if (recording) "停止" else "录制",
+                        tint = if (recording)
+                            MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                    )
+                }
+                IconButton(onClick = onEdit, enabled = !disabled) {
+                    Icon(
+                        Icons.Default.Edit, contentDescription = "编辑",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                IconButton(onClick = { showConfirmDelete = true }) {
+                    Icon(
+                        Icons.Default.Close, contentDescription = "删除",
+                        tint = MaterialTheme.colorScheme.outline
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 录制中统计块：大字时长（16sp）+ 不定进度条 + 大小/码率/文件名 caption。 */
+@Composable
+private fun RecordingStatsBlock(state: RecordController.RecordState.Recording) {
+    // 两次状态发射之间也保持走秒：在最近快照的 durationMs 基础上累加本秒表
+    var extraSec by remember { mutableStateOf(0L) }
+    LaunchedEffect(state) {
+        extraSec = 0
+        while (true) {
+            kotlinx.coroutines.delay(1000)
+            extraSec++
+        }
+    }
+    val shownMs = state.durationMs + extraSec * 1000
+    Column {
+        Text(
+            text = StatsFormat.duration(shownMs),
+            style = MaterialTheme.typography.titleMedium,
+            fontFamily = FontFamily.Monospace,
+            color = MaterialTheme.colorScheme.error
+        )
+        LinearProgressIndicator(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(3.dp)
+        )
+        Text(
+            "↓ ${StatsFormat.bytes(state.bytes)} · ${StatsFormat.bitrate(state.bytes, shownMs)}" +
+                " · ${state.savePath.substringAfterLast('/')}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
