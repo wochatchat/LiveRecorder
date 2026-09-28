@@ -206,19 +206,55 @@ class HttpPusherTest {
 
     @Test
     fun ntfyBody_priorityOutOfRangeFallsBackToDefault() {
+        // 回落逻辑在 coercePriority（push() 调用），ntfyBody 本身透传
         val body = pusher.ntfyBody(
             "https://ntfy.sh/t", "t", "m", actionUrl = "",
             priority = 99,
         )
         val json = JSONObject(body)
-        assertEquals(3, json.getInt("priority")) // 默认
+        assertEquals(99, json.getInt("priority"))
     }
 
     @Test
     fun ntfyBody_priorityZeroFallsBackToDefault() {
         val json = JSONObject(pusher.ntfyBody("https://ntfy.sh/t", "t", "m", actionUrl = "", priority = 0))
-        assertEquals(3, json.getInt("priority"))
+        assertEquals(0, json.getInt("priority"))
     }
+
+    @Test
+    fun push_ntfyConfigTagsAndPriorityApplied() = runBlocking {
+        val api = server.url("/ntfytopic").toString().removeSuffix("/")
+        server.enqueue(MockResponse().setBody("""{"id":"x"}"""))
+        val ok = pusher.push(
+            PushConfig(enabled = true, type = "ntfy", apis = listOf(api), ntfyTags = "eyes,bell", ntfyPriority = 5),
+            Event.LIVE, "a", "t", liveUrl = "",
+        )
+        assertTrue(ok.isEmpty())
+        val sent = JSONObject(server.takeRequest().body.readUtf8())
+        val tags = sent.getJSONArray("tags")
+        assertEquals("eyes", tags.getString(0))
+        assertEquals("bell", tags.getString(1))
+        assertEquals(5, json_priority(sent))
+    }
+
+    @Test
+    fun push_ntfyPriorityZeroOrInvalidFallsBackToDefault() = runBlocking {
+        val api = server.url("/ntfytopic2").toString().removeSuffix("/")
+        server.enqueue(MockResponse().setBody("""{"id":"x"}"""))
+        pusher.push(
+            PushConfig(enabled = true, type = "ntfy", apis = listOf(api), ntfyPriority = 99),
+            Event.LIVE, "a", "t", liveUrl = "",
+        )
+        assertEquals(3, JSONObject(server.takeRequest().body.readUtf8()).getInt("priority"))
+
+        server.enqueue(MockResponse().setBody("""{"id":"x"}"""))
+        pusher.push(
+            PushConfig(enabled = true, type = "ntfy", apis = listOf(api), ntfyPriority = 0),
+            Event.LIVE, "a", "t", liveUrl = "",
+        )
+        assertEquals(3, JSONObject(server.takeRequest().body.readUtf8()).getInt("priority"))
+    }
+}
 
     @Test
     fun parseTags_withCommaAndChineseComma() {
@@ -237,6 +273,10 @@ class HttpPusherTest {
         assertEquals(3, pusher.coercePriority(0))
         assertEquals(3, pusher.coercePriority(-1))
         assertEquals(3, pusher.coercePriority(99))
+    }
+}
+
+
     }
 }
 
