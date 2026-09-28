@@ -19,7 +19,10 @@
 - [ ] 开播通知点击跳对应 MonitorCard
 
 ## 6f-3 — R24 字符串资源化（无障碍/动效后续做）
-- [ ] 全量硬编码中文迁 strings.xml
+- [x] 全量硬编码中文迁 strings.xml（2026-09-28 ✅，新增 ~130 条，CI run 36412043843 全绿）
+  - 覆盖：MonitorScreen / MonitorCard / RecordStatusLine / StatusBadge / CookieDialog / CookieManagementScreen / RecordsScreen / SettingsScreen + Records/SettingsViewModel（getApplication<Application>().getString）
+  - 非 composable 回调用 context.getString；MonitorScreen notifyRemoved 的 context 前向引用已修复
+  - 保留：平台品牌名（PLATFORM_LABELS）、画质选项（DataStore 持久化值）、Onboarding 示例链接、AppLog 调试日志
 - [ ] contentDescription + 触达面积 ≥48dp
 - [ ] 列表增删动画
 
