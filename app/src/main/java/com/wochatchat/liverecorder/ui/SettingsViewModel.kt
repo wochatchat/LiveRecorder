@@ -8,6 +8,7 @@ import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.MonitorStore
 import com.wochatchat.liverecorder.data.ProxySettings
+import com.wochatchat.liverecorder.push.Event
 import com.wochatchat.liverecorder.push.HttpPusher
 import com.wochatchat.liverecorder.push.PushConfig
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -94,7 +95,7 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val timeStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
             val failed = (getApplication() as RecorderApp).pusher.push(
-                cfg, HttpPusher.Event.LIVE, "测试主播", timeStr, "https://live.douyin.com/"
+                cfg, Event.LIVE, "测试主播", timeStr, "https://live.douyin.com/"
             )
             _pushTestResult.value = if (failed.isEmpty()) "测试通知已发送"
             else "发送失败：${failed.joinToString()}"
