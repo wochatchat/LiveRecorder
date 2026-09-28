@@ -33,12 +33,14 @@ import com.wochatchat.liverecorder.data.AuthStore
 fun CookieDialog(
     cookies: Map<String, String>,
     credentials: Map<String, Pair<String, String>>,
+    initialPlatform: String = AuthStore.ALL_PLATFORMS.first().key,
     onDismiss: () -> Unit,
     onSaveCookie: (platform: String, cookie: String) -> Unit,
     onSaveCredential: (platform: String, username: String, password: String) -> Unit,
 ) {
-    val platforms = AuthStore.ALL_PLATFORMS
-    var selectedKey by remember { mutableStateOf(platforms.first().key) }
+    // R16：下拉含账密登录平台（原仅 COOKIE_PLATFORMS，登录平台不可达）
+    val platforms = (AuthStore.ALL_PLATFORMS + AuthStore.LOGIN_PLATFORMS).distinctBy { it.key }
+    var selectedKey by remember { mutableStateOf(initialPlatform) }
     var expanded by remember { mutableStateOf(false) }
     var cookie by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }

@@ -54,10 +54,7 @@ fun SettingsScreen(
     val proxy by viewModel.proxySettings.collectAsState()
     val convertMp4 by viewModel.autoConvertMp4.collectAsState()
     val settings by viewModel.appSettings.collectAsState()
-    val cookies by viewModel.cookies.collectAsState()
-    val credentials by viewModel.credentials.collectAsState()
 
-    var showCookieDialog by remember { mutableStateOf(false) }
     var showLogDialog by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -80,29 +77,12 @@ fun SettingsScreen(
             Spacer(Modifier.height(12.dp))
             ProxyGroup(proxy, viewModel)
             Spacer(Modifier.height(12.dp))
-            AuthGroup(cookies.size + credentials.size) {
-                showCookieDialog = true
-            }
+            AuthGroup(cookies.size + credentials.size, onOpenCookies)
             Spacer(Modifier.height(12.dp))
             MaintenanceGroup { showLogDialog = true }
         }
     }
 
-    if (showCookieDialog) {
-        CookieDialog(
-            cookies = cookies,
-            credentials = credentials,
-            onDismiss = { showCookieDialog = false },
-            onSaveCookie = { platform, cookie ->
-                viewModel.setCookie(platform, cookie)
-                showCookieDialog = false
-            },
-            onSaveCredential = { platform, user, pass ->
-                viewModel.setCredential(platform, user, pass)
-                showCookieDialog = false
-            }
-        )
-    }
     if (showLogDialog) {
         LogDialog(onDismiss = { showLogDialog = false })
     }
@@ -362,13 +342,13 @@ private fun ProxyGroup(proxy: ProxySettings, viewModel: SettingsViewModel) {
 @Composable
 private fun AuthGroup(
     configuredCount: Int,
-    onOpenDialog: () -> Unit,
+    onOpenPage: () -> Unit,
 ) {
     SettingsGroup(stringResource(R.string.settings_group_auth)) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable { onOpenDialog() }
+                .clickable { onOpenPage() }
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {

@@ -27,6 +27,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.wochatchat.liverecorder.R
+import com.wochatchat.liverecorder.ui.screens.CookieManagementScreen
 import com.wochatchat.liverecorder.ui.screens.MonitorScreen
 import com.wochatchat.liverecorder.ui.screens.RecordsScreen
 import com.wochatchat.liverecorder.ui.screens.SettingsScreen
@@ -37,6 +38,9 @@ sealed class Destination(val route: String, @StringRes val labelRes: Int, val ic
     data object Records : Destination("records", R.string.tab_records, Icons.Default.Folder)
     data object Settings : Destination("settings", R.string.tab_settings, Icons.Default.Settings)
 }
+
+/** 设置子页路由（6d R16）。 */
+const val ROUTE_COOKIES = "settings/cookies"
 
 private val bottomNavItems = listOf(
     Destination.Monitor,
@@ -52,9 +56,11 @@ fun AppNavigation() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
+    val isTopLevel = bottomNavItems.any { it.route == currentDestination?.route }
+
     Scaffold(
         bottomBar = {
-            NavigationBar {
+            if (isTopLevel) NavigationBar {
                 bottomNavItems.forEach { dest ->
                     NavigationBarItem(
                         icon = { Icon(dest.icon, contentDescription = stringResource(dest.labelRes)) },
@@ -95,7 +101,14 @@ fun AppNavigation() {
                 )
             }
             composable(Destination.Records.route) { RecordsScreen() }
-            composable(Destination.Settings.route) { SettingsScreen() }
+            composable(Destination.Settings.route) {
+                SettingsScreen(
+                    onOpenCookies = { navController.navigate(ROUTE_COOKIES) }
+                )
+            }
+            composable(ROUTE_COOKIES) {
+                CookieManagementScreen(onBack = { navController.popBackStack() })
+            }
         }
     }
 }
