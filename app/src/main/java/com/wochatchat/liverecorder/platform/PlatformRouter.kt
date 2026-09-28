@@ -125,9 +125,9 @@ class PlatformRouter(
         isBigoUrl(url) -> fetchBigo(url, quality, proxyAddr, cookies["bigo"])
         isNeteaseUrl(url) -> fetchNetease(url, quality, proxyAddr, cookies["netease"])
         isBaiduUrl(url) -> fetchBaidu(url, proxyAddr)
-        isWeiboUrl(url) -> fetchWeibo(url, proxyAddr, cookies["weibo"])
-        isJdUrl(url) -> fetchJd(url, proxyAddr, cookies["jd"])
-        isZhihuUrl(url) -> fetchZhihu(url, proxyAddr, cookies["zhihu"])
+        isWeiboUrl(url) -> fetchWeibo(url, null, proxyAddr, cookies["weibo"])
+        isJdUrl(url) -> fetchJd(url, null, proxyAddr, cookies["jd"])
+        isZhihuUrl(url) -> fetchZhihu(url, null, proxyAddr, cookies["zhihu"])
         isDirectStreamUrl(url) -> fetchDirectStream(url)
         else -> douyinSpider.fetchStreamInfo(url, quality, proxyAddr)
     }
@@ -327,8 +327,8 @@ class PlatformRouter(
     }
 
     /** 7d 百度 → 抖音同构映射（spider.py:1947）：m3u8 列表首项。 */
-    private suspend fun fetchBaidu(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
-        val info = baiduSpider.getStreamInfo(url, proxyAddr, cookie)
+    private suspend fun fetchBaidu(url: String, proxyAddr: String?): DouyinStreamInfo {
+        val info = baiduSpider.getStreamInfo(url, proxyAddr)
         if (!info.isLive) {
             return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
         }
