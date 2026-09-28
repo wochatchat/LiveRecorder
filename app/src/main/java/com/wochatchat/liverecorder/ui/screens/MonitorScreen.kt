@@ -68,6 +68,7 @@ import com.wochatchat.liverecorder.data.AppLog
 import com.wochatchat.liverecorder.platform.PlatformRouter
 import com.wochatchat.liverecorder.ui.MonitorViewModel
 import com.wochatchat.liverecorder.ui.components.MonitorCard
+import com.wochatchat.liverecorder.ui.navigation.FocusRouter
 
 /** 监控主页 */
 @OptIn(ExperimentalMaterial3Api::class)
