@@ -18,7 +18,7 @@
 - [ ] MonitorService NotificationCompat 增 Action：暂停/恢复监控
 - [ ] 开播通知点击跳对应 MonitorCard
 
-## 6f-3 — R24 字符串资源化/无障碍/动效
+## 6f-3 — R24 字符串资源化（无障碍/动效后续做）
 - [ ] 全量硬编码中文迁 strings.xml
 - [ ] contentDescription + 触达面积 ≥48dp
 - [ ] 列表增删动画
