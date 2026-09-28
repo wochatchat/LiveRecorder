@@ -170,6 +170,7 @@
     <string name="settings_threshold_label">存储剩余告警阈值 (GB)</string>
     <string name="settings_quality_label">录制画质</string>
     <string name="settings_segment_title">分段录制</string>
+    <string name="settings_saveformat_label">保存格式</string>
     <string name="settings_segment_subtitle">关闭时 FLV 直下为单文件（不支持 m3u8）</string>
     <string name="settings_https_title">强制启用 https 录制</string>
     <string name="settings_https_subtitle">直播源 http:// 强制改写为 https://</string>

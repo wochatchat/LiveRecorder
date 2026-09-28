@@ -239,15 +239,26 @@ private fun RecordingGroup(
             selected = settings.quality,
             onSelect = { viewModel.setAppSettings(settings.copy(quality = it)) }
         )
-        LoopIntervalField(settings, viewModel)
-        SwitchSettingRow(
-            title = stringResource(R.string.settings_segment_title),
-            subtitle = stringResource(R.string.settings_segment_subtitle),
-            checked = settings.segmented,
-            onChange = { viewModel.setAppSettings(settings.copy(segmented = it)) }
+        // 7c：保存格式（ts=分段默认 / mkv|mp4=直存单文件，对齐上游 save_type）
+        val directSave = settings.saveFormat == "mkv" || settings.saveFormat == "mp4"
+        ChipRow(
+            label = stringResource(R.string.settings_saveformat_label),
+            options = listOf("ts", "mkv", "mp4"),
+            selected = settings.saveFormat,
+            onSelect = { viewModel.setAppSettings(settings.copy(saveFormat = it)) }
         )
-        if (settings.segmented) {
-            SegmentTimeField(settings, viewModel)
+        LoopIntervalField(settings, viewModel)
+        // mkv/mp4 直存单文件无分段概念，分段/转MP4设置仅 ts 有意义
+        if (!directSave) {
+            SwitchSettingRow(
+                title = stringResource(R.string.settings_segment_title),
+                subtitle = stringResource(R.string.settings_segment_subtitle),
+                checked = settings.segmented,
+                onChange = { viewModel.setAppSettings(settings.copy(segmented = it)) }
+            )
+            if (settings.segmented) {
+                SegmentTimeField(settings, viewModel)
+            }
         }
         SwitchSettingRow(
             title = stringResource(R.string.settings_https_title),
@@ -255,12 +266,15 @@ private fun RecordingGroup(
             checked = settings.forceHttps,
             onChange = { viewModel.setAppSettings(settings.copy(forceHttps = it)) }
         )
-        SwitchSettingRow(
-            title = stringResource(R.string.settings_mp4_title),
-            subtitle = stringResource(R.string.settings_mp4_subtitle),
-            checked = convertMp4,
-            onChange = { viewModel.setAutoConvertMp4(it) }
-        )
+        // TS→MP4 后期转换仅对 ts 分片有意义（mkv/mp4 直存已是目标格式）
+        if (!directSave) {
+            SwitchSettingRow(
+                title = stringResource(R.string.settings_mp4_title),
+                subtitle = stringResource(R.string.settings_mp4_subtitle),
+                checked = convertMp4,
+                onChange = { viewModel.setAutoConvertMp4(it) }
+            )
+        }
         if (convertMp4) {
             SwitchSettingRow(
                 title = stringResource(R.string.settings_del_ts_title),

@@ -71,6 +71,11 @@ class RecordController(
     /** 5a：TS→MP4 转换后是否删除原分片（上游「追加格式后删除原文件」，默认是）。 */
     private val deleteOriginalOnConvert: suspend () -> Boolean = { true },
     /**
+     * 7c：保存格式（上游 config.ini save_type；ts=分段默认 / mkv|mp4=直存单文件）。
+     * mkv/mp4 直存不经 segment muxer，TS→MP4 后期转换自然不生效。
+     */
+    private val saveFormat: suspend () -> String = { "ts" },
+    /**
      * 5b：文件命名选项（作者/时间/标题区分、文件名含标题、去表情）。
      * 对齐上游 config.ini「录制设置」5 项，RecorderApp 按 AppSettings 接线。
      */
@@ -253,10 +258,37 @@ class RecordController(
                     ffmpeg
                 } else null
                 if (effectiveFfmpeg != null) {
-                    // ffmpeg 分段录制（3-3g）：m3u8 必须走 ffmpeg；FLV 也走 ffmpeg
-                    segStartMs = nowMs()
-                    segActive = true
-                    segBytes = 0
+                    // 7c：保存格式（ts=分段 / mkv|mp4=直存单文件；查询失败按默认 ts）
+                    val fmt = runCatching { saveFormat() }.getOrDefault("ts")
+                        .trim().lowercase().ifBlank { "ts" }
+                    if (fmt == "mkv" || fmt == "mp4") {
+                        // 直存单文件：不经 segment muxer，每轮重连新建时间戳文件（同上游语义）
+                        segStartMs = nowMs()
+                        segActive = true
+                        segBytes = 0
+                        val saveFile = File(dir, "$baseName.$fmt")
+                        setState(url, RecordState.Recording(saveFile.absolutePath, 0, info.quality, durationMs = accMs))
+                        val res = effectiveFfmpeg.recordDirect(sourceUrl, saveFile, headers) { bytes ->
+                            segBytes = bytes
+                            scope.launch {
+                                setState(
+                                    url,
+                                    RecordState.Recording(
+                                        saveFile.absolutePath, totalBytes + bytes, info.quality,
+                                        durationMs = accMs + (nowMs() - segStartMs),
+                                    ),
+                                )
+                            }
+                        }
+                        accMs += nowMs() - segStartMs
+                        segActive = false
+                        lastPath = saveFile.absolutePath
+                        totalBytes += res.estimatedBytes
+                        segBytes = 0
+                        if (!backoffOrGiveUp(url, ++attempt, "直播流结束")) return
+                    } else {
+                        // ffmpeg 分段录制（3-3g）：m3u8 必须走 ffmpeg；FLV 也走 ffmpeg
+                        segStartMs = nowMs()
                     val res = effectiveFfmpeg.record(
                         sourceUrl = sourceUrl,
                         outputDir = dir,
@@ -286,6 +318,7 @@ class RecordController(
                     convertSegmentsAsync(res.segments)
                     // ++attempt 留下 attempt=1：下轮探测已关播时按 Finished(completed) 收敛（同 OkHttp 分支语义）
                     if (!backoffOrGiveUp(url, ++attempt, "直播流结束")) return
+                    }
                 } else {
                     // OkHttp 直下（Phase 1/2 行为）
                     if (sourceUrl.contains(".m3u8")) {

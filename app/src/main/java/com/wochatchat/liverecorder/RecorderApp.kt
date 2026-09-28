@@ -95,6 +95,8 @@ class RecorderApp : Application() {
             // 5a：全局录制配置（分段开关/分段时间/强制 https/转码删原文件）
             useSegmented = { appSettings.settings.first().segmented },
             segmentTimeSec = { appSettings.settings.first().segmentTimeSec },
+            // 7c：保存格式（ts 分段默认 / mkv|mp4 直存单文件）
+            saveFormat = { appSettings.settings.first().saveFormat },
             forceHttps = { appSettings.settings.first().forceHttps },
             deleteOriginalOnConvert = { appSettings.settings.first().deleteOriginalOnConvert },
             // 5b：文件命名规则（作者/时间/标题区分、文件名含标题、去表情）

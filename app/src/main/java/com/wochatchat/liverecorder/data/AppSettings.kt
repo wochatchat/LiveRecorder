@@ -63,6 +63,8 @@ class AppSettingsStore(private val context: android.content.Context) {
     private val qualityKey = stringPreferencesKey("quality")
     private val segmentedKey = booleanPreferencesKey("segmented")
     private val segmentTimeKey = intPreferencesKey("segment_time_sec")
+    /** 7c：保存格式（ts/mkv/mp4）。 */
+    private val saveFormatKey = stringPreferencesKey("save_format")
     private val forceHttpsKey = booleanPreferencesKey("force_https")
     private val deleteOriginalKey = booleanPreferencesKey("delete_original_on_convert")
     private val pushOnLiveKey = booleanPreferencesKey("push_on_live")
@@ -93,6 +95,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             quality = prefs[qualityKey] ?: "原画",
             segmented = prefs[segmentedKey] ?: true,
             segmentTimeSec = prefs[segmentTimeKey] ?: 1800,
+            saveFormat = prefs[saveFormatKey] ?: "ts",
             forceHttps = prefs[forceHttpsKey] ?: false,
             deleteOriginalOnConvert = prefs[deleteOriginalKey] ?: true,
             pushOnLive = prefs[pushOnLiveKey] ?: true,

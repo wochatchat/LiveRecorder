@@ -183,14 +183,62 @@ open class FfmpegRecorder(
         }
     }
 
-    private fun buildCommand(
+    /**
+     * 7c：mkv/mp4 直存单文件（对齐上游 save_type == 'MKV'/'MP4'——不经 segment muxer，
+     * 无 %03d 分片）。断流重连由调用方逐轮新建文件。
+     * - mkv → `-f matroska -c copy`
+     * - mp4 → `-f mp4 -c copy -bsf:a aac_adtstoasc`（TS/FLV 源的 AAC 均需 ADTS→ASC）
+     */
+    suspend open fun recordDirect(
         sourceUrl: String,
-        outputPath: String,
-        headers: Map<String, String>,
-        segmentSec: Int,
-        segmentFormat: String,
-        extraArgs: List<String>,
-    ): List<String> = buildList {
+        outputFile: File,
+        headers: Map<String, String> = emptyMap(),
+        onProgress: ProgressCallback = {},
+    ): RecordResult {
+        val format = if (outputFile.name.endsWith(".mp4")) "mp4" else "matroska"
+        val extraArgs = if (format == "mp4") {
+            listOf("-c:v", "copy", "-c:a", "copy", "-bsf:a", "aac_adtstoasc")
+        } else {
+            listOf("-c:v", "copy", "-c:a", "copy")
+        }
+        val cmd = commonArgs(sourceUrl, headers) + extraArgs + listOf("-f", format, outputFile.absolutePath)
+
+        var estimatedBytes = 0L
+        val progressJob: Job
+        val process = ProcessBuilder(cmd).redirectErrorStream(false).start()
+
+        progressJob = scope.launch(Dispatchers.IO) {
+            val reader = BufferedReader(InputStreamReader(process.errorStream))
+            try {
+                var line: String?
+                while (isActive) {
+                    line = reader.readLine() ?: break
+                    parseProgress(line) { bytes ->
+                        estimatedBytes = bytes
+                        onProgress(bytes)
+                    }
+                }
+            } finally {
+                reader.close()
+            }
+        }
+
+        try {
+            val exitCode = process.waitFor()
+            progressJob.cancel()
+            if (exitCode != 0 && exitCode != -2) {
+                throw IllegalStateException("ffmpeg 直存录制失败，exitCode=$exitCode")
+            }
+            val segments = listOfNotNull(outputFile.takeIf { it.exists() && it.length() > 0 })
+            return RecordResult(segments, segments.sumOf { it.length() }.coerceAtLeast(estimatedBytes))
+        } finally {
+            progressJob.cancel()
+            if (process.isAlive) process.destroyForcibly()
+        }
+    }
+
+    /** 公共输入参数（分段/直存共用）：UA/实时速率/重连/headers。 */
+    private fun commonArgs(sourceUrl: String, headers: Map<String, String>): List<String> = buildList {
         add(ffmpegBin.absolutePath)
         add("-y")
         add("-hide_banner")
@@ -210,17 +258,24 @@ open class FfmpegRecorder(
             add("-headers")
             add(headers.entries.joinToString("\r\n") { "${it.key}: ${it.value}" } + "\r\n")
         }
-
-        addAll(extraArgs)
-
-        // 分段参数（对齐 main.py:1254–1258 / 1366–1368）
-        add("-f")             ; add("segment")
-        add("-segment_time")  ; add(segmentSec.toString())
-        add("-segment_format"); add(segmentFormat)
-        add("-reset_timestamps"); add("1")
-
-        add(outputPath)
     }
+
+    private fun buildCommand(
+        sourceUrl: String,
+        outputPath: String,
+        headers: Map<String, String>,
+        segmentSec: Int,
+        segmentFormat: String,
+        extraArgs: List<String>,
+    ): List<String> =
+        commonArgs(sourceUrl, headers) + extraArgs + listOf(
+            // 分段参数（对齐 main.py:1254–1258 / 1366–1368）
+            "-f", "segment",
+            "-segment_time", segmentSec.toString(),
+            "-segment_format", segmentFormat,
+            "-reset_timestamps", "1",
+            outputPath,
+        )
 
     /**
      * 解析 ffmpeg stderr 行，提取估算字节数。
