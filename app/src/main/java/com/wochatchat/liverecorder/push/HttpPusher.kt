@@ -84,7 +84,6 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
     ): List<String> {
         val title = buildTitle(config)
         val content = buildContent(config, event, anchorName, timeStr)
-            .replace("\\n", "\n")   // 上游 push_content.replace(r'\n', '\n') 同语义
 
         val failed = mutableListOf<String>()
         for (api in config.apis) {
@@ -116,6 +115,7 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
         return raw
             .replace("[直播间名称]", anchorName)
             .replace("[时间]", timeStr)
+            .replace("\\n", "\n")   // 上游 push_content.replace(r'\n', '\n') 同语义
     }
 
     /** 组装 ntfy 请求体（internal 便于单测；[api] 已去掉 topic 前缀前的部分）。 */
