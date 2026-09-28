@@ -73,6 +73,19 @@ class AppSettingsStore(private val context: android.content.Context) {
     private val folderByTitleKey = booleanPreferencesKey("folder_by_title")
     private val filenameByTitleKey = booleanPreferencesKey("filename_by_title")
     private val cleanEmojiKey = booleanPreferencesKey("clean_emoji")
+    /** 6f R21：首启引导完成标记（独立 Flow，不进 AppSettings 设置页）。 */
+    private val onboardingCompletedKey = booleanPreferencesKey("onboarding_completed")
+
+    /** 6f R21：首启引导是否已完成。 */
+    val onboardingCompleted: Flow<Boolean> = context.settingsDataStore.data
+        .map { prefs -> prefs[onboardingCompletedKey] ?: false }
+
+    /** 6f R21：引导完成（含跳过）时置位。 */
+    suspend fun completeOnboarding() {
+        context.settingsDataStore.edit { prefs ->
+            prefs[onboardingCompletedKey] = true
+        }
+    }
 
     val settings: Flow<AppSettings> = context.settingsDataStore.data.map { prefs ->
         AppSettings(
@@ -97,6 +110,7 @@ class AppSettingsStore(private val context: android.content.Context) {
     suspend fun set(settings: AppSettings) {
         context.settingsDataStore.edit { prefs ->
             prefs[loopIntervalKey] = settings.loopIntervalSec
+
             prefs[qualityKey] = settings.quality
             prefs[segmentedKey] = settings.segmented
             prefs[segmentTimeKey] = settings.segmentTimeSec

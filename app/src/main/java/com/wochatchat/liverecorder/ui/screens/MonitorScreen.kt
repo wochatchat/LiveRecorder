@@ -16,12 +16,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -79,6 +81,8 @@ fun MonitorScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var showLogDialog by remember { mutableStateOf(false) }
     var editUrl by remember { mutableStateOf<String?>(null) }
+    // 6f R23：添加对话框预填（空态「示例链接」入口复用同一对话框）
+    var addInitial by remember { mutableStateOf("") }
 
     // R11：操作反馈 Snackbar（添加/删除可撤销，4s 自动消失）
     val snackbarHostState = remember { SnackbarHostState() }
@@ -168,10 +172,12 @@ fun MonitorScreen(
 
     if (showAddDialog) {
         AddUrlDialog(
-            onDismiss = { showAddDialog = false },
+            initial = addInitial,
+            onDismiss = { showAddDialog = false; addInitial = "" },
             onConfirm = { urls ->
                 urls.forEach { viewModel.add(it) }
                 showAddDialog = false
+                addInitial = ""
                 scope.launch {
                     val result = snackbarHostState.showSnackbar(
                         message = if (urls.size == 1) "已添加 ${urls[0]}" else "已添加 ${urls.size} 个直播",
@@ -271,7 +277,11 @@ private fun exportLogs(context: android.content.Context) {
 
 
 @Composable
-private fun EmptyState(padding: PaddingValues) {
+private fun EmptyState(
+    padding: PaddingValues,
+    onAdd: () -> Unit,
+    onAddExample: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -279,6 +289,13 @@ private fun EmptyState(padding: PaddingValues) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        Icon(
+            Icons.Default.PlayArrow,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.outlineVariant,
+            modifier = Modifier.padding(4.dp)
+        )
+        Spacer(Modifier.height(8.dp))
         Text(stringResource(R.string.empty_monitor_title), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
         Text(
@@ -286,6 +303,16 @@ private fun EmptyState(padding: PaddingValues) {
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        Spacer(Modifier.height(20.dp))
+        // 6f R23：空态快捷入口——直达添加 + 示例链接预填
+        Button(onClick = onAdd) {
+            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.height(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.empty_monitor_action))
+        }
+        TextButton(onClick = onAddExample) {
+            Text(stringResource(R.string.empty_monitor_example))
+        }
     }
 }
 
@@ -322,8 +349,8 @@ fun ConfirmDeleteDialog(
 
 
 @Composable
-fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (List<String>) -> Unit) {
-    var text by remember { mutableStateOf("") }
+fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (List<String>) -> Unit, initial: String = "") {
+    var text by remember { mutableStateOf(initial) }
     // R14/U10：多行/空格/逗号分隔均可，批量添加
     val urls = text.lines()
         .flatMap { it.split(',', '，', ' ', '\t') }

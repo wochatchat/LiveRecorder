@@ -16,7 +16,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -29,8 +32,10 @@ import androidx.navigation.compose.rememberNavController
 import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.ui.screens.CookieManagementScreen
 import com.wochatchat.liverecorder.ui.screens.MonitorScreen
+import com.wochatchat.liverecorder.ui.screens.OnboardingScreen
 import com.wochatchat.liverecorder.ui.screens.RecordsScreen
 import com.wochatchat.liverecorder.ui.screens.SettingsScreen
+import kotlinx.coroutines.launch
 
 /** 导航目标（6b-2：3 Tab 骨架）。 */
 sealed class Destination(val route: String, @StringRes val labelRes: Int, val icon: ImageVector) {
@@ -48,10 +53,28 @@ private val bottomNavItems = listOf(
     Destination.Settings,
 )
 
-/** 6b-2：导航入口——NavHost + 底部 3 Tab。 */
-@OptIn(ExperimentalMaterial3Api::class)
+/** 6b-2：导航入口——首启引导门控 + NavHost + 底部 3 Tab（6f R21）。 */
 @Composable
 fun AppNavigation() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val appSettings = remember {
+        (context.applicationContext as com.wochatchat.liverecorder.RecorderApp).appSettings
+    }
+    val onboardingDone by appSettings.onboardingCompleted.collectAsState(initial = null)
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    when (onboardingDone) {
+        // DataStore 首帧未就绪：空白一帧，避免引导页闪现
+        null -> Box(Modifier.fillMaxSize())
+        false -> OnboardingScreen(
+            onComplete = { scope.launch { appSettings.completeOnboarding() } }
+        )
+        else -> MainScaffold()
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MainScaffold() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination

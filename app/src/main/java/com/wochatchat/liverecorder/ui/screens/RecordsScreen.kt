@@ -18,6 +18,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.CheckCircle
@@ -209,7 +210,7 @@ private fun StatsLine(todayCount: Int, totalBytes: Long) {
     )
 }
 
-/** 空态（R23 会再打磨文案）。 */
+/** 空态（6f R23：图标 + 快捷入口）。 */
 @Composable
 private fun EmptyRecords() {
     Column(
@@ -219,11 +220,23 @@ private fun EmptyRecords() {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text("还没有录制记录", style = MaterialTheme.typography.titleMedium)
+        Icon(
+            Icons.Default.Folder,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.outlineVariant,
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(stringResource(R.string.empty_records_title), style = MaterialTheme.typography.titleMedium)
         Spacer(Modifier.height(8.dp))
         Text(
-            "直播录制完成后会自动出现在这里",
+            stringResource(R.string.empty_records_hint),
             style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            stringResource(R.string.empty_records_hint2),
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }

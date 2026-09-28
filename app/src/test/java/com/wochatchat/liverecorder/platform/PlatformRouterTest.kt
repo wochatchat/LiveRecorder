@@ -334,4 +334,12 @@ class PlatformRouterTest {
         assertFalse(PlatformRouter.isSupported("https://www.xiaohongshu.com/user/profile/x"))
         assertFalse(PlatformRouter.isSupported("https://example.com/live/1"))
     }
+
+    @Test
+    fun isSupported_onboardingExampleLinks() {
+        // 6f R21/R23：引导页与空态使用的示例链接必须是可识别格式，防止平台前缀写错
+        com.wochatchat.liverecorder.ui.screens.ONBOARDING_EXAMPLE_LINKS.forEach { (link, _) ->
+            assertTrue("示例链接未被识别: $link", PlatformRouter.isSupported(link))
+        }
+    }
 }
