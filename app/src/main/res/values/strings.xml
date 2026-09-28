@@ -23,6 +23,12 @@
     <string name="screen_monitor_title">直播监控</string>
     <string name="screen_records_title">录制记录</string>
     <string name="screen_settings_title">设置</string>
+    <string name="settings_group_recording">通用录制</string>
+    <string name="settings_group_push">推送</string>
+    <string name="settings_group_naming">命名规则</string>
+    <string name="settings_group_proxy">代理</string>
+    <string name="settings_group_auth">平台认证</string>
+    <string name="settings_group_maintenance">维护</string>
     <string name="action_save">保存</string>
     <string name="action_cancel">取消</string>
     <string name="action_close">关闭</string>

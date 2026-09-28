@@ -83,7 +83,17 @@ fun AppNavigation() {
             startDestination = Destination.Monitor.route,
             modifier = Modifier.padding(innerPadding)
         ) {
-            composable(Destination.Monitor.route) { MonitorScreen() }
+            composable(Destination.Monitor.route) {
+                MonitorScreen(
+                    onOpenSettings = {
+                        navController.navigate(Destination.Settings.route) {
+                            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
+                    }
+                )
+            }
             composable(Destination.Records.route) { RecordsScreen() }
             composable(Destination.Settings.route) { SettingsScreen() }
         }

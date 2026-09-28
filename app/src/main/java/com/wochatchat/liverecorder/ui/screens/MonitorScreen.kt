@@ -22,7 +22,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,7 +65,10 @@ import com.wochatchat.liverecorder.ui.components.MonitorCard
 /** 监控主页 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
+fun MonitorScreen(
+    viewModel: MonitorViewModel = viewModel(),
+    onOpenSettings: () -> Unit = {},
+) {
     val urls by viewModel.urls.collectAsState()
     val recordStates by viewModel.recordStates.collectAsState()
     val monitorStates by viewModel.monitorStates.collectAsState()
@@ -74,10 +76,7 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
     val disabledUrls by viewModel.disabledUrls.collectAsState()
     val monitorEnabled by viewModel.monitorEnabled.collectAsState()
     val roundInfo by viewModel.roundInfo.collectAsState()
-    val pushConfig by viewModel.pushConfig.collectAsState()
     var showAddDialog by remember { mutableStateOf(false) }
-    var showPushDialog by remember { mutableStateOf(false) }
-    var showCookieDialog by remember { mutableStateOf(false) }
     var showLogDialog by remember { mutableStateOf(false) }
     var editUrl by remember { mutableStateOf<String?>(null) }
 
@@ -116,13 +115,8 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
             TopAppBar(
                 title = { Text(stringResource(R.string.screen_monitor_title)) },
                 actions = {
-                    IconButton(onClick = { showPushDialog = true }) {
-                        Icon(
-                            Icons.Default.Settings,
-                            contentDescription = "推送设置",
-                            tint = if (pushConfig.isValid) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.outline
-                        )
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(Icons.Default.Settings, contentDescription = "设置")
                     }
                     // R12/U8：总开关改文字按钮，状态一目了然
                     TextButton(onClick = { viewModel.setMonitorEnabled(!monitorEnabled) }) {
@@ -197,41 +191,6 @@ fun MonitorScreen(viewModel: MonitorViewModel = viewModel()) {
             onConfirm = { new ->
                 viewModel.renameUrl(old, new)
                 editUrl = null
-            }
-        )
-    }
-
-    if (showPushDialog) {
-        PushSettingsDialog(
-            initial = pushConfig,
-            initialProxy = viewModel.proxySettings.collectAsState().value,
-            initialConvertMp4 = viewModel.autoConvertMp4.collectAsState().value,
-            initialSettings = viewModel.appSettings.collectAsState().value,
-            onOpenCredentials = { showCookieDialog = true },
-            onDismiss = { showPushDialog = false },
-            onConfirm = { push, proxy, convertMp4, settings ->
-                viewModel.setPushConfig(push.enabled, push.type, push.apis.joinToString(","))
-                viewModel.setProxySettings(proxy)
-                viewModel.setAutoConvertMp4(convertMp4)
-                viewModel.setAppSettings(settings)
-                showPushDialog = false
-                scope.launch { snackbarHostState.showSnackbar("设置已保存") }
-            }
-        )
-    }
-
-    if (showCookieDialog) {
-        CookieDialog(
-            cookies = viewModel.cookies.collectAsState().value,
-            credentials = viewModel.credentials.collectAsState().value,
-            onDismiss = { showCookieDialog = false },
-            onSaveCookie = { platform, cookie ->
-                viewModel.setCookie(platform, cookie)
-                showCookieDialog = false
-            },
-            onSaveCredential = { platform, user, pass ->
-                viewModel.setCredential(platform, user, pass)
-                showCookieDialog = false
             }
         )
     }
