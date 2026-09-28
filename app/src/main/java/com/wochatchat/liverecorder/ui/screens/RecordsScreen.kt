@@ -28,6 +28,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -74,6 +75,8 @@ fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
     val filter by viewModel.filter.collectAsState()
     val stats by viewModel.stats.collectAsState()
     val deleteResult by viewModel.deleteResult.collectAsState()
+    // R20：存储占比进度条
+    val storageUsage by viewModel.storageUsage.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     var pendingDelete by remember { mutableStateOf<RecordHistoryEntry?>(null) }
 
@@ -93,6 +96,7 @@ fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            StorageUsageBar(storageUsage)
             FilterRow(filter, viewModel)
             StatsLine(stats.todayCount, stats.totalBytes)
             if (filtered.isEmpty()) {
@@ -137,6 +141,25 @@ fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
             dismissButton = {
                 TextButton(onClick = { pendingDelete = null }) { Text("取消") }
             },
+        )
+    }
+}
+
+/** 存储用量条（R20）：进度 + 剩余/总容量 caption。 */
+@Composable
+private fun StorageUsageBar(usage: com.wochatchat.liverecorder.storage.StorageUsage) {
+    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+        usage.usedFraction?.let { fraction ->
+            LinearProgressIndicator(
+                progress = { fraction },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(4.dp))
+        }
+        Text(
+            "剩余 ${"%.1f".format(usage.freeGb)} GB / 共 ${"%.1f".format(usage.totalGb)} GB",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

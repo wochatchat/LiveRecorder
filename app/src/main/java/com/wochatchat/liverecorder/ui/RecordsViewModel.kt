@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wochatchat.liverecorder.RecorderApp
 import com.wochatchat.liverecorder.data.RecordHistoryEntry
+import com.wochatchat.liverecorder.storage.StorageUsage
 import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -13,6 +14,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Calendar
@@ -70,6 +73,17 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
             totalBytes = list.sumOf { it.bytes },
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), RecordStats(0, 0))
+
+    // ---- 存储用量（R20：页顶进度条） ----
+
+    /** 保存目录分区存储用量，30s 轮询刷新。 */
+    val storageUsage: StateFlow<StorageUsage> = flow {
+        while (true) {
+            val storage = (getApplication() as RecorderApp).storage
+            emit(StorageUsage(freeGb = storage.freeGb(), totalGb = storage.totalGb()))
+            delay(30_000)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StorageUsage(0.0, 0.0))
 
     // ---- 删除 ----
 

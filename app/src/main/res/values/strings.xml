@@ -24,6 +24,7 @@
     <string name="screen_records_title">录制记录</string>
     <string name="screen_settings_title">设置</string>
     <string name="settings_group_recording">通用录制</string>
+    <string name="settings_group_storage">存储管理</string>
     <string name="settings_group_push">推送</string>
     <string name="settings_group_naming">命名规则</string>
     <string name="settings_group_proxy">代理</string>

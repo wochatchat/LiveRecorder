@@ -18,6 +18,9 @@ class StorageManager(private val dir: File) {
     /** 保存目录所在分区的剩余空间（GB）。 */
     fun freeGb(): Double = dir.usableSpace / BYTES_PER_GB
 
+    /** 保存目录所在分区的总容量（GB）（6e R20 存储用量展示）。 */
+    fun totalGb(): Double = dir.totalSpace / BYTES_PER_GB
+
     /** 剩余空间是否低于阈值。 */
     fun isLow(thresholdGb: Double): Boolean = isLow(freeGb(), thresholdGb)
 
@@ -29,4 +32,14 @@ class StorageManager(private val dir: File) {
 
         fun isLow(freeGb: Double, thresholdGb: Double): Boolean = freeGb < thresholdGb
     }
+}
+
+/** 存储用量快照（6e R20：设置页存储管理 + 记录页顶部进度条）。 */
+data class StorageUsage(val freeGb: Double, val totalGb: Double) {
+    /** 已用容量（GB）。 */
+    val usedGb: Double get() = (totalGb - freeGb).coerceAtLeast(0.0)
+
+    /** 已用占比（0..1）；总容量未知（0）时返回 null。 */
+    val usedFraction: Float?
+        get() = if (totalGb > 0) (usedGb / totalGb).toFloat().coerceIn(0f, 1f) else null
 }

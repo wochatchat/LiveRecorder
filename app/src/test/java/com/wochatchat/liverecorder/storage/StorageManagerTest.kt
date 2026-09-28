@@ -42,4 +42,27 @@ class StorageManagerTest {
         StorageManager(dir)
         assertTrue(dir.isDirectory)
     }
+
+    // ---- R20：存储用量快照 ----
+
+    @Test
+    fun storageUsage_usedGbAndFraction() {
+        val u = StorageUsage(freeGb = 25.0, totalGb = 100.0)
+        assertEquals(75.0, u.usedGb, 1e-9)
+        assertEquals(0.75f, u.usedFraction!!, 1e-6f)
+    }
+
+    @Test
+    fun storageUsage_zeroTotalMeansUnknown() {
+        val u = StorageUsage(freeGb = 0.0, totalGb = 0.0)
+        assertEquals(null, u.usedFraction)
+    }
+
+    @Test
+    fun storageUsage_clampedWhenFreeExceedsTotal() {
+        // free 来自 usableSpace、total 来自 totalSpace，极端文件系统可能出现 free>total
+        val u = StorageUsage(freeGb = 110.0, totalGb = 100.0)
+        assertEquals(0.0, u.usedGb, 1e-9)
+        assertEquals(0.0f, u.usedFraction!!, 1e-6f)
+    }
 }

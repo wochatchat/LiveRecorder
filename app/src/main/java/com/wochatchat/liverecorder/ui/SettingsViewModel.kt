@@ -11,10 +11,13 @@ import com.wochatchat.liverecorder.data.ProxySettings
 import com.wochatchat.liverecorder.push.Event
 import com.wochatchat.liverecorder.push.HttpPusher
 import com.wochatchat.liverecorder.push.PushConfig
+import com.wochatchat.liverecorder.storage.StorageUsage
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
@@ -41,6 +44,25 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     /** 3-3h：录制完成后自动转 MP4。 */
     val autoConvertMp4: StateFlow<Boolean> = store.autoConvertMp4
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    // ---- R20：存储管理 ----
+
+    /** 存储告警阈值（GB）（上游「录制空间剩余阈值(gb)」，触底暂停监控录制）。 */
+    val diskLimitGb: StateFlow<Double> = store.diskLimitGb
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 1.0)
+
+    /** 存储用量（保存目录分区），30s 轮询刷新。 */
+    val storageUsage: StateFlow<StorageUsage> = flow {
+        while (true) {
+            val storage = (getApplication() as RecorderApp).storage
+            emit(StorageUsage(freeGb = storage.freeGb(), totalGb = storage.totalGb()))
+            delay(30_000)
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), StorageUsage(0.0, 0.0))
+
+    fun setDiskLimitGb(gb: Double) = viewModelScope.launch {
+        store.setDiskLimitGb(gb)
+    }
 
     /** 5a：全局录制设置（画质/循环时间/分段/命名等）。 */
     val appSettings: StateFlow<AppSettings> = (app as RecorderApp).appSettings.settings

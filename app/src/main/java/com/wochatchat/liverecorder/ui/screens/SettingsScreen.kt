@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
@@ -42,6 +43,7 @@ import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.ProxySettings
 import com.wochatchat.liverecorder.push.PushConfig
+import com.wochatchat.liverecorder.storage.StorageUsage
 import com.wochatchat.liverecorder.ui.SettingsViewModel
 
 /**
@@ -60,6 +62,9 @@ fun SettingsScreen(
     val settings by viewModel.appSettings.collectAsState()
     val cookies by viewModel.cookies.collectAsState()
     val credentials by viewModel.credentials.collectAsState()
+    // R20：存储用量 + 告警阈值
+    val storageUsage by viewModel.storageUsage.collectAsState()
+    val diskLimitGb by viewModel.diskLimitGb.collectAsState()
 
     var showLogDialog by remember { mutableStateOf(false) }
 
@@ -88,6 +93,8 @@ fun SettingsScreen(
         ) {
             Spacer(Modifier.height(8.dp))
             RecordingGroup(settings, convertMp4, viewModel)
+            Spacer(Modifier.height(12.dp))
+            StorageGroup(storageUsage, diskLimitGb, viewModel)
             Spacer(Modifier.height(12.dp))
             PushGroup(
                 pushConfig, settings, viewModel,
@@ -182,6 +189,39 @@ private fun ChipRow(
 }
 
 // ---- 各分组 ----
+
+/** 存储管理（R20）：用量进度条 + 已用/总容量 + 告警阈值（触底暂停监控录制）。 */
+@Composable
+private fun StorageGroup(
+    usage: StorageUsage,
+    diskLimitGb: Double,
+    viewModel: SettingsViewModel,
+) {
+    SettingsGroup(stringResource(R.string.settings_group_storage)) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
+            usage.usedFraction?.let { fraction ->
+                LinearProgressIndicator(
+                    progress = { fraction },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(6.dp))
+            }
+            Text(
+                "已用 ${"%.1f".format(usage.usedGb)} GB · 共 ${"%.1f".format(usage.totalGb)} GB" +
+                    " · 剩余 ${"%.1f".format(usage.freeGb)} GB",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        SaveOnFocusLostField(
+            initial = diskLimitGb.toString(),
+            label = "存储剩余告警阈值 (GB)",
+            placeholder = "1.0",
+            validate = { (it.toDoubleOrNull() ?: 0.0) > 0 },
+            onSave = { it.toDoubleOrNull()?.let(viewModel::setDiskLimitGb) },
+        )
+    }
+}
 
 /** 通用录制：画质 / 循环时间 / 分段 / https / 转 MP4 / 只推送。 */
 @Composable
