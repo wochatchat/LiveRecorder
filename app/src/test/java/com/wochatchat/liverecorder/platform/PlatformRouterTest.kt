@@ -411,4 +411,49 @@ class PlatformRouterTest {
         assertTrue(name1.startsWith("自定义录制直播_"))
         assertTrue(name1.matches(Regex("^自定义录制直播_[0-9a-f]{8}$")))
     }
+
+    // ---- 7d 新平台路由 ----
+
+    @Test
+    fun isNeteaseUrl() {
+        assertTrue(PlatformRouter.isNeteaseUrl("https://cc.163.com/123456"))
+        assertTrue(PlatformRouter.isNeteaseUrl("https://cc.163.com/"))
+        assertFalse(PlatformRouter.isNeteaseUrl("https://douyu.com/123"))
+    }
+
+    @Test
+    fun isBaiduUrl() {
+        assertTrue(PlatformRouter.isBaiduUrl("https://live.baidu.com/weibo?room_id=123"))
+        assertFalse(PlatformRouter.isBaiduUrl("https://live.bilibili.com/123"))
+    }
+
+    @Test
+    fun isWeiboUrl() {
+        assertTrue(PlatformRouter.isWeiboUrl("https://weibo.com/show/123456"))
+        assertTrue(PlatformRouter.isWeiboUrl("https://weibo.com/u/123456"))
+        assertFalse(PlatformRouter.isWeiboUrl("https://twitter.com/123"))
+    }
+
+    @Test
+    fun isJdUrl() {
+        assertTrue(PlatformRouter.isJdUrl("https://lives.jd.com/#/123"))
+        assertFalse(PlatformRouter.isJdUrl("https://lives.taobao.com/123"))
+    }
+
+    @Test
+    fun isZhihuUrl() {
+        assertTrue(PlatformRouter.isZhihuUrl("https://www.zhihu.com/live/123456"))
+        assertTrue(PlatformRouter.isZhihuUrl("https://www.zhihu.com/people/abc"))
+        assertFalse(PlatformRouter.isZhihuUrl("https://www.zhihuihu.com/"))
+    }
+
+    @Test
+    fun isSupported_newPlatforms() {
+        assertTrue(PlatformRouter.isSupported("https://cc.163.com/123"))
+        assertTrue(PlatformRouter.isSupported("https://live.baidu.com/weibo?room_id=123"))
+        assertTrue(PlatformRouter.isSupported("https://weibo.com/show/123"))
+        assertTrue(PlatformRouter.isSupported("https://lives.jd.com/#/123"))
+        assertTrue(PlatformRouter.isSupported("https://www.zhihu.com/live/123"))
+        assertFalse(PlatformRouter.isSupported("https://unknown.site.com/live/abc"))
+    }
 }

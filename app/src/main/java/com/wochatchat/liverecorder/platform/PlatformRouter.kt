@@ -18,14 +18,19 @@
  */
 package com.wochatchat.liverecorder.platform
 
+import com.wochatchat.liverecorder.platform.baidu.BaiduSpider
 import com.wochatchat.liverecorder.platform.bilibili.BilibiliSpider
 import com.wochatchat.liverecorder.platform.bigo.BigoSpider
 import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
 import com.wochatchat.liverecorder.platform.douyin.DouyinStreamInfo
 import com.wochatchat.liverecorder.platform.douyu.DouyuSpider
 import com.wochatchat.liverecorder.platform.huya.HuyaSpider
+import com.wochatchat.liverecorder.platform.jd.JdSpider
 import com.wochatchat.liverecorder.platform.kuaishou.KuaishouSpider
+import com.wochatchat.liverecorder.platform.netease.NeteaseCcSpider
+import com.wochatchat.liverecorder.platform.weibo.WeiboSpider
 import com.wochatchat.liverecorder.platform.yy.YySpider
+import com.wochatchat.liverecorder.platform.zhihu.ZhihuSpider
 
 class PlatformRouter(
     private val douyinSpider: DouyinSpider = DouyinSpider(),
@@ -33,8 +38,13 @@ class PlatformRouter(
     private val kuaishouSpider: KuaishouSpider = KuaishouSpider(),
     private val huyaSpider: HuyaSpider = HuyaSpider(),
     private val bilibiliSpider: BilibiliSpider = BilibiliSpider(),
-    private val yySpider: YySpider = YySpider(),
     private val bigoSpider: BigoSpider = BigoSpider(),
+    private val yySpider: YySpider = YySpider(),
+    private val neteaseCcSpider: NeteaseCcSpider = NeteaseCcSpider(),
+    private val zhihuSpider: ZhihuSpider = ZhihuSpider(),
+    private val baiduSpider: BaiduSpider = BaiduSpider(),
+    private val weiboSpider: WeiboSpider = WeiboSpider(),
+    private val jdSpider: JdSpider = JdSpider(),
 ) {
     companion object {
         /** 斗鱼画质码映射（上游 stream.py get_douyu_stream_url video_quality_options）。 */
@@ -61,22 +71,40 @@ class PlatformRouter(
         /** 上游 main.py:643：https://www.yy.com/ → YY 直播链路。 */
         fun isYyUrl(url: String): Boolean = url.contains("www.yy.com/")
 
-        /** 上游 main.py:665：www.bigo.tv/ 或 slink.bigovideo.tv/ → Bigo 直播链路。 */
         fun isBigoUrl(url: String): Boolean =
             url.contains("www.bigo.tv/") || url.contains("slink.bigovideo.tv/")
+
+        /** 7d：cc.163.com/ → 网易CC直播链路。 */
+        fun isNeteaseUrl(url: String): Boolean = url.contains("cc.163.com/")
+
+        /** 7d：live.baidu.com/ → 百度直播链路。 */
+        fun isBaiduUrl(url: String): Boolean = url.contains("live.baidu.com/")
+
+        /** 7d：weibo.com/ → 微博直播链路。 */
+        fun isWeiboUrl(url: String): Boolean = url.contains("weibo.com/")
+
+        /** 7d：lives.jd.com/ → 京东直播链路。 */
+        fun isJdUrl(url: String): Boolean = url.contains("lives.jd.com/")
+
+        /** 7d：zhihu.com/ → 知乎直播链路。 */
+        fun isZhihuUrl(url: String): Boolean = url.contains("zhihu.com/")
 
         /** 7a R36：自定义流地址直录（上游 main.py:1026-1038「自定义录制直播」——
          *  非任何已知平台域名，且 URL 含 .m3u8/.flv 扩展时直录，不做房间解析）。 */
         fun isDirectStreamUrl(url: String): Boolean =
             !isDouyuUrl(url) && !isKuaishouUrl(url) && !isHuyaUrl(url) &&
                 !isBilibiliUrl(url) && !isYyUrl(url) && !isBigoUrl(url) &&
+                !isNeteaseUrl(url) && !isBaiduUrl(url) && !isWeiboUrl(url) &&
+                !isJdUrl(url) && !isZhihuUrl(url) &&
                 !url.contains("douyin.com/") && !url.contains("iesdouyin.com/") &&
                 (url.contains(".m3u8") || url.contains(".flv"))
 
         /** 6d R14：URL 是否属于已接入平台（域名判断，与 fetchStreamInfo 分流同源）。 */
         fun isSupported(url: String): Boolean = isDirectStreamUrl(url) || when {
             isDouyuUrl(url) || isKuaishouUrl(url) || isHuyaUrl(url) ||
-                isBilibiliUrl(url) || isYyUrl(url) || isBigoUrl(url) -> true
+                isBilibiliUrl(url) || isYyUrl(url) || isBigoUrl(url) ||
+                isNeteaseUrl(url) || isBaiduUrl(url) || isWeiboUrl(url) ||
+                isJdUrl(url) || isZhihuUrl(url) -> true
             else -> url.contains("douyin.com/") || url.contains("iesdouyin.com/")
         }
     }
@@ -95,6 +123,11 @@ class PlatformRouter(
         isBilibiliUrl(url) -> fetchBilibili(url, quality, proxyAddr, cookies["bilibili"])
         isYyUrl(url) -> fetchYy(url, quality, proxyAddr, cookies["yy"])
         isBigoUrl(url) -> fetchBigo(url, quality, proxyAddr, cookies["bigo"])
+        isNeteaseUrl(url) -> fetchNetease(url, quality, proxyAddr, cookies["netease"])
+        isBaiduUrl(url) -> fetchBaidu(url, proxyAddr, cookies["baidu"])
+        isWeiboUrl(url) -> fetchWeibo(url, proxyAddr, cookies["weibo"])
+        isJdUrl(url) -> fetchJd(url, proxyAddr, cookies["jd"])
+        isZhihuUrl(url) -> fetchZhihu(url, proxyAddr, cookies["zhihu"])
         isDirectStreamUrl(url) -> fetchDirectStream(url)
         else -> douyinSpider.fetchStreamInfo(url, quality, proxyAddr)
     }
@@ -263,6 +296,69 @@ class PlatformRouter(
             quality = "OD",
             m3u8Url = info.m3u8Url,
             recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 7d 网易CC → 抖音同构映射（spider.py:1189 + stream.py:382）：
+     *  开播：m3u8 = sharefile，flv = quickplay 分档 CDN，recordUrl = flv ?: m3u8。 */
+    private suspend fun fetchNetease(
+        url: String, quality: String?, proxyAddr: String?, cookie: String?,
+    ): DouyinStreamInfo {
+        val info = neteaseCcSpider.getStreamInfo(url, proxyAddr, cookie, quality)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true, title = info.title,
+            m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 7d 知乎 → 抖音同构映射（spider.py:2657）：recordUrl = hlsUrl。 */
+    private suspend fun fetchZhihu(url: String, quality: String?, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = zhihuSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true, title = info.title,
+            m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 7d 百度 → 抖音同构映射（spider.py:1947）：m3u8 列表首项。 */
+    private suspend fun fetchBaidu(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = baiduSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true, title = info.title,
+            m3u8Url = info.m3u8Url, recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 7d 微博 → 抖音同构映射（spider.py:2007）：pull 流 hls+flv，recordUrl = flv or m3u8。 */
+    private suspend fun fetchWeibo(url: String, quality: String?, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = weiboSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true, title = info.title,
+            m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 7d 京东 → 抖音同构映射（spider.py:3108）：recordUrl = m3u8（上游同语义）。 */
+    private suspend fun fetchJd(url: String, quality: String?, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = jdSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true, title = info.title,
+            m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl,
         )
     }
 
