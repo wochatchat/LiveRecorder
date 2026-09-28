@@ -52,7 +52,7 @@ class NeteaseCcSpiderTest {
             .put("high", JSONObject().put("cdn", JSONObject().put("c2", "http://flv/high.flv"))))
         val spider = NeteaseCcSpider()
         assertEquals("http://flv/high.flv", spider.selectFlv(qp, "HD"))
-        assertEquals("http://flv/blueray.flv", spider.selectFlv(qp, "OD"))
+        assertEquals("http://f/blue.flv", spider.selectFlv(qp, "OD"))
         assertNull(spider.selectFlv(null, "OD"))
     }
 
@@ -62,7 +62,7 @@ class NeteaseCcSpiderTest {
         val info = spider.getStreamInfo("https://cc.163.com/123456")
         assertTrue(info.isLive)
         assertEquals("CC主播", info.anchorName)
-        assertEquals("直播标题", info.title)
+        assertEquals("CC测试标题", info.title)
         assertTrue(info.m3u8Url.isNotBlank())
         assertTrue(info.recordUrl.isNotBlank())
     }

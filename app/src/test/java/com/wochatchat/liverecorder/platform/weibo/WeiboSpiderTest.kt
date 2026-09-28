@@ -19,7 +19,7 @@ class WeiboSpiderTest {
                 url.contains("mymblog") -> HttpResult(200, """{"data":{"list":[
                     {"page_info":{"object_type":"live","object_id":"weibo123"}}
                 ]}}""", url, emptyMap())
-                else -> HttpResult(200, """{"data":{"user_info":{"name":"微博主播"},"item":{"status":1,"desc":"微博直播","stream_info":{"pull":{"live_origin_hls_url":"https://hls/weibo.m3u8","live_origin_flv_url":"https://flv/weibo.flv"}}}}""", url, emptyMap())
+                else -> HttpResult(200, """{"data":{"user_info":{"name":"微博主播"},"item":{"status":1,"desc":"微博直播","stream_info":{"pull":{"live_origin_hls_url":"https://hls/weibo.m3u8","live_origin_flv_url":"https://flv/weibo.flv"}}}}}""", url, emptyMap())
             }
         }
     }
