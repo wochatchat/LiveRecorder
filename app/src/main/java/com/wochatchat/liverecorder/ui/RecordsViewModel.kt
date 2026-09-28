@@ -98,11 +98,11 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val fileMsg = runCatching {
                 val f = File(entry.savePath)
-                if (f.exists() && !f.deleteRecursively()) app.getString(R.string.records_delete_failed)
+                if (f.exists() && !f.deleteRecursively()) getApplication<Application>().getString(R.string.records_delete_failed)
                 else null
-            }.getOrDefault(app.getString(R.string.records_delete_error))
+            }.getOrDefault(getApplication<Application>().getString(R.string.records_delete_error))
             historyStore.remove(entry)
-            _deleteResult.value = fileMsg ?: app.getString(R.string.records_delete_done, entry.savePath.substringAfterLast('/'))
+            _deleteResult.value = fileMsg ?: getApplication<Application>().getString(R.string.records_delete_done, entry.savePath.substringAfterLast('/'))
         }
     }
 
