@@ -113,6 +113,7 @@ fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
                     items(filtered, key = { it.savePath + it.endTimeMs }) { entry ->
                         RecordCard(
                             entry = entry,
+                            modifier = Modifier.animateItem(),
                             onDelete = { pendingDelete = entry },
                         )
                     }
@@ -250,9 +251,10 @@ private fun EmptyRecords() {
 private fun RecordCard(
     entry: RecordHistoryEntry,
     onDelete: (RecordHistoryEntry) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    Card(modifier = Modifier.fillMaxWidth()) {
+    Card(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 PlatformBadge(platformKeyForUrl(entry.url))

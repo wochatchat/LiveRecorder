@@ -189,11 +189,14 @@ fun MonitorScreen(
                         disabled = url in disabledUrls,
                         unhealthy = url in unhealthyUrls,
                         roundInfo = roundInfo,
-                        modifier = if (url == highlightedUrl) Modifier.border(
-                            2.dp,
-                            MaterialTheme.colorScheme.primary,
-                            RoundedCornerShape(12.dp),
-                        ) else Modifier,
+                        // 6f-4：列表增删/位移动画（Foundation 1.7 animateItem）
+                        modifier = Modifier.animateItem().then(
+                            if (url == highlightedUrl) Modifier.border(
+                                2.dp,
+                                MaterialTheme.colorScheme.primary,
+                                RoundedCornerShape(12.dp),
+                            ) else Modifier
+                        ),
                         onRemove = {
                             viewModel.remove(url)
                             notifyRemoved(url)
