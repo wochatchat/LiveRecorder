@@ -25,7 +25,17 @@
 - [x] MonitorStore 持久化 10 键 + setPushConfig 全参默认值兼容（PushGroup 本地 savePush 携带全量当前值防重置）；单测累计 +12
 - [ ] （评估）推送检测独立频率（上游 1800s，现复用循环时间）——暂缓：移动端顺序轮询下无收益
 
-## 7c — mkv/mp4 直存格式（待做，优先级低于 7b）
+## 7c — mkv/mp4 直存格式 ✅（commit 4cf8364 + 98b4e57，CI 全绿 run 36433552723）
+
+对照上游 config.ini save_type 全集（ts/mkv/flv/mp4/mp3/m4a），安卓端对齐 ts/mkv/mp4：
+
+- [x] `FfmpegRecorder.recordDirect()`（7c）：mkv → `-f matroska -c copy`；mp4 → `-f mp4 -c copy -bsf:a aac_adtstoasc`；不经 segment muxer，单文件直写；提取 `commonArgs()` 供分段/直存共用
+- [x] `RecordController` 直存分支（saveFormat 钩子）：mkv/mp4 路由到 `recordDirect()`，每轮重连新建时间戳文件（同上游语义）；ts 走现有 `record()` + `convertSegmentsAsync` 路径不变
+- [x] `AppSettings.saveFormat`（ts/mkv/mp4，默认 ts）+ `AppSettingsStore` 持久化（`save_format` 键）
+- [x] `RecorderApp` 接线 `saveFormat = { appSettings.settings.first().saveFormat }`
+- [x] 设置页录制分组：保存格式 ChipRow（ts/mkv/mp4）；mkv/mp4 时自动隐藏分段开关/分段时间/TS→MP4 转换开关（仅 ts 有意义）
+- [x] 单测 +4：`FfmpegRecorderDirectTest`（mkv/mp4 参数验证 + 公共参数验证）+ `RecordControllerSaveFormatTest`（mkv/mp4/ts/空 4 路径覆盖）
+- 踩坑 2 个：① 并行 file_edit AppSettings 导致 `set()` 写入重复块，`commonArgs` 抽取后 brace 负数暴露；② 同理数据类 `saveFormat` 字段丢失，补回后全绿
 
 ## 验收
 - CI compile-check 全绿 + 单测不回退（266+）
