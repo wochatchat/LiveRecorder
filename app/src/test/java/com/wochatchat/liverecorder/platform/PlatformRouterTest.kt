@@ -342,4 +342,73 @@ class PlatformRouterTest {
             assertTrue("示例链接未被识别: $link", PlatformRouter.isSupported(link))
         }
     }
+
+    // 7a R36：自定义流地址直录（上游 main.py:1026-1038）
+    @Test
+    fun isDirectStreamUrl_trueCases() {
+        val m3u8 = "https://example.com/stream/live.m3u8"
+        val flv = "https://example.com/stream/live.flv?token=abc"
+        val withQuery = "https://cdn.example.com/hls/master.m3u8?key=xyz"
+        assertTrue(PlatformRouter.isDirectStreamUrl(m3u8))
+        assertTrue(PlatformRouter.isDirectStreamUrl(flv))
+        assertTrue(PlatformRouter.isDirectStreamUrl(withQuery))
+    }
+
+    @Test
+    fun isDirectStreamUrl_falseForKnownPlatforms() {
+        // 已知平台域名优先，即使含 .m3u8/.flv 也不走自定义分支（与上游 main.py if/elif 链语义一致）
+        assertFalse(PlatformRouter.isDirectStreamUrl("https://www.douyu.com/123.flv"))
+        assertFalse(PlatformRouter.isDirectStreamUrl("https://live.kuaishou.com/u/anchor.m3u8"))
+        assertFalse(PlatformRouter.isDirectStreamUrl("https://www.huya.com/888888"))
+        assertFalse(PlatformRouter.isDirectStreamUrl("https://live.bilibili.com/6"))
+        assertFalse(PlatformRouter.isDirectStreamUrl("https://www.yy.com/12345678"))
+        assertFalse(PlatformRouter.isDirectStreamUrl("https://www.bigo.tv/600024469"))
+        assertFalse(PlatformRouter.isDirectStreamUrl("https://live.douyin.com/123456"))
+    }
+
+    @Test
+    fun isDirectStreamUrl_falseForPlainUrls() {
+        assertFalse(PlatformRouter.isDirectStreamUrl("https://www.example.com/live/room1"))
+        assertFalse(PlatformRouter.isDirectStreamUrl("https://example.com/"))
+        assertFalse(PlatformRouter.isDirectStreamUrl("https://www.xiaohongshu.com/user/profile/xxx"))
+    }
+
+    @Test
+    fun isSupported_includesDirectStream() {
+        val router = PlatformRouter()
+        assertTrue(PlatformRouter.isSupported("https://cdn.example.com/stream.m3u8"))
+        assertTrue(PlatformRouter.isSupported("https://cdn.example.com/stream.flv"))
+    }
+
+    @Test
+    fun fetchDirectStream_isLiveTrue_recordUrlIsInput() = runTest {
+        val router = PlatformRouter()
+        val m3u8Url = "https://cdn.example.com/stream.m3u8"
+        val flvUrl = "https://cdn.example.com/stream.flv"
+
+        val m3u8Info = router.fetchStreamInfo(m3u8Url)
+        assertTrue(m3u8Info.isLive)
+        assertEquals(m3u8Url, m3u8Info.recordUrl)
+        assertEquals("", m3u8Info.flvUrl)
+        assertEquals(m3u8Url, m3u8Info.m3u8Url)
+
+        val flvInfo = router.fetchStreamInfo(flvUrl)
+        assertTrue(flvInfo.isLive)
+        assertEquals(flvUrl, flvInfo.recordUrl)
+        assertEquals(flvUrl, flvInfo.flvUrl)
+        assertEquals("", flvInfo.m3u8Url)
+    }
+
+    @Test
+    fun fetchDirectStream_anchorNameStableByUrl() = runTest {
+        val router = PlatformRouter()
+        val url = "https://cdn.example.com/live.m3u8"
+        // 同一 URL 多次调用 anchorName 稳定（移动端增强：上游每轮 uuid4[:8] 随机）
+        val name1 = router.fetchStreamInfo(url).anchorName
+        val name2 = router.fetchStreamInfo(url).anchorName
+        assertEquals(name1, name2)
+        // 格式："自定义录制直播_" + 8 位十六进制哈希
+        assertTrue(name1.startsWith("自定义录制直播_"))
+        assertTrue(name1.matches(Regex("^自定义录制直播_[0-9a-f]{8}$")))
+    }
 }

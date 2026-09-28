@@ -52,6 +52,7 @@ val PLATFORM_LABELS = mapOf(
     "tiktok" to "TikTok",
     "twitch" to "Twitch",
     "youtube" to "YouTube",
+    "custom" to "自定义",
 )
 
 /** 平台主品牌色（Surface badge 背景色用 12% alpha）。 */
@@ -67,4 +68,5 @@ val PLATFORM_COLORS = mapOf(
     "tiktok" to Color(0xFF000000),
     "twitch" to Color(0xFF9146FF),
     "youtube" to Color(0xFFFF0000),
+    "custom" to Color(0xFF607D8B),
 )

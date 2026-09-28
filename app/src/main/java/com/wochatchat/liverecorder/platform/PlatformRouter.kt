@@ -65,8 +65,16 @@ class PlatformRouter(
         fun isBigoUrl(url: String): Boolean =
             url.contains("www.bigo.tv/") || url.contains("slink.bigovideo.tv/")
 
+        /** 7a R36：自定义流地址直录（上游 main.py:1026-1038「自定义录制直播」——
+         *  非任何已知平台域名，且 URL 含 .m3u8/.flv 扩展时直录，不做房间解析）。 */
+        fun isDirectStreamUrl(url: String): Boolean =
+            !isDouyuUrl(url) && !isKuaishouUrl(url) && !isHuyaUrl(url) &&
+                !isBilibiliUrl(url) && !isYyUrl(url) && !isBigoUrl(url) &&
+                !url.contains("douyin.com/") && !url.contains("iesdouyin.com/") &&
+                (url.contains(".m3u8") || url.contains(".flv"))
+
         /** 6d R14：URL 是否属于已接入平台（域名判断，与 fetchStreamInfo 分流同源）。 */
-        fun isSupported(url: String): Boolean = when {
+        fun isSupported(url: String): Boolean = isDirectStreamUrl(url) || when {
             isDouyuUrl(url) || isKuaishouUrl(url) || isHuyaUrl(url) ||
                 isBilibiliUrl(url) || isYyUrl(url) || isBigoUrl(url) -> true
             else -> url.contains("douyin.com/") || url.contains("iesdouyin.com/")
@@ -87,7 +95,25 @@ class PlatformRouter(
         isBilibiliUrl(url) -> fetchBilibili(url, quality, proxyAddr, cookies["bilibili"])
         isYyUrl(url) -> fetchYy(url, quality, proxyAddr, cookies["yy"])
         isBigoUrl(url) -> fetchBigo(url, quality, proxyAddr, cookies["bigo"])
+        isDirectStreamUrl(url) -> fetchDirectStream(url)
         else -> douyinSpider.fetchStreamInfo(url, quality, proxyAddr)
+    }
+
+    /**
+     * 自定义流地址直录（上游 main.py:1026-1038）：URL 含 .m3u8/.flv 时跳过房间解析，
+     * is_live 恒 true、record_url = URL 本身（.flv → flv_url，否则 m3u8_url）。
+     * 移动端增强：上游 anchor_name 每轮 uuid4[:8] 随机（文件名每轮都变），
+     * 安卓端改 URL 哈希稳定 8 位，同名文件可按主播名归组。
+     */
+    private fun fetchDirectStream(url: String): DouyinStreamInfo {
+        val anchorName = "自定义录制直播_" + String.format("%08x", url.hashCode())
+        return DouyinStreamInfo(
+            anchorName = anchorName,
+            isLive = true,
+            flvUrl = if (url.contains(".flv")) url else "",
+            m3u8Url = if (url.contains(".m3u8")) url else "",
+            recordUrl = url,
+        )
     }
 
     /**
