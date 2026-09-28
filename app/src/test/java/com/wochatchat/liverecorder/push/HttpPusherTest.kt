@@ -234,7 +234,7 @@ class HttpPusherTest {
         val tags = sent.getJSONArray("tags")
         assertEquals("eyes", tags.getString(0))
         assertEquals("bell", tags.getString(1))
-        assertEquals(5, json_priority(sent))
+        assertEquals(5, sent.getInt("priority"))
     }
 
     @Test
@@ -254,7 +254,6 @@ class HttpPusherTest {
         )
         assertEquals(3, JSONObject(server.takeRequest().body.readUtf8()).getInt("priority"))
     }
-}
 
     @Test
     fun parseTags_withCommaAndChineseComma() {
@@ -273,10 +272,6 @@ class HttpPusherTest {
         assertEquals(3, pusher.coercePriority(0))
         assertEquals(3, pusher.coercePriority(-1))
         assertEquals(3, pusher.coercePriority(99))
-    }
-}
-
-
     }
 }
 
