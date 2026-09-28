@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.wochatchat.liverecorder.R
@@ -103,7 +104,14 @@ fun MonitorCard(
                 StatusBadge(recordState, monitorState, disabled, unhealthy)
                 Spacer(Modifier.weight(1f))
                 // 单条启停（2g）：停用后不参与轮询与自动录制（上游 # 注释行语义）
-                Switch(checked = !disabled, onCheckedChange = onToggleEnabled)
+                // 6f-4：无障碍——Switch 必须有 contentDescription
+                val switchLabel = if (!disabled) stringResource(R.string.monitor_switch_disable)
+                    else stringResource(R.string.monitor_switch_enable)
+                Switch(
+                    checked = !disabled,
+                    onCheckedChange = onToggleEnabled,
+                    modifier = Modifier.semantics { contentDescription = switchLabel }
+                )
             }
 
             Spacer(Modifier.height(4.dp))

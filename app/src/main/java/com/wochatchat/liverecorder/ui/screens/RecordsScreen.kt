@@ -297,12 +297,12 @@ private fun RecordCard(
             Spacer(Modifier.height(4.dp))
             Row {
                 TextButton(onClick = { openRecording(context, entry) }) {
-                    Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.action_play), modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(stringResource(R.string.action_play))
                 }
                 TextButton(onClick = { shareRecording(context, entry) }) {
-                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Default.Share, contentDescription = stringResource(R.string.action_share), modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(stringResource(R.string.action_share))
                 }

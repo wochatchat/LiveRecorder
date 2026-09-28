@@ -73,6 +73,9 @@
     <string name="action_delete">删除</string>
     <string name="action_share">分享</string>
     <string name="action_play">播放</string>
+    <!-- 6f-4 无障碍 -->
+    <string name="monitor_switch_enable">启用监控</string>
+    <string name="monitor_switch_disable">停用监控</string>
     <string name="action_multiselect">多选</string>
     <string name="desc_settings">设置</string>
     <string name="desc_back">返回</string>
