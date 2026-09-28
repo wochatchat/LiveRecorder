@@ -17,12 +17,16 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,7 +63,19 @@ fun SettingsScreen(
 
     var showLogDialog by remember { mutableStateOf(false) }
 
+    // R17：推送测试 Snackbar 反馈
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(viewModel) {
+        viewModel.pushTestResult.collect { message ->
+            if (message != null) {
+                snackbarHostState.showSnackbar(message)
+                viewModel.consumePushTestResult()
+            }
+        }
+    }
+
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = { TopAppBar(title = { Text(stringResource(R.string.screen_settings_title)) }) }
     ) { padding ->
         Column(
@@ -73,7 +89,10 @@ fun SettingsScreen(
             Spacer(Modifier.height(8.dp))
             RecordingGroup(settings, convertMp4, viewModel)
             Spacer(Modifier.height(12.dp))
-            PushGroup(pushConfig, settings, viewModel)
+            PushGroup(
+                pushConfig, settings, viewModel,
+                onTestPush = { viewModel.sendTestPush() }
+            )
             Spacer(Modifier.height(12.dp))
             NamingGroup(settings, viewModel)
             Spacer(Modifier.height(12.dp))
@@ -220,9 +239,10 @@ private fun RecordingGroup(
 /** 推送：启用 / 类型 / 地址 / 开关播推送（R17 测试按钮后续并入）。 */
 @Composable
 private fun PushGroup(
-    pushConfig: com.wochatchat.liverecorder.push.PushConfig,
+    pushConfig: PushConfig,
     settings: AppSettings,
     viewModel: SettingsViewModel,
+    onTestPush: () -> Unit,
 ) {
     SettingsGroup(stringResource(R.string.settings_group_push)) {
         Text(
@@ -262,6 +282,14 @@ private fun PushGroup(
                 checked = settings.pushOnOffline,
                 onChange = { viewModel.setAppSettings(settings.copy(pushOnOffline = it)) }
             )
+            OutlinedButton(
+                onClick = onTestPush,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+            ) {
+                Text("发送测试通知")
+            }
         }
     }
 }
