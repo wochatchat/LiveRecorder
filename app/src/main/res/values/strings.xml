@@ -182,6 +182,15 @@
     <string name="settings_push_desc">开播/关播时推送到 ntfy 或 bark。地址支持多个，用逗号分隔。</string>
     <string name="settings_push_enable">启用推送</string>
     <string name="settings_push_type">推送类型</string>
+    <!-- 7b R38：推送明细模板 -->
+    <string name="settings_push_title">推送标题</string>
+    <string name="settings_push_title_hint">留空使用默认「直播间状态更新通知」</string>
+    <string name="settings_push_live_msg">开播内容</string>
+    <string name="settings_push_offline_msg">关播内容</string>
+    <string name="settings_push_msg_hint">支持占位符 [直播间名称] [时间]，留空使用默认</string>
+    <string name="settings_push_bark_level">中断级别</string>
+    <string name="settings_push_bark_sound">自定义铃声</string>
+    <string name="settings_push_bark_sound_hint">留空使用 Bark 默认铃声</string>
     <string name="settings_push_addr">推送地址</string>
     <string name="settings_push_addr_hint_bark">https://api.day.app/你的Key</string>
     <string name="settings_push_addr_hint_ntfy">https://ntfy.sh/你的主题</string>

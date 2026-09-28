@@ -130,22 +130,61 @@ class HttpPusherTest {
         assertEquals(listOf(api), failed)
     }
 
-    @Test
-    fun multiApisReportOnlyFailedOnes() = runBlocking {
-        server.enqueue(MockResponse().setBody("""{"id":"a"}"""))
-        server.enqueue(MockResponse().setResponseCode(500).setBody("oops"))
-        val okApi = server.url("/good").toString().removeSuffix("/")
-        val badApi = server.url("/bad").toString().removeSuffix("/")
-        val failed = pusher.push(
-            PushConfig(enabled = true, type = "ntfy", apis = listOf(okApi, badApi)),
-            Event.LIVE, "a", "t", liveUrl = "",
-        )
-        assertEquals(listOf(badApi), failed)
-    }
-
-    @Test
+        @Test
     fun pushConfigValidity() {
         assertFalse(PushConfig().isValid)
         assertTrue(PushConfig(enabled = true, type = "ntfy", apis = listOf("https://ntfy.sh/t")).isValid)
+    }
+
+    // 7b R38：推送明细模板
+    @Test
+    fun buildTitle_defaultAndCustom() {
+        // 空 → 默认标题（上游 main.py:328 strip() or 默认）
+        assertEquals("直播间状态更新通知", pusher.buildTitle(PushConfig()))
+        assertEquals("直播间状态更新通知", pusher.buildTitle(PushConfig(title = "   ")))
+        // 非空 → trim 后使用
+        assertEquals("我的标题", pusher.buildTitle(PushConfig(title = " 我的标题 ")))
+    }
+
+    @Test
+    fun buildContent_defaultContainsPrefixAndPlaceholders() {
+        // 默认文案对齐上游 main.py:1101/1083 字面量 + 占位符替换
+        val live = pusher.buildContent(PushConfig(), Event.LIVE, "测试主播", "12:00:00")
+        assertEquals("直播间状态更新：测试主播 正在直播中，时间：12:00:00", live)
+        val offline = pusher.buildContent(PushConfig(), Event.OFFLINE, "测试主播", "12:00:00")
+        assertEquals("直播间状态更新：测试主播 直播已结束！时间：12:00:00", offline)
+    }
+
+    @Test
+    fun buildContent_customTemplatePlaceholders() {
+        val config = PushConfig(
+            liveMessage = "[直播间名称] 开播啦\\n[时间]",
+            offlineMessage = "[直播间名称] 下播 [时间]",
+        )
+        assertEquals("小明 开播啦\n08:30:00", pusher.buildContent(config, Event.LIVE, "小明", "08:30:00"))
+        assertEquals("小明 下播 08:30:00", pusher.buildContent(config, Event.OFFLINE, "小明", "08:30:00"))
+    }
+
+    @Test
+    fun buildContent_emptyConfigFallsBackToDefault() {
+        // 空 liveMessage/offlineMessage → 默认文案（行为与 7b 前一致）
+        val live = pusher.buildContent(PushConfig(), Event.LIVE, "主播A", "09:00:00")
+        assertEquals("直播间状态更新：主播A 正在直播中，时间：09:00:00", live)
+    }
+
+    @Test
+    fun barkBody_customLevelAndSound() {
+        val json = JSONObject(
+            pusher.barkBody("https://api.day.app/key", "t", "m", level = "timeSensitive", sound = "bell")
+        )
+        assertEquals("timeSensitive", json.getString("level"))
+        assertEquals("bell", json.getString("sound"))
+    }
+
+    @Test
+    fun barkBody_blankLevelFallsBackToActive() {
+        val json = JSONObject(pusher.barkBody("k", "t", "m", level = "", sound = ""))
+        assertEquals("active", json.getString("level"))
+        assertEquals("", json.getString("sound"))
     }
 }

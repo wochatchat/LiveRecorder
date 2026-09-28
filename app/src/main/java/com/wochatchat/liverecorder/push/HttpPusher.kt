@@ -16,6 +16,16 @@ data class PushConfig(
     val enabled: Boolean = false,
     val type: String = "ntfy",
     val apis: List<String> = emptyList(),
+    /** 7b R38：自定义推送标题（上游 config.ini「自定义推送标题」，空 → 默认）。 */
+    val title: String = "",
+    /** 自定义开播文案，占位符 [直播间名称]/[时间]（上游 main.py:1101-1104，空 → 默认文案）。 */
+    val liveMessage: String = "",
+    /** 自定义关播文案（上游 main.py:1082-1084）。 */
+    val offlineMessage: String = "",
+    /** bark 中断级别（active/timeSensitive/critical/passive，空 → active）。 */
+    val barkLevel: String = "",
+    /** bark 铃声（上游 bark_msg_ring，空 → 不定制）。 */
+    val barkSound: String = "",
 ) {
     val isValid: Boolean get() = enabled && apis.isNotEmpty()
 
@@ -72,16 +82,15 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
         timeStr: String,
         liveUrl: String,
     ): List<String> {
-        val title = DEFAULT_TITLE
-        val content = when (event) {
-            Event.LIVE -> "$MSG_PREFIX$anchorName 正在直播中，时间：$timeStr"
-            Event.OFFLINE -> "$MSG_PREFIX$anchorName 直播已结束！时间：$timeStr"
-        }
+        val title = buildTitle(config)
+        val content = buildContent(config, event, anchorName, timeStr)
+            .replace("\\n", "\n")   // 上游 push_content.replace(r'\n', '\n') 同语义
+
         val failed = mutableListOf<String>()
         for (api in config.apis) {
             // ntfy 的 topic 取自地址末段（每地址不同），body 需按地址构造（上游同语义）
             val body = when (config.type.lowercase()) {
-                TYPE_BARK -> barkBody(api, title, content)
+                TYPE_BARK -> barkBody(api, title, content, level = config.barkLevel, sound = config.barkSound)
                 else -> ntfyBody(api, title, content, actionUrl = liveUrl)
             }
             val ok = if (config.type.equals(TYPE_BARK, ignoreCase = true)) pushBark(api, body)
@@ -89,6 +98,24 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
             if (!ok) failed.add(api)
         }
         return failed
+    }
+
+    /** 7b R38：构建推送标题（config.title 非空用用户模板，否则默认）。 */
+    internal fun buildTitle(config: PushConfig): String =
+        config.title.trim().ifEmpty { DEFAULT_TITLE }
+
+    /**
+     * 7b R38：构建推送内容——用户自定义模板或默认文案，占位符 [直播间名称]/[时间]
+     * （上游 main.py:1099-1104 替换逻辑）。
+     */
+    internal fun buildContent(config: PushConfig, event: Event, anchorName: String, timeStr: String): String {
+        val raw = when (event) {
+            Event.LIVE -> config.liveMessage.ifBlank { DEFAULT_LIVE_CONTENT }
+            Event.OFFLINE -> config.offlineMessage.ifBlank { DEFAULT_OFFLINE_CONTENT }
+        }
+        return raw
+            .replace("[直播间名称]", anchorName)
+            .replace("[时间]", timeStr)
     }
 
     /** 组装 ntfy 请求体（internal 便于单测；[api] 已去掉 topic 前缀前的部分）。 */
@@ -107,14 +134,20 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
         return json.toString()
     }
 
-    /** 组装 bark 请求体（internal 便于单测）。 */
-    internal fun barkBody(api: String, title: String, message: String): String = JSONObject().apply {
+    /** 组装 bark 请求体（internal 便于单测；level/sound 默认值保持现有测试兼容）。 */
+    internal fun barkBody(
+        api: String,
+        title: String,
+        message: String,
+        level: String = BARK_LEVEL,
+        sound: String = "",
+    ): String = JSONObject().apply {
         put("title", title)
         put("body", message)
-        put("level", BARK_LEVEL)
+        put("level", level.ifBlank { BARK_LEVEL })
         put("badge", BARK_BADGE)
         put("autoCopy", 1)
-        put("sound", "")
+        put("sound", sound)
         put("icon", "")
         put("group", "")
         put("isArchive", 1)
@@ -149,6 +182,10 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
         /** 文案对齐上游 push_message_title / push_content 模板。 */
         const val DEFAULT_TITLE = "直播间状态更新通知"
         const val MSG_PREFIX = "直播间状态更新："
+
+        /** 默认开播/关播文案（上游 main.py:1083/1101，占位符在 buildContent 替换）。 */
+        const val DEFAULT_LIVE_CONTENT = "直播间状态更新：[直播间名称] 正在直播中，时间：[时间]"
+        const val DEFAULT_OFFLINE_CONTENT = "直播间状态更新：[直播间名称] 直播已结束！时间：[时间]"
 
         const val NTFY_TAG = "partying_face"
         const val NTFY_PRIORITY = 3

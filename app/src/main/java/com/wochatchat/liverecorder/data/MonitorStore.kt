@@ -115,6 +115,13 @@ class MonitorStore(private val context: Context) {
     private val pushTypeKey = stringPreferencesKey("push_type")
     private val pushApiKey = stringPreferencesKey("push_api")
 
+    /** 7b R38：推送明细（自定义标题/开播/关播文案 + bark 级别/铃声，空 = 默认）。 */
+    private val pushTitleKey = stringPreferencesKey("push_title")
+    private val pushLiveMsgKey = stringPreferencesKey("push_live_msg")
+    private val pushOfflineMsgKey = stringPreferencesKey("push_offline_msg")
+    private val pushBarkLevelKey = stringPreferencesKey("push_bark_level")
+    private val pushBarkSoundKey = stringPreferencesKey("push_bark_sound")
+
     /**
      * 代理设置（4a，对齐上游「是否使用代理ip / 代理地址 / 使用代理录制的平台」）。
      * 平台关键词持久化为逗号分隔串；未设置时回落上游默认列表。
@@ -151,14 +158,34 @@ class MonitorStore(private val context: Context) {
                 .split(',')
                 .map { it.trim() }
                 .filter { it.isNotBlank() },
+            title = prefs[pushTitleKey] ?: "",
+            liveMessage = prefs[pushLiveMsgKey] ?: "",
+            offlineMessage = prefs[pushOfflineMsgKey] ?: "",
+            barkLevel = prefs[pushBarkLevelKey] ?: "",
+            barkSound = prefs[pushBarkSoundKey] ?: "",
         )
     }
 
-    suspend fun setPushConfig(enabled: Boolean, type: String, api: String) {
+    /** 明细参数带默认值，既有调用点（enabled/type/api 三参）不受影响。 */
+    suspend fun setPushConfig(
+        enabled: Boolean,
+        type: String,
+        api: String,
+        title: String = "",
+        liveMessage: String = "",
+        offlineMessage: String = "",
+        barkLevel: String = "",
+        barkSound: String = "",
+    ) {
         context.dataStore.edit { prefs ->
             prefs[pushEnabledKey] = enabled
             prefs[pushTypeKey] = type
             prefs[pushApiKey] = api
+            prefs[pushTitleKey] = title
+            prefs[pushLiveMsgKey] = liveMessage
+            prefs[pushOfflineMsgKey] = offlineMessage
+            prefs[pushBarkLevelKey] = barkLevel
+            prefs[pushBarkSoundKey] = barkSound
         }
     }
 }

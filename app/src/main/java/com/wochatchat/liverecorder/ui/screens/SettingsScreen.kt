@@ -294,17 +294,29 @@ private fun PushGroup(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
         )
         val apiCsv = pushConfig.apis.joinToString(",")
+        // 7b R38：任何字段保存都携带全量当前值，避免三参调用把模板重置为空
+        fun savePush(
+            enabled: Boolean = pushConfig.enabled,
+            type: String = pushConfig.type,
+            api: String = apiCsv,
+            title: String = pushConfig.title,
+            liveMessage: String = pushConfig.liveMessage,
+            offlineMessage: String = pushConfig.offlineMessage,
+            barkLevel: String = pushConfig.barkLevel,
+            barkSound: String = pushConfig.barkSound,
+        ) = viewModel.setPushConfig(enabled, type, api, title, liveMessage, offlineMessage, barkLevel, barkSound)
+
         SwitchSettingRow(
             title = stringResource(R.string.settings_push_enable),
             checked = pushConfig.enabled,
-            onChange = { viewModel.setPushConfig(it, pushConfig.type, apiCsv) }
+            onChange = { savePush(enabled = it) }
         )
         if (pushConfig.enabled) {
             ChipRow(
                 label = stringResource(R.string.settings_push_type),
                 options = listOf("ntfy", "bark"),
                 selected = pushConfig.type,
-                onSelect = { viewModel.setPushConfig(pushConfig.enabled, it, apiCsv) }
+                onSelect = { savePush(type = it) }
             )
             SaveOnFocusLostField(
                 initial = apiCsv,
@@ -312,7 +324,7 @@ private fun PushGroup(
                 placeholder = if (pushConfig.type == "bark") stringResource(R.string.settings_push_addr_hint_bark)
                 else stringResource(R.string.settings_push_addr_hint_ntfy),
                 validate = { it.isNotBlank() },
-                onSave = { viewModel.setPushConfig(pushConfig.enabled, pushConfig.type, it.trim()) }
+                onSave = { savePush(api = it.trim()) }
             )
             SwitchSettingRow(
                 title = stringResource(R.string.settings_push_live),
@@ -324,6 +336,43 @@ private fun PushGroup(
                 checked = settings.pushOnOffline,
                 onChange = { viewModel.setAppSettings(settings.copy(pushOnOffline = it)) }
             )
+            // 7b R38：推送明细（标题/文案模板 + bark 级别铃声）
+            SaveOnFocusLostField(
+                initial = pushConfig.title,
+                label = stringResource(R.string.settings_push_title),
+                placeholder = stringResource(R.string.settings_push_title_hint),
+                validate = { true },
+                onSave = { savePush(title = it.trim()) }
+            )
+            SaveOnFocusLostField(
+                initial = pushConfig.liveMessage,
+                label = stringResource(R.string.settings_push_live_msg),
+                placeholder = stringResource(R.string.settings_push_msg_hint),
+                validate = { true },
+                onSave = { savePush(liveMessage = it) }
+            )
+            SaveOnFocusLostField(
+                initial = pushConfig.offlineMessage,
+                label = stringResource(R.string.settings_push_offline_msg),
+                placeholder = stringResource(R.string.settings_push_msg_hint),
+                validate = { true },
+                onSave = { savePush(offlineMessage = it) }
+            )
+            if (pushConfig.type == "bark") {
+                ChipRow(
+                    label = stringResource(R.string.settings_push_bark_level),
+                    options = listOf("active", "timeSensitive", "critical", "passive"),
+                    selected = pushConfig.barkLevel.ifBlank { "active" },
+                    onSelect = { savePush(barkLevel = it) }
+                )
+                SaveOnFocusLostField(
+                    initial = pushConfig.barkSound,
+                    label = stringResource(R.string.settings_push_bark_sound),
+                    placeholder = stringResource(R.string.settings_push_bark_sound_hint),
+                    validate = { true },
+                    onSave = { savePush(barkSound = it.trim()) }
+                )
+            }
             OutlinedButton(
                 onClick = onTestPush,
                 modifier = Modifier

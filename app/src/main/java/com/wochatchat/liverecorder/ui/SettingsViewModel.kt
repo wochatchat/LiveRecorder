@@ -77,8 +77,18 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     val credentials: StateFlow<Map<String, Pair<String, String>>> = authStore.credentials
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
-    fun setPushConfig(enabled: Boolean, type: String, api: String) = viewModelScope.launch {
-        store.setPushConfig(enabled, type, api)
+    /** 明细参数带默认值：既有 3 参调用点（开关/类型/地址）不受影响。 */
+    fun setPushConfig(
+        enabled: Boolean,
+        type: String,
+        api: String,
+        title: String = "",
+        liveMessage: String = "",
+        offlineMessage: String = "",
+        barkLevel: String = "",
+        barkSound: String = "",
+    ) = viewModelScope.launch {
+        store.setPushConfig(enabled, type, api, title, liveMessage, offlineMessage, barkLevel, barkSound)
     }
 
     fun setProxySettings(settings: ProxySettings) = viewModelScope.launch {
