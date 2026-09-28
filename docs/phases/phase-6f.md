@@ -31,8 +31,8 @@
   - MonitorScreen / RecordsScreen LazyColumn 加 `Modifier.animateItem()`（Foundation 1.7 API）
 
 ## 6f-4 — R25 全量截图验收
-- [ ] 深浅色截图（含攒批的 5e/5f/6b~6e 真机走查）
-- [ ] build-test 出包
+- [x] build-test 出包（2026-09-28 ✅，run 36417943901，Artifact `liverecorder-apk` ~14MB，versionName 0.1.1 未 bump）
+- [ ] 深浅色截图（含攒批的 5e/5f/6b~6e 真机走查）→ 清单见 [docs/acceptance-walkthrough.md](../acceptance-walkthrough.md)
 
 ## 红线
 - 录制服务接线不动；ViewModel 只加不减
