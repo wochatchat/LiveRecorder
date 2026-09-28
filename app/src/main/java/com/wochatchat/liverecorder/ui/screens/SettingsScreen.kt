@@ -54,6 +54,8 @@ fun SettingsScreen(
     val proxy by viewModel.proxySettings.collectAsState()
     val convertMp4 by viewModel.autoConvertMp4.collectAsState()
     val settings by viewModel.appSettings.collectAsState()
+    val cookies by viewModel.cookies.collectAsState()
+    val credentials by viewModel.credentials.collectAsState()
 
     var showLogDialog by remember { mutableStateOf(false) }
 
