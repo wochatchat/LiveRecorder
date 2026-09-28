@@ -191,6 +191,9 @@
     <string name="settings_push_bark_level">中断级别</string>
     <string name="settings_push_bark_sound">自定义铃声</string>
     <string name="settings_push_bark_sound_hint">留空使用 Bark 默认铃声</string>
+    <string name="settings_push_ntfy_tags">ntfy 标签</string>
+    <string name="settings_push_ntfy_tags_hint">逗号分隔 emoji shortcode，留空使用默认</string>
+    <string name="settings_push_ntfy_priority">优先级</string>
     <string name="settings_push_addr">推送地址</string>
     <string name="settings_push_addr_hint_bark">https://api.day.app/你的Key</string>
     <string name="settings_push_addr_hint_ntfy">https://ntfy.sh/你的主题</string>

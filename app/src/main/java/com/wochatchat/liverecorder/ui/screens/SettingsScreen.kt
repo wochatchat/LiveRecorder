@@ -304,7 +304,9 @@ private fun PushGroup(
             offlineMessage: String = pushConfig.offlineMessage,
             barkLevel: String = pushConfig.barkLevel,
             barkSound: String = pushConfig.barkSound,
-        ) = viewModel.setPushConfig(enabled, type, api, title, liveMessage, offlineMessage, barkLevel, barkSound)
+            ntfyTags: String = pushConfig.ntfyTags,
+            ntfyPriority: Int = pushConfig.ntfyPriority,
+        ) = viewModel.setPushConfig(enabled, type, api, title, liveMessage, offlineMessage, barkLevel, barkSound, ntfyTags, ntfyPriority)
 
         SwitchSettingRow(
             title = stringResource(R.string.settings_push_enable),
@@ -371,6 +373,34 @@ private fun PushGroup(
                     placeholder = stringResource(R.string.settings_push_bark_sound_hint),
                     validate = { true },
                     onSave = { savePush(barkSound = it.trim()) }
+                )
+            }
+            // 7b 收尾：ntfy tags/priority 定制（空/0 → 默认 partying_face / 3）
+            if (pushConfig.type != "bark") {
+                SaveOnFocusLostField(
+                    initial = pushConfig.ntfyTags,
+                    label = stringResource(R.string.settings_push_ntfy_tags),
+                    placeholder = stringResource(R.string.settings_push_ntfy_tags_hint),
+                    validate = { true },
+                    onSave = { savePush(ntfyTags = it.trim()) }
+                )
+                ChipRow(
+                    label = stringResource(R.string.settings_push_ntfy_priority),
+                    options = listOf("min", "low", "default", "high", "max"),
+                    selected = when (pushConfig.ntfyPriority) {
+                        1 -> "min"
+                        2 -> "low"
+                        4 -> "high"
+                        5 -> "max"
+                        else -> "default"
+                    },
+                    onSelect = { savePush(ntfyPriority = when (it) {
+                        "min" -> 1
+                        "low" -> 2
+                        "high" -> 4
+                        "max" -> 5
+                        else -> 3
+                    }) }
                 )
             }
             OutlinedButton(

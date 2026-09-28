@@ -187,4 +187,54 @@ class HttpPusherTest {
         assertEquals("active", json.getString("level"))
         assertEquals("", json.getString("sound"))
     }
+
+    @Test
+    fun ntfyBody_customTagsAndPriority() {
+        // tags 多个，priority 高
+        val body = pusher.ntfyBody(
+            api = "https://ntfy.sh/mytopic",
+            title = "t", message = "m", actionUrl = "",
+            tags = listOf("eyes", "bell"),
+            priority = 5,
+        )
+        val json = JSONObject(body)
+        assertEquals(JSONArray(listOf("eyes", "bell")).toString(), json.getJSONArray("tags").toString())
+        assertEquals(5, json.getInt("priority"))
+    }
+
+    @Test
+    fun ntfyBody_priorityOutOfRangeFallsBackToDefault() {
+        val body = pusher.ntfyBody(
+            "https://ntfy.sh/t", "t", "m", actionUrl = "",
+            priority = 99,
+        )
+        val json = JSONObject(body)
+        assertEquals(3, json.getInt("priority")) // 默认
+    }
+
+    @Test
+    fun ntfyBody_priorityZeroFallsBackToDefault() {
+        val json = JSONObject(pusher.ntfyBody("https://ntfy.sh/t", "t", "m", actionUrl = "", priority = 0))
+        assertEquals(3, json.getInt("priority"))
+    }
+
+    @Test
+    fun parseTags_withCommaAndChineseComma() {
+        assertEquals(listOf("eyes", "bell", "fire"), pusher.parseTags("eyes，bell,fire"))
+        assertEquals(listOf("star"), pusher.parseTags("star"))
+        assertEquals(listOf("partying_face"), pusher.parseTags(""))
+        assertEquals(listOf("partying_face"), pusher.parseTags("  "))
+        assertEquals(listOf("partying_face"), pusher.parseTags(" , "))
+    }
+
+    @Test
+    fun coercePriority_validAndInvalid() {
+        assertEquals(1, pusher.coercePriority(1))
+        assertEquals(3, pusher.coercePriority(3))
+        assertEquals(5, pusher.coercePriority(5))
+        assertEquals(3, pusher.coercePriority(0))
+        assertEquals(3, pusher.coercePriority(-1))
+        assertEquals(3, pusher.coercePriority(99))
+    }
 }
+

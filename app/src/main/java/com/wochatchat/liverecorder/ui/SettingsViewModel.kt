@@ -87,8 +87,10 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         offlineMessage: String = "",
         barkLevel: String = "",
         barkSound: String = "",
+        ntfyTags: String = "",
+        ntfyPriority: Int = 0,
     ) = viewModelScope.launch {
-        store.setPushConfig(enabled, type, api, title, liveMessage, offlineMessage, barkLevel, barkSound)
+        store.setPushConfig(enabled, type, api, title, liveMessage, offlineMessage, barkLevel, barkSound, ntfyTags, ntfyPriority)
     }
 
     fun setProxySettings(settings: ProxySettings) = viewModelScope.launch {

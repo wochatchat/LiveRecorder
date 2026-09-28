@@ -3,6 +3,7 @@ package com.wochatchat.liverecorder.data
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.wochatchat.liverecorder.push.PushConfig
@@ -122,6 +123,10 @@ class MonitorStore(private val context: Context) {
     private val pushBarkLevelKey = stringPreferencesKey("push_bark_level")
     private val pushBarkSoundKey = stringPreferencesKey("push_bark_sound")
 
+    /** 7b 收尾：ntfy tags/priority 定制（空/0 = 默认 partying_face / 3）。 */
+    private val pushNtfyTagsKey = stringPreferencesKey("push_ntfy_tags")
+    private val pushNtfyPriorityKey = intPreferencesKey("push_ntfy_priority")
+
     /**
      * 代理设置（4a，对齐上游「是否使用代理ip / 代理地址 / 使用代理录制的平台」）。
      * 平台关键词持久化为逗号分隔串；未设置时回落上游默认列表。
@@ -163,6 +168,8 @@ class MonitorStore(private val context: Context) {
             offlineMessage = prefs[pushOfflineMsgKey] ?: "",
             barkLevel = prefs[pushBarkLevelKey] ?: "",
             barkSound = prefs[pushBarkSoundKey] ?: "",
+            ntfyTags = prefs[pushNtfyTagsKey] ?: "",
+            ntfyPriority = prefs[pushNtfyPriorityKey] ?: 0,
         )
     }
 
@@ -176,6 +183,8 @@ class MonitorStore(private val context: Context) {
         offlineMessage: String = "",
         barkLevel: String = "",
         barkSound: String = "",
+        ntfyTags: String = "",
+        ntfyPriority: Int = 0,
     ) {
         context.dataStore.edit { prefs ->
             prefs[pushEnabledKey] = enabled
@@ -186,6 +195,8 @@ class MonitorStore(private val context: Context) {
             prefs[pushOfflineMsgKey] = offlineMessage
             prefs[pushBarkLevelKey] = barkLevel
             prefs[pushBarkSoundKey] = barkSound
+            prefs[pushNtfyTagsKey] = ntfyTags
+            prefs[pushNtfyPriorityKey] = ntfyPriority
         }
     }
 }

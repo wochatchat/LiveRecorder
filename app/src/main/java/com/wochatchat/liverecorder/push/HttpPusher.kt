@@ -26,6 +26,10 @@ data class PushConfig(
     val barkLevel: String = "",
     /** bark 铃声（上游 bark_msg_ring，空 → 不定制）。 */
     val barkSound: String = "",
+    /** ntfy tags（逗号分隔 emoji shortcode，空 → partying_face）。 */
+    val ntfyTags: String = "",
+    /** ntfy 优先级 1-5（0 → 默认 3）。 */
+    val ntfyPriority: Int = 0,
 ) {
     val isValid: Boolean get() = enabled && apis.isNotEmpty()
 
@@ -90,7 +94,7 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
             // ntfy 的 topic 取自地址末段（每地址不同），body 需按地址构造（上游同语义）
             val body = when (config.type.lowercase()) {
                 TYPE_BARK -> barkBody(api, title, content, level = config.barkLevel, sound = config.barkSound)
-                else -> ntfyBody(api, title, content, actionUrl = liveUrl)
+                else -> ntfyBody(api, title, content, actionUrl = liveUrl, tags = parseTags(config.ntfyTags), priority = coercePriority(config.ntfyPriority))
             }
             val ok = if (config.type.equals(TYPE_BARK, ignoreCase = true)) pushBark(api, body)
             else pushNtfy(api, body)
@@ -119,20 +123,36 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
     }
 
     /** 组装 ntfy 请求体（internal 便于单测；[api] 已去掉 topic 前缀前的部分）。 */
-    internal fun ntfyBody(api: String, title: String, message: String, actionUrl: String): String {
+    internal fun ntfyBody(
+        api: String,
+        title: String,
+        message: String,
+        actionUrl: String,
+        tags: List<String> = listOf(NTFY_TAG),
+        priority: Int = NTFY_PRIORITY,
+    ): String {
         val topic = api.substringAfterLast('/')
         val json = JSONObject().apply {
             put("topic", topic)
             put("title", title)
             put("message", message)
-            put("tags", JSONArray().put(NTFY_TAG))
-            put("priority", NTFY_PRIORITY)
+            put("tags", JSONArray().apply { tags.forEach { put(it) } })
+            put("priority", priority)
             put("actions", if (actionUrl.isBlank()) JSONArray()
                 else JSONArray().put(JSONObject().put("action", "view").put("label", "view live").put("url", actionUrl)))
             put("markdown", false)
         }
         return json.toString()
     }
+
+    /** ntfy tags 串（中英文逗号分隔）→ 列表；空/全空白回落默认 partying_face。 */
+    internal fun parseTags(raw: String): List<String> =
+        raw.replace('，', ',').split(',').map { it.trim() }.filter { it.isNotBlank() }
+            .ifEmpty { listOf(NTFY_TAG) }
+
+    /** ntfy 优先级：0/越界 → 默认 3，其余 1-5。 */
+    internal fun coercePriority(priority: Int): Int =
+        if (priority in 1..5) priority else NTFY_PRIORITY
 
     /** 组装 bark 请求体（internal 便于单测；level/sound 默认值保持现有测试兼容）。 */
     internal fun barkBody(
