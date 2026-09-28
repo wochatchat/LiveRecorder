@@ -14,17 +14,20 @@
 - MonitorScreen EmptyState：图标+Button+TextButton 示例链接预填
 - RecordsScreen EmptyRecords：图标+双行说明 strings 资源化
 
-## 6f-2 — R22 通知增强
-- [ ] MonitorService NotificationCompat 增 Action：暂停/恢复监控
-- [ ] 开播通知点击跳对应 MonitorCard
+## 6f-2 — R22 通知增强 ✅（commit 9a13941 / fix 6349e05，CI run 36396967671）
+- [x] MonitorService NotificationCompat 增 Action：暂停/恢复监控
+- [x] 开播通知点击跳对应 MonitorCard（EXTRA_FOCUS_URL → FocusRouter → 滚动定位+高亮4s）
 
 ## 6f-3 — R24 字符串资源化（无障碍/动效后续做）
 - [x] 全量硬编码中文迁 strings.xml（2026-09-28 ✅，新增 ~130 条，CI run 36412043843 全绿）
   - 覆盖：MonitorScreen / MonitorCard / RecordStatusLine / StatusBadge / CookieDialog / CookieManagementScreen / RecordsScreen / SettingsScreen + Records/SettingsViewModel（getApplication<Application>().getString）
   - 非 composable 回调用 context.getString；MonitorScreen notifyRemoved 的 context 前向引用已修复
   - 保留：平台品牌名（PLATFORM_LABELS）、画质选项（DataStore 持久化值）、Onboarding 示例链接、AppLog 调试日志
-- [ ] contentDescription + 触达面积 ≥48dp
-- [ ] 列表增删动画
+- [x] contentDescription + 触达面积 ≥48dp（2026-09-28 ✅，CI run 36416300153 全绿）
+  - MonitorCard Switch 加 semantics{contentDescription}（启用监控/停用监控）
+  - RecordsScreen 播放/分享 Icon 补 contentDescription
+  - 纯装饰 Icon（空态/状态行/Onboarding）保留 null（无障碍最佳实践）
+- [ ] 列表增删动画（animateItem / LazyColumn 动效）
 
 ## 6f-4 — R25 全量截图验收
 - [ ] 深浅色截图（含攒批的 5e/5f/6b~6e 真机走查）
