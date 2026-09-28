@@ -1,6 +1,6 @@
 package com.wochatchat.liverecorder.platform.netease
 
-import com.wochatchat.liverecorder.net.HttpResult
+import com.wochatchat.liverecorder.net.LiveHttpClient.HttpResult
 import com.wochatchat.liverecorder.net.LiveHttpClient
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
@@ -51,8 +51,8 @@ class NeteaseCcSpiderTest {
             .put("blueray", JSONObject().put("cdn", JSONObject().put("c1", "http://f/blue.flv")))
             .put("high", JSONObject().put("cdn", JSONObject().put("c2", "http://flv/high.flv"))))
         val spider = NeteaseCcSpider()
-        assertEquals("http://flv/high.flv", spider.selectFlv(quickplay, "HD"))
-        assertEquals("http://flv/blueray.flv", spider.selectFlv(quickplay, "OD"))
+        assertEquals("http://flv/high.flv", spider.selectFlv(qp, "HD"))
+        assertEquals("http://flv/blueray.flv", spider.selectFlv(qp, "OD"))
         assertNull(spider.selectFlv(null, "OD"))
     }
 

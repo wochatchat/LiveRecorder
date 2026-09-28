@@ -1,11 +1,11 @@
 package com.wochatchat.liverecorder.platform.baidu
 
-import com.wochatchat.liverecorder.net.HttpResult
+import com.wochatchat.liverecorder.net.LiveHttpClient.HttpResult
 import com.wochatchat.liverecorder.net.LiveHttpClient
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue

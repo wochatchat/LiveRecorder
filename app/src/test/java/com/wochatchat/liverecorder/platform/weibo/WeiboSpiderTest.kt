@@ -1,6 +1,6 @@
 package com.wochatchat.liverecorder.platform.weibo
 
-import com.wochatchat.liverecorder.net.HttpResult
+import com.wochatchat.liverecorder.net.LiveHttpClient.HttpResult
 import com.wochatchat.liverecorder.net.LiveHttpClient
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
