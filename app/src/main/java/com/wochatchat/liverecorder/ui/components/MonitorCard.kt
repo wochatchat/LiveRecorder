@@ -61,6 +61,7 @@ fun MonitorCard(
     disabled: Boolean,
     unhealthy: Boolean = false,
     roundInfo: MonitorRoundInfo = MonitorRoundInfo(),
+    modifier: Modifier = Modifier,
     onRemove: () -> Unit,
     onEdit: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
@@ -85,7 +86,7 @@ fun MonitorCard(
     }
 
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         shadowElevation = 1.dp,
         tonalElevation = 1.dp,

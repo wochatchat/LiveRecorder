@@ -7,6 +7,8 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,6 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -84,6 +88,9 @@ fun MonitorScreen(
     var editUrl by remember { mutableStateOf<String?>(null) }
     // 6f R23：添加对话框预填（空态「示例链接」入口复用同一对话框）
     var addInitial by remember { mutableStateOf("") }
+    // 6f R22：通知点击直达——滚动定位 + 高亮当前条目
+    var highlightedUrl by remember { mutableStateOf<String?>(null) }
+    val listState = rememberLazyListState()
 
     // R11：操作反馈 Snackbar（添加/删除可撤销，4s 自动消失）
     val snackbarHostState = remember { SnackbarHostState() }
@@ -112,6 +119,19 @@ fun MonitorScreen(
         ) {
             notifPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+
+    // 6f R22：消费 FocusRouter（通知点击直达）——urls 就绪后滚动定位并高亮 4s
+    val focusUrl by FocusRouter.focusUrl.collectAsState()
+    LaunchedEffect(focusUrl, urls) {
+        val u = focusUrl ?: return@LaunchedEffect
+        val idx = urls.indexOf(u)
+        if (idx < 0) return@LaunchedEffect // 列表未就绪，effect 将随 urls 变化重跑
+        listState.animateScrollToItem(idx)
+        highlightedUrl = u
+        FocusRouter.clear()
+        kotlinx.coroutines.delay(4000)
+        if (highlightedUrl == u) highlightedUrl = null
     }
 
     Scaffold(
@@ -154,6 +174,7 @@ fun MonitorScreen(
             )
         } else {
             LazyColumn(
+                state = listState,
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -167,6 +188,11 @@ fun MonitorScreen(
                         disabled = url in disabledUrls,
                         unhealthy = url in unhealthyUrls,
                         roundInfo = roundInfo,
+                        modifier = if (url == highlightedUrl) Modifier.border(
+                            2.dp,
+                            MaterialTheme.colorScheme.primary,
+                            RoundedCornerShape(12.dp),
+                        ) else Modifier,
                         onRemove = {
                             viewModel.remove(url)
                             notifyRemoved(url)

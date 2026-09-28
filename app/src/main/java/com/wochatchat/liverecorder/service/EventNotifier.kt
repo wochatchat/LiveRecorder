@@ -37,6 +37,7 @@ class EventNotifier(private val context: Context) {
             title = context.getString(R.string.notif_event_live_title),
             text = context.getString(R.string.notif_event_live_text, text),
             icon = R.drawable.ic_notification,
+            url = url,
         )
     }
 
@@ -47,6 +48,7 @@ class EventNotifier(private val context: Context) {
             title = context.getString(R.string.notif_event_offline_title),
             text = context.getString(R.string.notif_event_offline_text, anchorName),
             icon = R.drawable.ic_notification,
+            url = url,
         )
     }
 
@@ -70,16 +72,19 @@ class EventNotifier(private val context: Context) {
         )
     }
 
-    private fun notify(id: Int, title: String, text: String, icon: Int) {
+    private fun notify(id: Int, title: String, text: String, icon: Int, url: String? = null) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
             != PackageManager.PERMISSION_GRANTED
         ) {
             return // 无通知权限时静默跳过
         }
+        // 6f R22：点击直达对应监控条目（url extra → MainActivity → FocusRouter → MonitorScreen 高亮）
+        val intent = Intent(context, MainActivity::class.java)
+        if (url != null) intent.putExtra(EXTRA_FOCUS_URL, url)
         val contentIntent = PendingIntent.getActivity(
             context, id,
-            Intent(context, MainActivity::class.java),
+            intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
@@ -105,5 +110,8 @@ class EventNotifier(private val context: Context) {
 
         /** 存储事件通知固定 id（低于事件区间，2h）。 */
         private const val STORAGE_NOTIFICATION_ID = 9900
+
+        /** 6f R22：点击直达 extra 键（与 MainActivity 约定）。 */
+        const val EXTRA_FOCUS_URL = "focus_url"
     }
 }

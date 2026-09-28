@@ -46,6 +46,8 @@
     <string name="empty_records_title">还没有录制记录</string>
     <string name="empty_records_hint">直播录制完成后会自动出现在这里</string>
     <string name="empty_records_hint2">到「监控」页添加直播间，主播开播后自动录制</string>
+    <string name="notif_action_pause">暂停监控</string>
+    <string name="notif_action_resume">恢复监控</string>
     <string name="onboarding_welcome_title">欢迎使用直播录制</string>
     <string name="onboarding_welcome_body">自动监控主播开播并录制\n支持抖音 / 快手 / 虎牙 / 斗鱼 / B站 / YY / Bigo</string>
     <string name="onboarding_perm_title">权限设置</string>

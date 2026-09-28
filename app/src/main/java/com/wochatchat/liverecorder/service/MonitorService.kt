@@ -37,11 +37,22 @@ class MonitorService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
+    /** 6f R22：监控开关当前值（buildNotification 暂停/恢复 Action 用）。 */
+    @Volatile
+    private var monitorEnabledNow: Boolean = true
+
     override fun onCreate() {
         super.onCreate()
         createChannel()
         scope.launch {
             (application as RecorderApp).recordController.states.collect { _ ->
+                notifyCompat(buildNotification())
+            }
+        }
+        // 6f R22：监控开关变化也刷新常驻通知（暂停/恢复 Action 跟随状态）
+        scope.launch {
+            MonitorStore(application).monitorEnabled.collect { enabled ->
+                monitorEnabledNow = enabled
                 notifyCompat(buildNotification())
             }
         }
@@ -53,6 +64,17 @@ class MonitorService : Service() {
                 stopMonitoring()
                 stopSelf()
                 return START_NOT_STICKY
+            }
+            ACTION_PAUSE_MONITOR -> {
+                // 通知栏暂停：停轮询 + 落库开关（UI 文字按钮同步显示「已暂停」）
+                scope.launch { MonitorStore(application).setMonitorEnabled(false) }
+                stopMonitoring()
+                notifyCompat(buildNotification())
+            }
+            ACTION_RESUME_MONITOR -> {
+                scope.launch { MonitorStore(application).setMonitorEnabled(true) }
+                startMonitoring()
+                notifyCompat(buildNotification())
             }
             ACTION_RUN_MONITOR -> {
                 startInForeground()
@@ -136,12 +158,25 @@ class MonitorService : Service() {
             Intent(this, MainActivity::class.java),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        // 6f R22：通知栏暂停/恢复监控（点 Action 直接起停轮询，状态经 MonitorStore 同步 UI）
+        val pauseOrResumeIntent = PendingIntent.getService(
+            this, 0,
+            Intent(this, MonitorService::class.java).apply {
+                action = if (monitorEnabledNow) ACTION_PAUSE_MONITOR else ACTION_RESUME_MONITOR
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.notif_monitor_title))
             .setContentText(text)
             .setOngoing(true)
             .setContentIntent(contentIntent)
+            .addAction(
+                0,
+                getString(if (monitorEnabledNow) R.string.notif_action_pause else R.string.notif_action_resume),
+                pauseOrResumeIntent,
+            )
             .build()
     }
 
@@ -169,6 +204,12 @@ class MonitorService : Service() {
             val intent = Intent(context, MonitorService::class.java)
             androidx.core.content.ContextCompat.startForegroundService(context, intent)
         }
+
+        /** 6f R22：通知栏 Action——暂停监控。 */
+        const val ACTION_PAUSE_MONITOR = "com.wochatchat.liverecorder.action.PAUSE_MONITOR"
+
+        /** 6f R22：通知栏 Action——恢复监控。 */
+        const val ACTION_RESUME_MONITOR = "com.wochatchat.liverecorder.action.RESUME_MONITOR"
 
         /** 拉起前台服务并启动监控轮询。 */
         fun startMonitor(context: Context) {
