@@ -73,9 +73,23 @@ C/NDK 组件：**QuickJS**（斗鱼 ub98484234 动态 JS 签名，上游 JS 原�
 
 266 单元测试全绿（CI 强制）：正则解析 fixture 对拍真实页面、a_bogus 与上游 Python 逐字节对照、SM3 国标向量、录制状态机/重连/统计、命名与配置语义、推送组包。上游无单测，对齐验证靠行为对照（同 URL 双侧跑比对）。
 
+## 界面
+
+底部 3 Tab：**监控**（直播间卡片、状态行、Snackbar 反馈、总开关）/ **记录**（录制历史、播放/分享/删除、存储用量）/ **设置**（分组全屏页：录制/命名/推送/Cookie/代理/维护）。深浅色跟随系统，Android 12+ 动态取色；首启有 3 页引导，常驻通知支持暂停/恢复与开播直达。
+
+> 截图待真机走查后补（清单：[docs/acceptance-walkthrough.md](docs/acceptance-walkthrough.md)，归档 `docs/screenshots/`）。
+
+| 页面 | 浅色 | 深色 |
+|---|---|---|
+| 监控 | <!-- TODO: screenshots/6c-monitor-light.png --> | <!-- TODO: screenshots/6c-monitor-dark.png --> |
+| 记录 | <!-- TODO: screenshots/6e-records-light.png --> | <!-- TODO: screenshots/6e-records-dark.png --> |
+| 设置 | <!-- TODO: screenshots/6d-settings-light.png --> | <!-- TODO: screenshots/6d-settings-dark.png --> |
+| 引导 | <!-- TODO: screenshots/6f-onboarding-light.png --> | <!-- TODO: screenshots/6f-onboarding-dark.png --> |
+
 ## 文档
 
 - 移植完成度审计（逐模块对照上游 v4.0.7）：[docs/porting-completeness.md](docs/porting-completeness.md)
+- 真机走查验收清单（5e/5f + 6b~6f）：[docs/acceptance-walkthrough.md](docs/acceptance-walkthrough.md)
 - 移植评估与进度（活文档）：`PORTING.md`
 - 详细设计 / 阶段记录：shared 仓库 `douyin-recorder-android/`（docs + phases + CHANGELOG）
 
