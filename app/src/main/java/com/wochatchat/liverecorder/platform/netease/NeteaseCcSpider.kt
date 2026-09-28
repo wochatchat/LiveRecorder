@@ -88,10 +88,11 @@ open class NeteaseCcSpider(
             JSONObject(nextData.replace("undefined", "null"))
         } catch (e: Exception) { return NeteaseStreamInfo() }
         val roomInfo = json.optJSONObject("props")?.optJSONObject("pageProps")
-            ?.optJSONObject("roomInfoInitData") ?: return NeteaseStreamInfo(
-            anchorName = roomInfo.optString("nickname", ""))
-        val live = roomInfo.optJSONObject("live") ?: return NeteaseStreamInfo(
-            anchorName = roomInfo.optString("nickname", ""))
+            ?.optJSONObject("roomInfoInitData")
+        val fallbackAnchor = json.optJSONObject("props")?.optJSONObject("pageProps")
+            ?.optJSONObject("roomInfoInitData")?.optString("nickname", "") ?: ""
+        if (roomInfo == null) return NeteaseStreamInfo(anchorName = fallbackAnchor)
+        val live = roomInfo.optJSONObject("live") ?: return NeteaseStreamInfo(anchorName = fallbackAnchor)
         val anchorName = live.optString("nickname", roomInfo.optString("nickname", ""))
         if (live.optInt("status", 0) != 1) return NeteaseStreamInfo(anchorName = anchorName)
         val m3u8 = live.optString("sharefile", "")

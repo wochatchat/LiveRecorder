@@ -30,6 +30,7 @@ open class BaiduSpider(private val client: LiveHttpClient = LiveHttpClient()) {
         val anchorName = data.optJSONObject("host")?.optString("name","") ?: ""
         if (data.optString("status","1") != "0") return BaiduStreamInfo(anchorName = anchorName)
         val video = data.optJSONObject("video") ?: return BaiduStreamInfo(anchorName = anchorName)
+        val title = video.optString("title", "")
         val m3u8 = buildM3u8Url(video) ?: return BaiduStreamInfo(anchorName = anchorName)
         return BaiduStreamInfo(anchorName = anchorName, title = title, isLive = true, m3u8Url = m3u8, recordUrl = m3u8)
     }

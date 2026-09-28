@@ -124,7 +124,7 @@ class PlatformRouter(
         isYyUrl(url) -> fetchYy(url, quality, proxyAddr, cookies["yy"])
         isBigoUrl(url) -> fetchBigo(url, quality, proxyAddr, cookies["bigo"])
         isNeteaseUrl(url) -> fetchNetease(url, quality, proxyAddr, cookies["netease"])
-        isBaiduUrl(url) -> fetchBaidu(url, proxyAddr, cookies["baidu"])
+        isBaiduUrl(url) -> fetchBaidu(url, proxyAddr)
         isWeiboUrl(url) -> fetchWeibo(url, proxyAddr, cookies["weibo"])
         isJdUrl(url) -> fetchJd(url, proxyAddr, cookies["jd"])
         isZhihuUrl(url) -> fetchZhihu(url, proxyAddr, cookies["zhihu"])
