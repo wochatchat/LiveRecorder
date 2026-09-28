@@ -14,11 +14,16 @@
 - [x] `MonitorCard.platformKeyForUrl` + PlatformBadge：`custom` 徽标「自定义」（灰蓝色 0xFF607D8B；原 else 落抖音会错挂徽标）
 - [x] 单测 +6：判定真/假（含已知平台含扩展名不抢路由）、isSupported、flv/m3u8 字段映射、anchorName 稳定性与格式
 
-## 7b — 推送明细配置（待做）
+## 7b — 推送明细配置 ✅（commit 8a953f5 + afa4da3 + cb1a304）
 
-- [ ] 自定义推送标题/开播/关播文案（上游 config.ini [推送配置] 自定义推送标题/自定义开播推送内容/自定义关播推送内容）
-- [ ] bark 铃声/中断级别、ntfy priority/tags 设置项
-- [ ] （评估）推送检测独立频率（上游 1800s，现复用循环时间）
+对照上游 config.ini [推送配置] + msg_push.py。
+
+- [x] 自定义推送标题/开播/关播文案（PushConfig title/liveMessage/offlineMessage，占位符 [直播间名称]/[时间]，空 → 默认；buildTitle/buildContent；R38，8a953f5）
+- [x] bark 铃声/中断级别（barkLevel/barkSound，空 → active/不定制；R38，8a953f5）
+- [x] `\n` 转义替换移入 buildContent（单测直调 buildContent 覆盖；afa4da3）
+- [x] ntfy tags/priority 定制（ntfyTags 逗号分隔、ntfyPriority 1-5，空/0 → 默认 partying_face/3；parseTags/coercePriority；ntfy 分支 tags 输入框 + priority ChipRow min~max；R39，cb1a304）
+- [x] MonitorStore 持久化 10 键 + setPushConfig 全参默认值兼容（PushGroup 本地 savePush 携带全量当前值防重置）；单测累计 +12
+- [ ] （评估）推送检测独立频率（上游 1800s，现复用循环时间）——暂缓：移动端顺序轮询下无收益
 
 ## 7c — mkv/mp4 直存格式（待做，优先级低于 7b）
 
