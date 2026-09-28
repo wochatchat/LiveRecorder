@@ -3,6 +3,7 @@ package com.wochatchat.liverecorder.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.RecorderApp
 import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.AuthStore
@@ -111,16 +112,16 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     fun sendTestPush() {
         val cfg = pushConfig.value
         if (!cfg.isValid) {
-            _pushTestResult.value = "请先启用推送并填写推送地址"
+            _pushTestResult.value = app.getString(R.string.settings_push_test_need_config)
             return
         }
         viewModelScope.launch {
             val timeStr = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
             val failed = (getApplication() as RecorderApp).pusher.push(
-                cfg, Event.LIVE, "测试主播", timeStr, "https://live.douyin.com/"
+                cfg, Event.LIVE, app.getString(R.string.push_test_anchor), timeStr, "https://live.douyin.com/"
             )
-            _pushTestResult.value = if (failed.isEmpty()) "测试通知已发送"
-            else "发送失败：${failed.joinToString()}"
+            _pushTestResult.value = if (failed.isEmpty()) app.getString(R.string.push_test_sent)
+            else app.getString(R.string.push_test_failed, failed.joinToString())
         }
     }
 

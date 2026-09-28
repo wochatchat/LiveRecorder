@@ -207,15 +207,17 @@ private fun StorageGroup(
                 Spacer(Modifier.height(6.dp))
             }
             Text(
-                "已用 ${"%.1f".format(usage.usedGb)} GB · 共 ${"%.1f".format(usage.totalGb)} GB" +
-                    " · 剩余 ${"%.1f".format(usage.freeGb)} GB",
+                stringResource(
+                    R.string.settings_storage_line,
+                    "%.1f".format(usage.usedGb), "%.1f".format(usage.totalGb), "%.1f".format(usage.freeGb),
+                ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         SaveOnFocusLostField(
             initial = diskLimitGb.toString(),
-            label = "存储剩余告警阈值 (GB)",
+            label = stringResource(R.string.settings_threshold_label),
             placeholder = "1.0",
             validate = { (it.toDoubleOrNull() ?: 0.0) > 0 },
             onSave = { it.toDoubleOrNull()?.let(viewModel::setDiskLimitGb) },
@@ -232,15 +234,15 @@ private fun RecordingGroup(
 ) {
     SettingsGroup(stringResource(R.string.settings_group_recording)) {
         ChipRow(
-            label = "录制画质",
+            label = stringResource(R.string.settings_quality_label),
             options = listOf("原画", "超清", "高清", "标清", "流畅"),
             selected = settings.quality,
             onSelect = { viewModel.setAppSettings(settings.copy(quality = it)) }
         )
         LoopIntervalField(settings, viewModel)
         SwitchSettingRow(
-            title = "分段录制",
-            subtitle = "关闭时 FLV 直下为单文件（不支持 m3u8）",
+            title = stringResource(R.string.settings_segment_title),
+            subtitle = stringResource(R.string.settings_segment_subtitle),
             checked = settings.segmented,
             onChange = { viewModel.setAppSettings(settings.copy(segmented = it)) }
         )
@@ -248,28 +250,28 @@ private fun RecordingGroup(
             SegmentTimeField(settings, viewModel)
         }
         SwitchSettingRow(
-            title = "强制启用 https 录制",
-            subtitle = "直播源 http:// 强制改写为 https://",
+            title = stringResource(R.string.settings_https_title),
+            subtitle = stringResource(R.string.settings_https_subtitle),
             checked = settings.forceHttps,
             onChange = { viewModel.setAppSettings(settings.copy(forceHttps = it)) }
         )
         SwitchSettingRow(
-            title = "录制完成后自动转 MP4",
-            subtitle = "TS 分片转 mp4（无需重编码）",
+            title = stringResource(R.string.settings_mp4_title),
+            subtitle = stringResource(R.string.settings_mp4_subtitle),
             checked = convertMp4,
             onChange = { viewModel.setAutoConvertMp4(it) }
         )
         if (convertMp4) {
             SwitchSettingRow(
-                title = "转码后删除原 TS 分片",
-                subtitle = "对齐上游「追加格式后删除原文件」",
+                title = stringResource(R.string.settings_del_ts_title),
+                subtitle = stringResource(R.string.settings_del_ts_subtitle),
                 checked = settings.deleteOriginalOnConvert,
                 onChange = { viewModel.setAppSettings(settings.copy(deleteOriginalOnConvert = it)) }
             )
         }
         SwitchSettingRow(
-            title = "只推送通知不录制",
-            subtitle = "开播时仅推送，不自动录制",
+            title = stringResource(R.string.settings_onlynotify_title),
+            subtitle = stringResource(R.string.settings_onlynotify_subtitle),
             checked = settings.onlyNotify,
             onChange = { viewModel.setAppSettings(settings.copy(onlyNotify = it)) }
         )
@@ -286,39 +288,39 @@ private fun PushGroup(
 ) {
     SettingsGroup(stringResource(R.string.settings_group_push)) {
         Text(
-            "开播/关播时推送到 ntfy 或 bark。地址支持多个，用逗号分隔。",
+            stringResource(R.string.settings_push_desc),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
         )
         val apiCsv = pushConfig.apis.joinToString(",")
         SwitchSettingRow(
-            title = "启用推送",
+            title = stringResource(R.string.settings_push_enable),
             checked = pushConfig.enabled,
             onChange = { viewModel.setPushConfig(it, pushConfig.type, apiCsv) }
         )
         if (pushConfig.enabled) {
             ChipRow(
-                label = "推送类型",
+                label = stringResource(R.string.settings_push_type),
                 options = listOf("ntfy", "bark"),
                 selected = pushConfig.type,
                 onSelect = { viewModel.setPushConfig(pushConfig.enabled, it, apiCsv) }
             )
             SaveOnFocusLostField(
                 initial = apiCsv,
-                label = "推送地址",
-                placeholder = if (pushConfig.type == "bark") "https://api.day.app/你的Key"
-                else "https://ntfy.sh/你的主题",
+                label = stringResource(R.string.settings_push_addr),
+                placeholder = if (pushConfig.type == "bark") stringResource(R.string.settings_push_addr_hint_bark)
+                else stringResource(R.string.settings_push_addr_hint_ntfy),
                 validate = { it.isNotBlank() },
                 onSave = { viewModel.setPushConfig(pushConfig.enabled, pushConfig.type, it.trim()) }
             )
             SwitchSettingRow(
-                title = "开播推送",
+                title = stringResource(R.string.settings_push_live),
                 checked = settings.pushOnLive,
                 onChange = { viewModel.setAppSettings(settings.copy(pushOnLive = it)) }
             )
             SwitchSettingRow(
-                title = "关播推送",
+                title = stringResource(R.string.settings_push_offline),
                 checked = settings.pushOnOffline,
                 onChange = { viewModel.setAppSettings(settings.copy(pushOnOffline = it)) }
             )
@@ -328,7 +330,7 @@ private fun PushGroup(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Text("发送测试通知")
+                Text(stringResource(R.string.settings_push_test))
             }
         }
     }
@@ -339,32 +341,32 @@ private fun PushGroup(
 private fun NamingGroup(settings: AppSettings, viewModel: SettingsViewModel) {
     SettingsGroup(stringResource(R.string.settings_group_naming)) {
         SwitchSettingRow(
-            title = "保存文件夹以作者区分",
-            subtitle = "下载/{平台}/{主播}/…（默认开）",
+            title = stringResource(R.string.settings_folder_author),
+            subtitle = stringResource(R.string.settings_folder_author_sub),
             checked = settings.folderByAuthor,
             onChange = { viewModel.setAppSettings(settings.copy(folderByAuthor = it)) }
         )
         SwitchSettingRow(
-            title = "保存文件夹以时间区分",
-            subtitle = "追加一层当天日期（2026-09-24）",
+            title = stringResource(R.string.settings_folder_time),
+            subtitle = stringResource(R.string.settings_folder_time_sub),
             checked = settings.folderByTime,
             onChange = { viewModel.setAppSettings(settings.copy(folderByTime = it)) }
         )
         SwitchSettingRow(
-            title = "保存文件夹以标题区分",
-            subtitle = "再按直播标题/日期+标题建目录",
+            title = stringResource(R.string.settings_folder_title_name),
+            subtitle = stringResource(R.string.settings_folder_title_sub),
             checked = settings.folderByTitle,
             onChange = { viewModel.setAppSettings(settings.copy(folderByTitle = it)) }
         )
         SwitchSettingRow(
-            title = "文件名包含标题",
-            subtitle = "{主播}_{标题}_{时间}.flv",
+            title = stringResource(R.string.settings_filename_title),
+            subtitle = stringResource(R.string.settings_filename_sub),
             checked = settings.filenameByTitle,
             onChange = { viewModel.setAppSettings(settings.copy(filenameByTitle = it)) }
         )
         SwitchSettingRow(
-            title = "去除名称中的表情符号",
-            subtitle = "主播名与标题同步生效（默认开）",
+            title = stringResource(R.string.settings_clean_emoji),
+            subtitle = stringResource(R.string.settings_clean_emoji_sub),
             checked = settings.cleanEmoji,
             onChange = { viewModel.setAppSettings(settings.copy(cleanEmoji = it)) }
         )
@@ -376,22 +378,22 @@ private fun NamingGroup(settings: AppSettings, viewModel: SettingsViewModel) {
 private fun ProxyGroup(proxy: ProxySettings, viewModel: SettingsViewModel) {
     SettingsGroup(stringResource(R.string.settings_group_proxy)) {
         SwitchSettingRow(
-            title = "使用代理录制",
-            subtitle = "仅下方平台列表命中的链接走代理（海外平台用）",
+            title = stringResource(R.string.settings_proxy_title),
+            subtitle = stringResource(R.string.settings_proxy_subtitle),
             checked = proxy.enabled,
             onChange = { viewModel.setProxySettings(proxy.copy(enabled = it)) }
         )
         if (proxy.enabled) {
             SaveOnFocusLostField(
                 initial = proxy.addr,
-                label = "代理地址",
-                placeholder = "socks5://127.0.0.1:7890 或 http://127.0.0.1:7890",
+                label = stringResource(R.string.settings_proxy_addr),
+                placeholder = stringResource(R.string.settings_proxy_addr_hint),
                 validate = { it.isNotBlank() },
                 onSave = { viewModel.setProxySettings(proxy.copy(addr = it.trim())) }
             )
             SaveOnFocusLostField(
                 initial = proxy.platformsCsv(),
-                label = "走代理的平台（逗号分隔关键词）",
+                label = stringResource(R.string.settings_proxy_platforms),
                 placeholder = "tiktok, twitch, ...",
                 validate = { true },
                 onSave = {
@@ -423,9 +425,10 @@ private fun AuthGroup(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(Modifier.weight(1f)) {
-                Text("平台 Cookie / 账号密码", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.cookie_dialog_title), style = MaterialTheme.typography.bodyLarge)
                 Text(
-                    if (configuredCount > 0) "已配置 $configuredCount 个平台" else "尚未配置任何平台",
+                    if (configuredCount > 0) stringResource(R.string.settings_cookies_configured, configuredCount)
+                    else stringResource(R.string.settings_cookies_none),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -446,7 +449,7 @@ private fun MaintenanceGroup(onOpenLogs: () -> Unit) {
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text("运行日志", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.log_dialog_title), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
             Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.outline)
         }
     }
@@ -463,14 +466,14 @@ private fun LoopIntervalField(settings: AppSettings, viewModel: SettingsViewMode
     val parsed = text.toLongOrNull()
     val error = when {
         text.isBlank() -> null
-        parsed == null -> "请输入数字"
-        parsed < 60 || parsed > 86400 -> "范围 60-86400 秒"
+        parsed == null -> stringResource(R.string.validation_number)
+        parsed < 60 || parsed > 86400 -> stringResource(R.string.validation_range_loop)
         else -> null
     }
     OutlinedTextField(
         value = text,
         onValueChange = { text = it },
-        label = { Text("循环时间(秒) — 每轮检查开播的间隔") },
+        label = { Text(stringResource(R.string.settings_loop_interval_label)) },
         isError = error != null,
         supportingText = if (error != null) {
             { Text(error, color = MaterialTheme.colorScheme.error) }
@@ -492,15 +495,15 @@ private fun SegmentTimeField(settings: AppSettings, viewModel: SettingsViewModel
     var text by remember(settings.segmentTimeSec) { mutableStateOf(settings.segmentTimeSec.toString()) }
     val parsed = text.toIntOrNull()
     val error = when {
-        text.isBlank() -> "不能为空"
-        parsed == null -> "请输入数字"
-        parsed < 10 || parsed > 86400 -> "范围 10-86400 秒"
+        text.isBlank() -> stringResource(R.string.validation_empty)
+        parsed == null -> stringResource(R.string.validation_number)
+        parsed < 10 || parsed > 86400 -> stringResource(R.string.validation_range_segment)
         else -> null
     }
     OutlinedTextField(
         value = text,
         onValueChange = { text = it },
-        label = { Text("视频分段时间(秒)") },
+        label = { Text(stringResource(R.string.settings_segment_time_label)) },
         isError = error != null,
         supportingText = if (error != null) {
             { Text(error, color = MaterialTheme.colorScheme.error) }

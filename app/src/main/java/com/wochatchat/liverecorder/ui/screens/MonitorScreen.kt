@@ -96,11 +96,12 @@ fun MonitorScreen(
     // R11：操作反馈 Snackbar（添加/删除可撤销，4s 自动消失）
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     fun notifyRemoved(url: String) {
         scope.launch {
             val result = snackbarHostState.showSnackbar(
-                message = "已移除",
-                actionLabel = "撤销",
+                message = context.getString(R.string.snackbar_removed),
+                actionLabel = context.getString(R.string.action_undo),
                 duration = SnackbarDuration.Long
             )
             if (result == SnackbarResult.ActionPerformed) viewModel.add(url)
@@ -111,7 +112,6 @@ fun MonitorScreen(
     val notifPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
-    val context = LocalContext.current
     LaunchedEffect(Unit) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(
@@ -142,12 +142,12 @@ fun MonitorScreen(
                 title = { Text(stringResource(R.string.screen_monitor_title)) },
                 actions = {
                     IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "设置")
+                        Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.desc_settings))
                     }
                     // R12/U8：总开关改文字按钮，状态一目了然
                     TextButton(onClick = { viewModel.setMonitorEnabled(!monitorEnabled) }) {
                         Text(
-                            if (monitorEnabled) "监控中" else "已暂停",
+                            if (monitorEnabled) stringResource(R.string.monitor_state_running) else stringResource(R.string.monitor_state_paused),
                             color = if (monitorEnabled) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.outline
                         )
@@ -218,8 +218,9 @@ fun MonitorScreen(
                 addInitial = ""
                 scope.launch {
                     val result = snackbarHostState.showSnackbar(
-                        message = if (urls.size == 1) "已添加 ${urls[0]}" else "已添加 ${urls.size} 个直播",
-                        actionLabel = "撤销",
+                        message = if (urls.size == 1) context.getString(R.string.snackbar_added_one, urls[0])
+                        else context.getString(R.string.snackbar_added_many, urls.size),
+                        actionLabel = context.getString(R.string.action_undo),
                         duration = SnackbarDuration.Long
                     )
                     if (result == SnackbarResult.ActionPerformed) urls.forEach { viewModel.remove(it) }
@@ -253,12 +254,12 @@ fun LogDialog(onDismiss: () -> Unit) {
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("运行日志") },
+        title = { Text(stringResource(R.string.log_dialog_title)) },
         text = {
             Column {
-                if (cleared) Text("日志已清空", style = MaterialTheme.typography.bodySmall)
+                if (cleared) Text(stringResource(R.string.log_cleared), style = MaterialTheme.typography.bodySmall)
                 Text(
-                    text = content.ifBlank { "(暂无日志)" },
+                    text = content.ifBlank { stringResource(R.string.log_empty) },
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier
@@ -310,7 +311,7 @@ private fun exportLogs(context: android.content.Context) {
         }
     }
     intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-    context.startActivity(Intent.createChooser(intent, "分享日志"))
+    context.startActivity(Intent.createChooser(intent, context.getString(R.string.share_logs_title)))
 }
 
 
@@ -364,13 +365,18 @@ fun ConfirmDeleteDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (willStopRecording) "停止并移除监控？" else "移除监控？") },
+        title = {
+            Text(
+                if (willStopRecording) stringResource(R.string.remove_dialog_title_stop)
+                else stringResource(R.string.remove_dialog_title)
+            )
+        },
         text = {
             Text(
                 if (willStopRecording) {
-                    "当前正在录制或解析直播源，立即移除将停止本次录制且无法恢复。确认移除？"
+                    stringResource(R.string.remove_dialog_text_recording)
                 } else {
-                    "将从监控列表移除此直播间。已录制的文件不受影响。"
+                    stringResource(R.string.remove_dialog_text)
                 }
             )
         },
@@ -380,7 +386,7 @@ fun ConfirmDeleteDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }
@@ -398,20 +404,20 @@ fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (List<String>) -> Unit, initi
     val allSupported = urls.isNotEmpty() && urls.all { PlatformRouter.isSupported(it) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("添加直播间") },
+        title = { Text(stringResource(R.string.add_dialog_title)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
-                    placeholder = { Text("粘贴直播间链接\n支持多行/逗号分隔批量添加") },
+                    placeholder = { Text(stringResource(R.string.add_dialog_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 1,
                     maxLines = 4
                 )
                 if (urls.isNotEmpty() && !allSupported) {
                     Text(
-                        "包含暂不支持的平台链接，点击「添加」仍会加入监控",
+                        stringResource(R.string.add_dialog_unsupported_warn),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.tertiary
                     )
@@ -422,10 +428,10 @@ fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (List<String>) -> Unit, initi
             TextButton(
                 onClick = { if (urls.isNotEmpty()) onConfirm(urls) },
                 enabled = urls.isNotEmpty()
-            ) { Text("添加") }
+            ) { Text(stringResource(R.string.action_add)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }
@@ -440,12 +446,12 @@ fun EditUrlDialog(
     var text by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("编辑直播间") },
+        title = { Text(stringResource(R.string.edit_dialog_title)) },
         text = {
             OutlinedTextField(
                 value = text,
                 onValueChange = { text = it },
-                label = { Text("直播间链接") },
+                label = { Text(stringResource(R.string.edit_dialog_url_label)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
@@ -454,10 +460,10 @@ fun EditUrlDialog(
             TextButton(
                 onClick = { if (text.isNotBlank()) onConfirm(text) },
                 enabled = text.isNotBlank() && text.trim() != initial
-            ) { Text("保存") }
+            ) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }

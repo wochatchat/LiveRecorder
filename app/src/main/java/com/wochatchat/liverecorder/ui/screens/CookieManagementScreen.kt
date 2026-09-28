@@ -33,11 +33,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.ui.SettingsViewModel
 import com.wochatchat.liverecorder.ui.components.PlatformBadge
+import com.wochatchat.liverecorder.R
 
 /**
  * Cookie 管理页（6d R16 / U11）：全部平台列表，配置状态一目了然；
@@ -64,13 +66,16 @@ fun CookieManagementScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(if (selection.isNotEmpty()) "已选 ${selection.size} 项" else "平台认证管理")
+                    Text(
+                        if (selection.isNotEmpty()) stringResource(R.string.cookies_selected_count, selection.size)
+                        else stringResource(R.string.cookies_page_title)
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = {
                         if (selection.isNotEmpty()) selection.clear() else onBack()
                     }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.desc_back))
                     }
                 },
                 actions = {
@@ -80,12 +85,12 @@ fun CookieManagementScreen(
                                 selection.forEach { clearPlatform(viewModel, it, loginKeys) }
                                 selection.clear()
                             }) {
-                                Text("清除所选", color = MaterialTheme.colorScheme.error)
+                                Text(stringResource(R.string.cookies_clear_selected), color = MaterialTheme.colorScheme.error)
                             }
                         }
-                        TextButton(onClick = { selection.clear(); selecting = false }) { Text("取消") }
+                        TextButton(onClick = { selection.clear(); selecting = false }) { Text(stringResource(R.string.action_cancel)) }
                     } else {
-                        TextButton(onClick = { selecting = true }) { Text("多选") }
+                        TextButton(onClick = { selecting = true }) { Text(stringResource(R.string.action_multiselect)) }
                     }
                 }
             )
@@ -94,8 +99,8 @@ fun CookieManagementScreen(
         Column(Modifier.padding(padding)) {
             Text(
                 if (configuredKeys.isNotEmpty())
-                    "已配置 ${configuredKeys.size} / ${platforms.size} 个平台；认证信息仅保存在本机"
-                else "尚未配置任何平台；cookie / 账密仅保存在本机",
+                    stringResource(R.string.cookies_summary_configured, configuredKeys.size, platforms.size)
+                else stringResource(R.string.cookies_summary_empty),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
@@ -129,9 +134,9 @@ fun CookieManagementScreen(
                         Column(Modifier.weight(1f)) {
                             Text(
                                 when {
-                                    hasCookie -> "Cookie 已配置（${mask(cookies[p.key].orEmpty())}）"
-                                    hasCred -> "账密已配置（${credentials[p.key]?.first} / ****）"
-                                    else -> "未配置"
+                                    hasCookie -> stringResource(R.string.cookies_state_cookie, mask(cookies[p.key].orEmpty()))
+                                    hasCred -> stringResource(R.string.cookies_state_cred, credentials[p.key]?.first ?: "")
+                                    else -> stringResource(R.string.cookies_state_none)
                                 },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = if (configured) MaterialTheme.colorScheme.primary
@@ -139,14 +144,14 @@ fun CookieManagementScreen(
                             )
                             if (p.key in loginKeys) {
                                 Text(
-                                    "账密登录平台，录制时自动登录",
+                                    stringResource(R.string.cookies_cred_note),
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
                         IconButton(onClick = { editing = p.key }, enabled = !selecting) {
-                            Icon(Icons.Default.Edit, contentDescription = "编辑")
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.desc_edit))
                         }
                         IconButton(
                             onClick = { clearPlatform(viewModel, p.key, loginKeys) },
@@ -154,7 +159,7 @@ fun CookieManagementScreen(
                         ) {
                             Icon(
                                 Icons.Default.Delete,
-                                contentDescription = "清除",
+                                contentDescription = stringResource(R.string.desc_clear),
                                 tint = if (configured) MaterialTheme.colorScheme.error
                                 else MaterialTheme.colorScheme.outline
                             )

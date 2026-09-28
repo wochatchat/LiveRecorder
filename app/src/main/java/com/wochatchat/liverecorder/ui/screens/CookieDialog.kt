@@ -22,8 +22,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.wochatchat.liverecorder.data.AuthStore
+import com.wochatchat.liverecorder.R
 
 /**
  * 平台 Cookie / 账密对话框（4b，R15 由设置页「平台认证」入口打开；R16 升级为管理页）。
@@ -58,7 +60,7 @@ fun CookieDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("平台 Cookie / 账号密码") },
+        title = { Text(stringResource(R.string.cookie_dialog_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 // 平台选择（下拉，含全部 50 平台）
@@ -69,7 +71,7 @@ fun CookieDialog(
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         platforms.forEach { p ->
                             DropdownMenuItem(
-                                text = { Text("${p.label} (${p.key})") },
+                                text = { Text(stringResource(R.string.cookie_platform_item, p.label, p.key)) },
                                 onClick = {
                                     selectedKey = p.key
                                     expanded = false
@@ -80,25 +82,25 @@ fun CookieDialog(
                 }
                 if (isLoginPlatform) {
                     Text(
-                        "该平台使用账密登录，保存后录制时自动登录获取 cookie",
+                        stringResource(R.string.cookie_cred_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     OutlinedTextField(
                         value = username,
                         onValueChange = { username = it },
-                        label = { Text("账号") },
+                        label = { Text(stringResource(R.string.cookie_account_label)) },
                         modifier = Modifier.fillMaxWidth()
                     )
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text("密码") },
+                        label = { Text(stringResource(R.string.cookie_password_label)) },
                         modifier = Modifier.fillMaxWidth()
                     )
                 } else {
                     Text(
-                        "粘贴浏览器登录后的 Cookie 串（key1=v1; key2=v2）",
+                        stringResource(R.string.cookie_paste_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -111,7 +113,7 @@ fun CookieDialog(
                     )
                 }
                 Text(
-                    "清空后保存即删除（等价上游配置项置空）",
+                    stringResource(R.string.cookie_clear_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -121,10 +123,10 @@ fun CookieDialog(
             TextButton(onClick = {
                 if (isLoginPlatform) onSaveCredential(selectedKey, username, password)
                 else onSaveCookie(selectedKey, cookie)
-            }) { Text("保存") }
+            }) { Text(stringResource(R.string.action_save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("取消") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
 }

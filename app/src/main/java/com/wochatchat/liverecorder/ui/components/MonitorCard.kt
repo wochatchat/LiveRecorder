@@ -27,8 +27,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.monitor.MonitorLoop
 import com.wochatchat.liverecorder.monitor.MonitorRoundInfo
 import com.wochatchat.liverecorder.recorder.RecordController
@@ -108,7 +111,9 @@ fun MonitorCard(
             val live = monitorState as? MonitorLoop.State.Live
             Text(
                 text = live?.anchorName?.takeIf { it.isNotBlank() }
-                    ?: (PLATFORM_LABELS[platformKeyForUrl(url)]?.plus("直播") ?: url),
+                    ?: (PLATFORM_LABELS[platformKeyForUrl(url)]?.let {
+                        stringResource(R.string.monitor_fallback_title, it)
+                    } ?: url),
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -118,7 +123,7 @@ fun MonitorCard(
             // 直播标题副行
             if (live != null && live.title.isNotBlank()) {
                 Text(
-                    "「${live.title}」",
+                    stringResource(R.string.live_title_quoted, live.title),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -146,20 +151,20 @@ fun MonitorCard(
                 IconButton(onClick = if (recording) onStop else onStart, enabled = !disabled) {
                     Icon(
                         if (recording) Icons.Default.Stop else Icons.Default.PlayArrow,
-                        contentDescription = if (recording) "停止" else "录制",
+                        contentDescription = if (recording) stringResource(R.string.desc_stop) else stringResource(R.string.desc_record),
                         tint = if (recording)
                             MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
                     )
                 }
                 IconButton(onClick = onEdit, enabled = !disabled) {
                     Icon(
-                        Icons.Default.Edit, contentDescription = "编辑",
+                        Icons.Default.Edit, contentDescription = stringResource(R.string.desc_edit),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
                 IconButton(onClick = { showConfirmDelete = true }) {
                     Icon(
-                        Icons.Default.Close, contentDescription = "删除",
+                        Icons.Default.Close, contentDescription = stringResource(R.string.desc_delete),
                         tint = MaterialTheme.colorScheme.outline
                     )
                 }
@@ -178,13 +183,14 @@ private fun RoundSummaryCaption(info: MonitorRoundInfo) {
             tick++
         }
     }
+    val context = LocalContext.current
     val now = remember(tick, info) { System.currentTimeMillis() }
     val parts = buildList {
         if (info.lastCheckMs > 0) {
-            add("上次检查 " + relativeAgo(now - info.lastCheckMs))
+            add(context.getString(R.string.roundinfo_last_check, relativeAgo(context, now - info.lastCheckMs)))
         }
         if (info.nextCheckMs > now) {
-            add("下轮 " + relativeIn(info.nextCheckMs - now))
+            add(context.getString(R.string.roundinfo_next, relativeIn(context, info.nextCheckMs - now)))
         }
     }
     if (parts.isNotEmpty()) {
@@ -196,16 +202,16 @@ private fun RoundSummaryCaption(info: MonitorRoundInfo) {
     }
 }
 
-/** 毫秒差 → 「刚刚 / X 分钟前 / X 小时前」。 */
-private fun relativeAgo(deltaMs: Long): String = when {
-    deltaMs < 60_000L -> "刚刚"
-    deltaMs < 3_600_000L -> "${deltaMs / 60_000L} 分钟前"
-    else -> "${deltaMs / 3_600_000L} 小时前"
+/** 毫秒差 → 「刚刚 / X 分钟前 / X 小时前」（资源化：需 Context）。 */
+private fun relativeAgo(context: android.content.Context, deltaMs: Long): String = when {
+    deltaMs < 60_000L -> context.getString(R.string.time_just_now)
+    deltaMs < 3_600_000L -> context.getString(R.string.time_minutes_ago, deltaMs / 60_000L)
+    else -> context.getString(R.string.time_hours_ago, deltaMs / 3_600_000L)
 }
 
 /** 毫秒差 → 「1 分钟内 / X 分钟后 / X 小时后」。 */
-private fun relativeIn(deltaMs: Long): String = when {
-    deltaMs < 60_000L -> "1 分钟内"
-    deltaMs < 3_600_000L -> "${deltaMs / 60_000L} 分钟后"
-    else -> "${deltaMs / 3_600_000L} 小时后"
+private fun relativeIn(context: android.content.Context, deltaMs: Long): String = when {
+    deltaMs < 60_000L -> context.getString(R.string.time_in_1min)
+    deltaMs < 3_600_000L -> context.getString(R.string.time_in_minutes, deltaMs / 60_000L)
+    else -> context.getString(R.string.time_in_hours, deltaMs / 3_600_000L)
 }

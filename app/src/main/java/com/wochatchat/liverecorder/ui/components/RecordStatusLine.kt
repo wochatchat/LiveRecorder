@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -36,6 +37,7 @@ import androidx.core.content.FileProvider
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.ui.StatsFormat
 import java.io.File
+import com.wochatchat.liverecorder.R
 
 /**
  * 录制状态机统一呈现（R13 / U7）：一套组件处理全部 RecordState。
@@ -58,7 +60,7 @@ fun RecordStatusLine(
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                "解析直播源…",
+                stringResource(R.string.status_resolving),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary
             )
@@ -77,7 +79,10 @@ fun RecordStatusLine(
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                "断流重连 第 ${state.attempt} 次（${state.nextDelaySec}s 后）· ${state.message}",
+                stringResource(
+                    R.string.status_reconnecting,
+                    state.attempt, state.nextDelaySec, state.message
+                ),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.tertiary,
                 maxLines = 2,
@@ -99,7 +104,7 @@ fun RecordStatusLine(
             )
             Spacer(Modifier.width(6.dp))
             Text(
-                "失败：${state.message}",
+                stringResource(R.string.status_failed, state.message),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.error,
                 maxLines = 2,
@@ -166,8 +171,10 @@ private fun FinishedLine(
             )
             Spacer(Modifier.width(6.dp))
             Text(
-                if (state.completed) "完成 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)}"
-                else "已停止 · ${StatsFormat.duration(state.durationMs)} · ${StatsFormat.bytes(state.bytes)}",
+                if (state.completed)
+                    stringResource(R.string.status_done, StatsFormat.duration(state.durationMs), StatsFormat.bytes(state.bytes))
+                else
+                    stringResource(R.string.status_stopped, StatsFormat.duration(state.durationMs), StatsFormat.bytes(state.bytes)),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -183,7 +190,7 @@ private fun FinishedLine(
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                "播放",
+                stringResource(R.string.action_play),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable {
@@ -207,6 +214,6 @@ private fun openRecording(context: android.content.Context, savePath: String) {
         }
         context.startActivity(intent)
     }.onFailure {
-        Toast.makeText(context, "无法打开：${it.message}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.toast_open_failed, it.message), Toast.LENGTH_SHORT).show()
     }
 }

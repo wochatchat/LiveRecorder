@@ -124,11 +124,11 @@ fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
     pendingDelete?.let { entry ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("删除录制文件？") },
+            title = { Text(stringResource(R.string.delete_record_title)) },
             text = {
                 Text(
-                    "${entry.savePath.substringAfterLast('/')}\n\n" +
-                        "删除后无法恢复（含分段目录内全部文件）。",
+                    entry.savePath.substringAfterLast('/') + "\n\n" +
+                        stringResource(R.string.delete_record_text),
                     maxLines = 4,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -137,10 +137,10 @@ fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
                 TextButton(onClick = {
                     viewModel.delete(entry)
                     pendingDelete = null
-                }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+                }) { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { pendingDelete = null }) { Text("取消") }
+                TextButton(onClick = { pendingDelete = null }) { Text(stringResource(R.string.action_cancel)) }
             },
         )
     }
@@ -158,7 +158,10 @@ private fun StorageUsageBar(usage: com.wochatchat.liverecorder.storage.StorageUs
             Spacer(Modifier.height(4.dp))
         }
         Text(
-            "剩余 ${"%.1f".format(usage.freeGb)} GB / 共 ${"%.1f".format(usage.totalGb)} GB",
+            stringResource(
+                R.string.records_storage_line,
+                "%.1f".format(usage.freeGb), "%.1f".format(usage.totalGb),
+            ),
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -180,12 +183,12 @@ private fun FilterRow(filter: RecordsViewModel.RecordFilter, viewModel: RecordsV
         FilterChip(
             selected = !filter.todayOnly,
             onClick = { viewModel.setTodayOnly(false) },
-            label = { Text("全部") },
+            label = { Text(stringResource(R.string.filter_all)) },
         )
         FilterChip(
             selected = filter.todayOnly,
             onClick = { viewModel.setTodayOnly(!filter.todayOnly) },
-            label = { Text("今日") },
+            label = { Text(stringResource(R.string.filter_today)) },
         )
         allEntries.map { platformKeyForUrl(it.url) }.distinct().forEach { key ->
             FilterChip(
@@ -203,7 +206,7 @@ private fun FilterRow(filter: RecordsViewModel.RecordFilter, viewModel: RecordsV
 @Composable
 private fun StatsLine(todayCount: Int, totalBytes: Long) {
     Text(
-        "今日录制 $todayCount 条 · 合计 ${StatsFormat.bytes(totalBytes)}",
+        stringResource(R.string.records_today_summary, todayCount, StatsFormat.bytes(totalBytes)),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
@@ -255,7 +258,7 @@ private fun RecordCard(
                 PlatformBadge(platformKeyForUrl(entry.url))
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    entry.anchorName.ifBlank { "未知主播" },
+                    entry.anchorName.ifBlank { stringResource(R.string.records_unknown_anchor) },
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -264,7 +267,7 @@ private fun RecordCard(
                 Spacer(Modifier.width(8.dp))
                 Icon(
                     if (entry.completed) Icons.Default.CheckCircle else Icons.Default.StopCircle,
-                    contentDescription = if (entry.completed) "已完成" else "已停止",
+                    contentDescription = if (entry.completed) stringResource(R.string.desc_completed) else stringResource(R.string.desc_stopped),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(16.dp),
                 )
@@ -296,18 +299,18 @@ private fun RecordCard(
                 TextButton(onClick = { openRecording(context, entry) }) {
                     Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("播放")
+                    Text(stringResource(R.string.action_play))
                 }
                 TextButton(onClick = { shareRecording(context, entry) }) {
                     Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("分享")
+                    Text(stringResource(R.string.action_share))
                 }
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = { onDelete(entry) }) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "删除",
+                        contentDescription = stringResource(R.string.desc_delete),
                         tint = MaterialTheme.colorScheme.error,
                     )
                 }
@@ -333,7 +336,7 @@ private fun playableFile(savePath: String): File? {
 /** 调系统播放器播放录制文件（FileProvider 授权，同 RecordStatusLine 语义）。 */
 private fun openRecording(context: android.content.Context, entry: RecordHistoryEntry) {
     runCatching {
-        val file = playableFile(entry.savePath) ?: error("文件不存在")
+        val file = playableFile(entry.savePath) ?: error(context.getString(R.string.record_file_missing))
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         context.startActivity(
             Intent(Intent.ACTION_VIEW).apply {
@@ -342,14 +345,14 @@ private fun openRecording(context: android.content.Context, entry: RecordHistory
             }
         )
     }.onFailure {
-        Toast.makeText(context, "无法播放：${it.message}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.toast_play_failed, it.message), Toast.LENGTH_SHORT).show()
     }
 }
 
 /** 系统分享（ACTION_SEND，FileProvider 授权）。 */
 private fun shareRecording(context: android.content.Context, entry: RecordHistoryEntry) {
     runCatching {
-        val file = playableFile(entry.savePath) ?: error("文件不存在")
+        val file = playableFile(entry.savePath) ?: error(context.getString(R.string.record_file_missing))
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
         context.startActivity(
             Intent.createChooser(
@@ -358,10 +361,10 @@ private fun shareRecording(context: android.content.Context, entry: RecordHistor
                     putExtra(Intent.EXTRA_STREAM, uri)
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 },
-                "分享录制文件",
+                context.getString(R.string.share_record_title),
             )
         )
     }.onFailure {
-        Toast.makeText(context, "无法分享：${it.message}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.toast_share_failed, it.message), Toast.LENGTH_SHORT).show()
     }
 }

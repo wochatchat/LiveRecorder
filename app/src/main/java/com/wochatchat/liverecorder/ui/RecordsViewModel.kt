@@ -3,6 +3,7 @@ package com.wochatchat.liverecorder.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.RecorderApp
 import com.wochatchat.liverecorder.data.RecordHistoryEntry
 import com.wochatchat.liverecorder.storage.StorageUsage
@@ -97,11 +98,11 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             val fileMsg = runCatching {
                 val f = File(entry.savePath)
-                if (f.exists() && !f.deleteRecursively()) "文件删除失败"
+                if (f.exists() && !f.deleteRecursively()) app.getString(R.string.records_delete_failed)
                 else null
-            }.getOrDefault("文件删除异常")
+            }.getOrDefault(app.getString(R.string.records_delete_error))
             historyStore.remove(entry)
-            _deleteResult.value = fileMsg ?: "已删除 ${entry.savePath.substringAfterLast('/')}"
+            _deleteResult.value = fileMsg ?: app.getString(R.string.records_delete_done, entry.savePath.substringAfterLast('/'))
         }
     }
 
