@@ -12,6 +12,8 @@ import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.AppSettingsStore
 import com.wochatchat.liverecorder.data.MonitorStore
+import com.wochatchat.liverecorder.data.RecordHistoryEntry
+import com.wochatchat.liverecorder.data.RecordHistoryStore
 import com.wochatchat.liverecorder.recorder.RecordSource
 import com.wochatchat.liverecorder.push.HttpPusher
 import com.wochatchat.liverecorder.service.EventNotifier
@@ -101,6 +103,22 @@ class RecorderApp : Application() {
                     folderByTitle = s.folderByTitle,
                     filenameByTitle = s.filenameByTitle,
                     cleanEmoji = s.cleanEmoji,
+                )
+            },
+            // 6e R18：录制结束落库（确有落盘文件才触发，见 setState 钩子）
+            onFinished = { url, fin ->
+                historyStore.add(
+                    RecordHistoryEntry(
+                        url = url,
+                        platform = fin.platform,
+                        anchorName = fin.anchorName,
+                        title = fin.title,
+                        savePath = fin.savePath,
+                        endTimeMs = System.currentTimeMillis(),
+                        durationMs = fin.durationMs,
+                        bytes = fin.bytes,
+                        completed = fin.completed,
+                    )
                 )
             },
         )

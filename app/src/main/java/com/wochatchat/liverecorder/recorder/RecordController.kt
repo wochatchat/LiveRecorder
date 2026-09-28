@@ -79,6 +79,11 @@ class RecordController(
     internal val sleep: suspend (Long) -> Unit = { delay(it) },
     /** 5c 时钟（单测推演录制时长，生产即系统时钟）。 */
     private val nowMs: () -> Long = System::currentTimeMillis,
+    /**
+     * 6e R18：录制结束（Finished）回调——RecorderApp 接 RecordHistoryStore 落库。
+     * 仅在确有落盘文件（savePath 非空且 bytes>0）时触发；抛错只记日志不影响录制。
+     */
+    private val onFinished: suspend (String, RecordState.Finished) -> Unit = { _, _ -> },
 ) {
 
     sealed class RecordState {
@@ -100,12 +105,18 @@ class RecordController(
         /** 断流重连中：第 [attempt] 次重试前等待 [nextDelaySec] 秒。[message] 为中断原因。 */
         data class Reconnecting(val attempt: Int, val nextDelaySec: Long, val message: String) : RecordState()
 
-        /** 已结束（直播结束或手动停止，文件保留）。 */
+        /**
+         * 已结束（直播结束或手动停止，文件保留）。[anchorName]/[title]/[platform]
+         * 为 6e R18 录制落库补充字段（历史数据沿用默认空串）。
+         */
         data class Finished(
             val savePath: String,
             val bytes: Long,
             val completed: Boolean,
             val durationMs: Long = 0,
+            val anchorName: String = "",
+            val title: String = "",
+            val platform: String = "",
         ) : RecordState()
 
         /** 失败（未开播 / 无流 / 下载错误 / 重连次数耗尽）。 */
@@ -145,6 +156,10 @@ class RecordController(
         var segBytes = 0L // 5c：当前分段已写字节（取消时并入 Finished，面板数据准确）
         var segStartMs = 0L
         var segActive = false
+        // 6e R18：主播/标题/平台（Finished 落库补充字段，取消分支也能取到）
+        var curAnchor = ""
+        var curTitle = ""
+        var curPlatform = ""
 
         try {
             while (true) {
@@ -170,10 +185,18 @@ class RecordController(
                     continue
                 }
 
+                // 6e R18：解析成功即记录主播/标题/平台（未开播的 Failed 也已带元信息）
+                curAnchor = info.anchorName
+                curTitle = info.title
+                curPlatform = platformName(url)
+
                 if (!info.isLive) {
                     setState(
                         url,
-                        if (attempt > 0) RecordState.Finished(lastPath, totalBytes, completed = true, durationMs = accMs)
+                        if (attempt > 0) RecordState.Finished(
+                            lastPath, totalBytes, completed = true, durationMs = accMs,
+                            anchorName = curAnchor, title = curTitle, platform = curPlatform,
+                        )
                         else RecordState.Failed("未在直播"),
                     )
                     return
@@ -204,6 +227,9 @@ class RecordController(
                 val now = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
                 val anchor = RecordSource.cleanName(info.anchorName, naming.cleanEmoji)
                 val liveTitle = if (info.title.isBlank()) "" else RecordSource.cleanName(info.title, naming.cleanEmoji)
+                // 6e R18：落库用清洗后的主播名/标题（与文件命名一致）
+                curAnchor = anchor
+                curTitle = liveTitle
                 val dir = RecordSource.buildSaveDir(
                     baseDir = baseDir,
                     platform = platformName(url),
@@ -299,7 +325,10 @@ class RecordController(
             AppLog.i(TAG, "录制手动停止: $url (已录 ${totalBytes + segBytes} 字节)")
             setState(
                 url,
-                RecordState.Finished(lastPath, totalBytes + segBytes, completed = false, durationMs = accMs + segDurMs),
+                RecordState.Finished(
+                    lastPath, totalBytes + segBytes, completed = false, durationMs = accMs + segDurMs,
+                    anchorName = curAnchor, title = curTitle, platform = curPlatform,
+                ),
             )
             throw e
         } catch (e: Exception) {
@@ -356,8 +385,13 @@ class RecordController(
         else -> "抖音直播"
     }
 
-    private fun setState(url: String, state: RecordState) {
+    private suspend fun setState(url: String, state: RecordState) {
         _states.update { it + (url to state) }
+        // 6e R18：确有落盘文件的 Finished 写入录制历史（Failed 无路径信息，不落库）
+        if (state is RecordState.Finished && state.savePath.isNotBlank() && state.bytes > 0) {
+            runCatching { onFinished(url, state) }
+                .onFailure { AppLog.e(TAG, "录制记录写入失败: ${it.message}") }
+        }
     }
 
     private companion object {
