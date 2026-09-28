@@ -55,6 +55,9 @@ class RecorderApp : Application() {
     /** 5a：全局录制设置（画质/循环时间/分段/https/推送开关等）。 */
     val appSettings by lazy { AppSettingsStore(this) }
 
+    /** 6e R18：录制历史存储层（RecordController onFinished 落库，RecordsViewModel 读取）。 */
+    val historyStore by lazy { RecordHistoryStore(this) }
+
     private fun timeNow(): String =
         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 

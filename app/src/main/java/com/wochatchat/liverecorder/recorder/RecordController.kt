@@ -267,13 +267,16 @@ class RecordController(
                             .getOrNull()?.coerceAtLeast(1) ?: 1800,
                     ) { bytes ->
                         segBytes = bytes
-                        setState(
-                            url,
-                            RecordState.Recording(
-                                dir.absolutePath, totalBytes + bytes, info.quality,
-                                durationMs = accMs + (nowMs() - segStartMs),
-                            ),
-                        )
+                        // setState 已 suspend（R18 onFinished 钩子），ffmpeg 进度回调为非挂起 lambda，转协程派发
+                        scope.launch {
+                            setState(
+                                url,
+                                RecordState.Recording(
+                                    dir.absolutePath, totalBytes + bytes, info.quality,
+                                    durationMs = accMs + (nowMs() - segStartMs),
+                                ),
+                            )
+                        }
                     }
                     accMs += nowMs() - segStartMs
                     segActive = false
