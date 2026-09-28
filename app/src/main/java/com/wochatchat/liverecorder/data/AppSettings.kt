@@ -33,6 +33,8 @@ data class AppSettings(
     val segmented: Boolean = true,
     /** 视频分段时间(秒)（上游默认 1800）。 */
     val segmentTimeSec: Int = 1800,
+    /** 7c：保存格式（上游 save_type；ts=分段默认 / mkv|mp4=直存单文件）。 */
+    val saveFormat: String = "ts",
     /** 是否强制启用https录制（上游 main.py:1150）。 */
     val forceHttps: Boolean = false,
     /** 追加格式后删除原文件（TS→MP4 转换后是否删除原分片，上游默认是）。 */
@@ -117,6 +119,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             prefs[qualityKey] = settings.quality
             prefs[segmentedKey] = settings.segmented
             prefs[segmentTimeKey] = settings.segmentTimeSec
+            prefs[saveFormatKey] = settings.saveFormat
             prefs[forceHttpsKey] = settings.forceHttps
             prefs[deleteOriginalKey] = settings.deleteOriginalOnConvert
             prefs[pushOnLiveKey] = settings.pushOnLive
