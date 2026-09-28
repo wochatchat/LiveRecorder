@@ -198,7 +198,9 @@ class HttpPusherTest {
             priority = 5,
         )
         val json = JSONObject(body)
-        assertEquals(JSONArray(listOf("eyes", "bell")).toString(), json.getJSONArray("tags").toString())
+        val tags = json.getJSONArray("tags")
+        assertEquals("eyes", tags.getString(0))
+        assertEquals("bell", tags.getString(1))
         assertEquals(5, json.getInt("priority"))
     }
 
