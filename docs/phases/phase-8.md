@@ -1,0 +1,37 @@
+# Phase 8 — 8a：JS 签名类平台（第 3 批）
+
+> 分支 feature/phase1-1a-http-client · 依据 docs/porting-completeness.md 待做清单第 3 项。
+> 上游基准：ihmily/DouyinLiveRecorder v4.0.7（add187f）。
+
+## 范围裁决（上游 src/javascript/ 6 个签名脚本 → 安卓侧逐个评估）
+
+| 上游脚本 | 平台 | 安卓侧决策 |
+|---|---|---|
+| laixiu.js | 来秀 imkktv.com | **纯 Kotlin**（上游 Python 路径未用 JS，直接 MD5 签名）✅ |
+| taobao-sign.js | 淘宝 tb.cn | QuickJS 直接执行（自包含，无依赖）✅ |
+| haixiu.js + crypto-js | 嗨秀 haixiutv.com / 乐嗨 lehaitv.com | QuickJS + require/console 垫片 ✅ |
+| liveme.js + crypto-js | LiveMe | QuickJS + 垫片（对象展开语法 QuickJS/Rhino 1.7.15 均支持）✅ |
+| migu.js | 咪咕 | **暂缓**：ddCalcu 依赖 WebAssembly + fetch（QuickJS 无 WASM；上游也是 node 子进程专属）|
+| x-bogus.js | TikTok/抖音 reflow | **不随本批**：抖音 reflow 安卓端已用 a_bogus(Kotlin) 覆盖；TikTok 当前上游为 SIGI_STATE HTML 解析（无 JS），归入下一批 |
+
+## 交付（commit 待填）
+
+- **JsScripts.kt**（生成文件，勿手改）：crypto-js.min.js（3 块拼接防 JVM 常量池 64KB 上限）、taobao-sign.js、haixiu.js、liveme.js 嵌入为 Kotlin 常量；生成脚本按 `$ → ${'$'}` 转义。
+- **JsScriptRunner**：execjs.call 桥——CommonJS 预置（module/exports）→ crypto-js 先载并快照 `__CryptoJS`（平台脚本随后覆写 module.exports，必须先快照再定义 require）→ console 静默垫片 → `JSON.stringify(sign(...))`。双引擎约定：QuickJS JNI 与 Rhino 均对字符串结果原样 ToString。
+- **LaixiuSpider**（纯 Kotlin）：uuid 无- + ts + 固定盐 → MD5 requestId；playStatus==0 开播 → playUrl(flv)。
+- **TaobaoSpider**：cookie 必须含 _m_h5_tk（缺失直接返回未开播，不发请求）；liveId 缺失时抓页 `var url='...'` 重定向；jsonp 解析（utils.jsonp_to_json 同正则）；liveUrlList 按 definition 降序（lld→ud）+ QUALITY_MAPPING 索引；recordUrl = m3u8（上游 url_type='all'）。**已知差异**：上游失败续 token 重签，安卓简化为同参重试。
+- **HaixiuSpider**（嗨秀+乐嗨）：accessToken 按域名取固定值（URL 双重编码态，入参前双重解码）；haixiu.js 签名 → _ajaxData1（JSON 字符串解包一层引号，对齐 execjs 字符串语义）；live_status==1 → media_url_web(flv)。
+- **LiveMeSpider**：无 index.html 时 og:url 换真实地址；liveme.js sign → lm_s_sign 入 lm-s-sign 头、tongdun_black_box/os 剥离为 query、其余 form POST；video_info.status=="0"（字符串）开播 → recordUrl = m3u8 ?: flv。
+- **PlatformRouter**：+4 平台分流（haixiutv/lehaitv/imkktv/liveme/tb.cn）+ isSupported/isDirectStreamUrl 链更新 + fetchHaixiu 按域名分 cookie（haixiu/lehaitv 两键）。
+- **UI**：platformKeyForUrl + PLATFORM_LABELS/COLORS 补 7d 缺失 5 平台（网易CC/百度/微博/京东/知乎）与本批 5 平台（嗨秀/乐嗨/来秀/LiveMe/淘宝）。
+- **单测 +19**：LaixiuSpiderTest（签名确定性向量/解析/端到端）、TaobaoSpiderTest（**jsSignKnownVector**：taobao-sign.js 注释内正确值 05748e83…、画质选择、jsonp、端到端）、HaixiuSpiderTest（JS 烟囱/解码/解包/端到端）、LiveMeSpiderTest（JS 烟囱/解析/端到端）、PlatformRouterTest +6 路由判定。
+
+## 踩坑
+
+1. 生成 JsScripts.kt 的 python 脚本 docstring 里写了 `"""` 把自己提前终止（SyntaxError 定位到无关行）——生成器自食其果。
+2. file_write 大参数截断一次（TaobaoSpider 初稿），改分段写。
+3. 上游 execjs 对 JS 字符串返回原值，而桥约定统一 JSON.stringify——haixiu 的 _ajaxData1 需要 unwrapJson 解一层引号。
+
+## 验收
+- CI compile-check 全绿 + 单测不回退（325+）
+- 真机：添加 tb.cn（需录 cookie 含 _m_h5_tk）/ haixiutv / imkktv / liveme 链接 → 徽标正确 → 录制落盘（并入走查清单，需海外代理平台：LiveMe）

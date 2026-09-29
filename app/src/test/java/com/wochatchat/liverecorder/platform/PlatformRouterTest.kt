@@ -456,4 +456,43 @@ class PlatformRouterTest {
         assertTrue(PlatformRouter.isSupported("https://www.zhihu.com/live/123"))
         assertFalse(PlatformRouter.isSupported("https://unknown.site.com/live/abc"))
     }
+
+    // ---- 8a JS 签名类平台：路由判定 ----
+
+    @Test
+    fun isHaixiuUrl() {
+        assertTrue(PlatformRouter.isHaixiuUrl("https://www.haixiutv.com/123456"))
+        assertTrue(PlatformRouter.isHaixiuUrl("https://www.lehaitv.com/789"))
+        assertFalse(PlatformRouter.isHaixiuUrl("https://www.douyu.com/631134"))
+    }
+
+    @Test
+    fun isLaixiuUrl() {
+        assertTrue(PlatformRouter.isLaixiuUrl("https://www.imkktv.com/live?roomId=123"))
+        assertFalse(PlatformRouter.isLaixiuUrl("https://www.haixiutv.com/123"))
+    }
+
+    @Test
+    fun isLiveMeUrl() {
+        assertTrue(PlatformRouter.isLiveMeUrl("https://www.liveme.com/live/123/index.html"))
+        assertFalse(PlatformRouter.isLiveMeUrl("https://www.livestream.com/123"))
+    }
+
+    @Test
+    fun isTaobaoUrl() {
+        assertTrue(PlatformRouter.isTaobaoUrl("https://tb.cn/x?id=123"))
+        assertTrue(PlatformRouter.isTaobaoUrl("https://huodong.m.taobao.com/x?id=1"))
+        assertFalse(PlatformRouter.isTaobaoUrl("https://www.taobaocdn.com/x"))
+    }
+
+    @Test
+    fun isSupported_batch8a() {
+        assertTrue(PlatformRouter.isSupported("https://www.haixiutv.com/123"))
+        assertTrue(PlatformRouter.isSupported("https://www.lehaitv.com/456"))
+        assertTrue(PlatformRouter.isSupported("https://www.imkktv.com/live?roomId=123"))
+        assertTrue(PlatformRouter.isSupported("https://www.liveme.com/live/123/index.html"))
+        assertTrue(PlatformRouter.isSupported("https://tb.cn/x?id=123"))
+        // 自定义直链不被新平台域名抢路由（haixiutv 域名下的 .flv 仍走平台）
+        assertTrue(PlatformRouter.isDirectStreamUrl("https://cdn.example.com/live.m3u8"))
+    }
 }

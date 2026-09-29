@@ -101,6 +101,6 @@
 **待做清单（按优先级）**：
 1. ~~自定义流地址直录~~ ✅ 2026-09-28（7a R37，commit 461dbeb：isDirectStreamUrl + fetchDirectStream + custom 徽标，见 docs/phases/phase-7.md）
 2. ~~推送明细配置~~ ✅ 2026-09-28（7b R38/R39，commit 8a953f5 + cb1a304：标题/开关播文案模板、bark 级别铃声、ntfy tags/priority，见 docs/phases/phase-7.md）
-3. 平台移植推进（第 2 批剩余：小红书/网易CC/百度/知乎/微博/京东/网易音乐人；第 3 批 JS 签名类 7 个——QuickJS 已就绪）
+3. ~~平台移植推进（第 2 批剩余：小红书/网易CC/百度/知乎/微博/京东/网易音乐人；第 3 批 JS 签名类 7 个——QuickJS 已就绪）~~ ✅ 2026-09-29：第 2 批 7d 全绿（网易CC/知乎/百度/微博/京东，见 docs/phases/phase-7.md 后续）；第 3 批 8a 落地 4 平台（来秀/淘宝/嗨秀/乐嗨/LiveMe，见 docs/phases/phase-8.md；咪咕暂缓 WASM、TikTok 归下一批）
 4. ~~mkv/mp4 直存格式~~ ✅ 2026-09-28（7c R40，commit 4cf8364 + 98b4e57：FfmpegRecorder.recordDirect()、RecordController直存分支、AppSettings持久化、设置页ChipRow+条件隐藏、单测+4，见 docs/phases/phase-7.md）
 5. 2i/3i/5f 真机验收收尾（长录制、后台存活、分段文件可播放性）

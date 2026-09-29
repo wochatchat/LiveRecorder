@@ -25,6 +25,10 @@ import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
 import com.wochatchat.liverecorder.platform.douyin.DouyinStreamInfo
 import com.wochatchat.liverecorder.platform.douyu.DouyuSpider
 import com.wochatchat.liverecorder.platform.huya.HuyaSpider
+import com.wochatchat.liverecorder.platform.haixiu.HaixiuSpider
+import com.wochatchat.liverecorder.platform.laixiu.LaixiuSpider
+import com.wochatchat.liverecorder.platform.liveme.LiveMeSpider
+import com.wochatchat.liverecorder.platform.taobao.TaobaoSpider
 import com.wochatchat.liverecorder.platform.jd.JdSpider
 import com.wochatchat.liverecorder.platform.kuaishou.KuaishouSpider
 import com.wochatchat.liverecorder.platform.netease.NeteaseCcSpider
@@ -45,6 +49,10 @@ class PlatformRouter(
     private val baiduSpider: BaiduSpider = BaiduSpider(),
     private val weiboSpider: WeiboSpider = WeiboSpider(),
     private val jdSpider: JdSpider = JdSpider(),
+    private val haixiuSpider: HaixiuSpider = HaixiuSpider(),
+    private val laixiuSpider: LaixiuSpider = LaixiuSpider(),
+    private val livemeSpider: LiveMeSpider = LiveMeSpider(),
+    private val taobaoSpider: TaobaoSpider = TaobaoSpider(),
 ) {
     companion object {
         /** 斗鱼画质码映射（上游 stream.py get_douyu_stream_url video_quality_options）。 */
@@ -89,6 +97,18 @@ class PlatformRouter(
         /** 7d：zhihu.com/ → 知乎直播链路。 */
         fun isZhihuUrl(url: String): Boolean = url.contains("zhihu.com/")
 
+        /** 8a：haixiutv.com / lehaitv.com → 嗨秀/乐嗨直播链路（上游同一 spider）。 */
+        fun isHaixiuUrl(url: String): Boolean = url.contains("haixiutv.com") || url.contains("lehaitv.com")
+
+        /** 8a：imkktv.com → 来秀直播链路。 */
+        fun isLaixiuUrl(url: String): Boolean = url.contains("imkktv.com")
+
+        /** 8a：liveme.com → LiveMe 直播链路。 */
+        fun isLiveMeUrl(url: String): Boolean = url.contains("liveme.com")
+
+        /** 8a：tb.cn → 淘宝直播链路（上游 main.py:977）。 */
+        fun isTaobaoUrl(url: String): Boolean = url.contains("tb.cn")
+
         /** 7a R36：自定义流地址直录（上游 main.py:1026-1038「自定义录制直播」——
          *  非任何已知平台域名，且 URL 含 .m3u8/.flv 扩展时直录，不做房间解析）。 */
         fun isDirectStreamUrl(url: String): Boolean =
@@ -96,6 +116,7 @@ class PlatformRouter(
                 !isBilibiliUrl(url) && !isYyUrl(url) && !isBigoUrl(url) &&
                 !isNeteaseUrl(url) && !isBaiduUrl(url) && !isWeiboUrl(url) &&
                 !isJdUrl(url) && !isZhihuUrl(url) &&
+                !isHaixiuUrl(url) && !isLaixiuUrl(url) && !isLiveMeUrl(url) && !isTaobaoUrl(url) &&
                 !url.contains("douyin.com/") && !url.contains("iesdouyin.com/") &&
                 (url.contains(".m3u8") || url.contains(".flv"))
 
@@ -104,7 +125,8 @@ class PlatformRouter(
             isDouyuUrl(url) || isKuaishouUrl(url) || isHuyaUrl(url) ||
                 isBilibiliUrl(url) || isYyUrl(url) || isBigoUrl(url) ||
                 isNeteaseUrl(url) || isBaiduUrl(url) || isWeiboUrl(url) ||
-                isJdUrl(url) || isZhihuUrl(url) -> true
+                isJdUrl(url) || isZhihuUrl(url) ||
+                isHaixiuUrl(url) || isLaixiuUrl(url) || isLiveMeUrl(url) || isTaobaoUrl(url) -> true
             else -> url.contains("douyin.com/") || url.contains("iesdouyin.com/")
         }
     }
@@ -128,6 +150,10 @@ class PlatformRouter(
         isWeiboUrl(url) -> fetchWeibo(url, null, proxyAddr, cookies["weibo"])
         isJdUrl(url) -> fetchJd(url, null, proxyAddr, cookies["jd"])
         isZhihuUrl(url) -> fetchZhihu(url, null, proxyAddr, cookies["zhihu"])
+        isHaixiuUrl(url) -> fetchHaixiu(url, proxyAddr, cookies["haixiu"], cookies["lehaitv"])
+        isLaixiuUrl(url) -> fetchLaixiu(url, proxyAddr, cookies["laixiu"])
+        isLiveMeUrl(url) -> fetchLiveMe(url, proxyAddr, cookies["liveme"])
+        isTaobaoUrl(url) -> fetchTaobao(url, quality, proxyAddr, cookies["taobao"])
         isDirectStreamUrl(url) -> fetchDirectStream(url)
         else -> douyinSpider.fetchStreamInfo(url, quality, proxyAddr)
     }
@@ -353,6 +379,59 @@ class PlatformRouter(
     /** 7d 京东 → 抖音同构映射（spider.py:3108）：recordUrl = m3u8（上游同语义）。 */
     private suspend fun fetchJd(url: String, quality: String?, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
         val info = jdSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true, title = info.title,
+            m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 8a 嗨秀/乐嗨 → 抖音同构映射（spider.py:2727）：flv 直下，cookie 按域名分流。 */
+    private suspend fun fetchHaixiu(
+        url: String, proxyAddr: String?, cookieHaixiu: String?, cookieLehai: String?,
+    ): DouyinStreamInfo {
+        val cookie = if (url.contains("haixiutv.com")) cookieHaixiu else cookieLehai
+        val info = haixiuSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true, title = info.title,
+            flvUrl = info.flvUrl, recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 8a 来秀 → 抖音同构映射（spider.py:3309）：flv 直下。 */
+    private suspend fun fetchLaixiu(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = laixiuSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true, title = info.title,
+            flvUrl = info.flvUrl, recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 8a LiveMe → 抖音同构映射（spider.py:2209）：recordUrl = m3u8 ?: flv。 */
+    private suspend fun fetchLiveMe(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = livemeSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true, title = info.title,
+            m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 8a 淘宝 → 抖音同构映射（spider.py:3029）：画质降序后按码取档，recordUrl = m3u8。 */
+    private suspend fun fetchTaobao(
+        url: String, quality: String?, proxyAddr: String?, cookie: String?,
+    ): DouyinStreamInfo {
+        val info = taobaoSpider.getStreamInfo(url, quality, proxyAddr, cookie)
         if (!info.isLive) {
             return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
         }

@@ -53,6 +53,16 @@ val PLATFORM_LABELS = mapOf(
     "twitch" to "Twitch",
     "youtube" to "YouTube",
     "custom" to "自定义",
+    "netease" to "网易CC",
+    "baidu" to "百度",
+    "weibo" to "微博",
+    "jd" to "京东",
+    "zhihu" to "知乎",
+    "haixiu" to "嗨秀",
+    "lehaitv" to "乐嗨",
+    "laixiu" to "来秀",
+    "liveme" to "LiveMe",
+    "taobao" to "淘宝",
 )
 
 /** 平台主品牌色（Surface badge 背景色用 12% alpha）。 */
@@ -69,4 +79,14 @@ val PLATFORM_COLORS = mapOf(
     "twitch" to Color(0xFF9146FF),
     "youtube" to Color(0xFFFF0000),
     "custom" to Color(0xFF607D8B),
+    "netease" to Color(0xFF0C8E5D),
+    "baidu" to Color(0xFF2932E1),
+    "weibo" to Color(0xFFE6162D),
+    "jd" to Color(0xFFE2231A),
+    "zhihu" to Color(0xFF0084FF),
+    "haixiu" to Color(0xFFFF5B8C),
+    "lehaitv" to Color(0xFFFF9800),
+    "laixiu" to Color(0xFF7C4DFF),
+    "liveme" to Color(0xFF21C2F8),
+    "taobao" to Color(0xFFFF5000),
 )
