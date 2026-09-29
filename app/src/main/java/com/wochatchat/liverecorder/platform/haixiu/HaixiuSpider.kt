@@ -73,7 +73,7 @@ open class HaixiuSpider(
             JsScripts.HAIXIU_JS,
             cryptoJs = JsScripts.CRYPTO_JS,
         )
-        val ajaxData = unwrapJson(ajaxData1Raw = ajaxData)
+        val ajaxData = unwrapJson(ajaxDataRaw)
 
         val finalParams = buildMap {
             putAll(params)
