@@ -21,13 +21,14 @@ class TikTokSpiderTest {
         codec: String = "h264",
         flv: String,
         hls: String,
-    ): JSONObject = JSONObject()
-        .put("flv", flv)
-        .put("hls", hls)
-        .put(
-            "sdk_params",
-            JSONObject().put("vbitrate", vbitrate).put("resolution", resolution).put("VCodec", codec).toString(),
-        )
+    ): JSONObject = JSONObject().put("main", JSONObject()
+            .put("flv", flv)
+            .put("hls", hls)
+            .put(
+                "sdk_params",
+                JSONObject().put("vbitrate", vbitrate).put("resolution", resolution).put("VCodec", codec).toString(),
+            ),
+    )
 
     private fun sigiJson(status: Int, streams: JSONObject): JSONObject {
         val streamDataStr = JSONObject().put("data", streams).toString()
