@@ -45,8 +45,10 @@ open class TwitchSpider(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0"
 
         /** URL 末段 = 频道 login（上游 url.split('?')[0].rsplit('/')[-1]）。 */
-        fun parseChannelLogin(url: String): String =
-            url.split("?").first().trimEnd('/').substringAfterLast("/")
+        fun parseChannelLogin(url: String): String {
+            val segments = url.split("?").first().split("/")
+            return if (segments.last().isEmpty()) "" else segments.last()
+        }
     }
 
     data class TwitchStreamInfo(

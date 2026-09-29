@@ -68,7 +68,7 @@ open class YouTubeSpider(
         } catch (e: Exception) {
             return YouTubeStreamInfo()
         }
-        val jsonStr = RE_PLAYER_RESPONSE.find(html)?.groupValues?.get(1)
+        val jsonStr = RE_PLAYER_RESPONSE.toRegex().find(html)?.groupValues?.get(1)
             ?: return YouTubeStreamInfo()
         val json = runCatching { JSONObject(jsonStr) }.getOrNull()
             ?: return YouTubeStreamInfo()
@@ -78,7 +78,7 @@ open class YouTubeSpider(
         val isLive = videoDetails.optBoolean("isLive", false)
         if (!isLive) return YouTubeStreamInfo(anchorName = anchorName)
         val m3u8Url = json.optJSONObject("streamingData")?.optString("hlsManifestUrl", "").orEmpty()
-        if (m3u8Url.isEmpty()) return YouTubeStreamInfo(anchorName = anchorName)
+        // 上游：无 HLS 时 isLive 仍为 true（用户可见直播）；录制层 recordUrl 可空，UI 显示无流
         return YouTubeStreamInfo(
             anchorName = anchorName,
             title = videoDetails.optString("title", ""),

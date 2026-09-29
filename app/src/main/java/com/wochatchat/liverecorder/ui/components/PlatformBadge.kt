@@ -66,6 +66,10 @@ val PLATFORM_LABELS = mapOf(
     "shopee" to "Shopee",
     "chzzk" to "CHZZK",
     "acfun" to "AcFun",
+    "huajiao" to "花椒",
+    "liuxing" to "流星",
+    "inke" to "映客",
+    "yinbo" to "音播",
 )
 
 /** 平台主品牌色（Surface badge 背景色用 12% alpha）。 */
@@ -95,4 +99,8 @@ val PLATFORM_COLORS = mapOf(
     "shopee" to Color(0xFFEE4D2D),
     "chzzk" to Color(0xFF03C75A),
     "acfun" to Color(0xFFFD4C5B),
+    "huajiao" to Color(0xFFFF9800),
+    "liuxing" to Color(0xFF9C27B0),
+    "inke" to Color(0xFF4CAF50),
+    "yinbo" to Color(0xFF2196F3),
 )

@@ -42,6 +42,10 @@ import com.wochatchat.liverecorder.platform.chzzk.CHZZKSpider
 import com.wochatchat.liverecorder.platform.youtube.YouTubeSpider
 import com.wochatchat.liverecorder.platform.shopee.ShopeeSpider
 import com.wochatchat.liverecorder.platform.acfun.AcfunSpider
+import com.wochatchat.liverecorder.platform.huajiao.HuajiaoSpider
+import com.wochatchat.liverecorder.platform.inke.InkeSpider
+import com.wochatchat.liverecorder.platform.liuxing.LiuxingSpider
+import com.wochatchat.liverecorder.platform.yinbo.YinboSpider
 
 class PlatformRouter(
     private val douyinSpider: DouyinSpider = DouyinSpider(),
@@ -67,6 +71,10 @@ class PlatformRouter(
     private val youTubeSpider: YouTubeSpider = YouTubeSpider(),
     private val shopeeSpider: ShopeeSpider = ShopeeSpider(),
     private val acfunSpider: AcfunSpider = AcfunSpider(),
+    private val huajiaoSpider: HuajiaoSpider = HuajiaoSpider(),
+    private val liuxingSpider: LiuxingSpider = LiuxingSpider(),
+    private val inkeSpider: InkeSpider = InkeSpider(),
+    private val yinboSpider: YinboSpider = YinboSpider(),
 ) {
     companion object {
         /** 斗鱼画质码映射（上游 stream.py get_douyu_stream_url video_quality_options）。 */
@@ -151,6 +159,11 @@ class PlatformRouter(
 
         /** 7a R36：自定义流地址直录（上游 main.py:1026-1038「自定义录制直播」——
          *  非任何已知平台域名，且 URL 含 .m3u8/.flv 扩展时直录，不做房间解析）。 */
+        fun isHuajiaoUrl(url: String): Boolean = url.contains("huajiao.com")
+        fun isLiuxingUrl(url: String): Boolean = url.contains("7u66.com")
+        fun isInkeUrl(url: String): Boolean = url.contains("inke.cn")
+        fun isYinboUrl(url: String): Boolean = url.contains("ybw1666.com")
+
         fun isDirectStreamUrl(url: String): Boolean =
             !isDouyuUrl(url) && !isKuaishouUrl(url) && !isHuyaUrl(url) &&
                 !isBilibiliUrl(url) && !isYyUrl(url) && !isBigoUrl(url) &&
@@ -160,6 +173,7 @@ class PlatformRouter(
                 !isXhsUrl(url) && !isTiktokUrl(url) &&
                 !isTwitchUrl(url) && !isCHZZKUrl(url) &&
                 !isYouTubeUrl(url) && !isShopeeUrl(url) && !isAcfunUrl(url) &&
+                !isHuajiaoUrl(url) && !isLiuxingUrl(url) && !isInkeUrl(url) && !isYinboUrl(url) &&
                 !url.contains("douyin.com/") && !url.contains("iesdouyin.com/") &&
                 (url.contains(".m3u8") || url.contains(".flv"))
 
@@ -172,12 +186,13 @@ class PlatformRouter(
                 isHaixiuUrl(url) || isLaixiuUrl(url) || isLiveMeUrl(url) || isTaobaoUrl(url) ||
                 isXhsUrl(url) || isTiktokUrl(url) ||
                 isTwitchUrl(url) || isCHZZKUrl(url) ||
-                isYouTubeUrl(url) || isShopeeUrl(url) || isAcfunUrl(url) -> true
+                isYouTubeUrl(url) || isShopeeUrl(url) || isAcfunUrl(url) ||
+                isHuajiaoUrl(url) || isLiuxingUrl(url) || isInkeUrl(url) || isYinboUrl(url) -> true
             else -> url.contains("douyin.com/") || url.contains("iesdouyin.com/")
         }
     }
 
-    /** 源分发 + 画质映射，一步到位（MonitorLoop 轮询与 RecordController 录制共用）。
+    /** 源分发 + 画质映射，一步到位（MonitorLoop 轮询与 RecordController 录制共用）。 + 画质映射，一步到位（MonitorLoop 轮询与 RecordController 录制共用）。
      *  [cookies] 平台键 → cookie 串（4b AuthStore），快手等平台按需取用。 */
     suspend fun fetchStreamInfo(
         url: String,
@@ -207,6 +222,10 @@ class PlatformRouter(
         isYouTubeUrl(url) -> fetchYouTube(url, proxyAddr, cookies["youtube"])
         isShopeeUrl(url) -> fetchShopee(url, proxyAddr, cookies["shopee"])
         isAcfunUrl(url) -> fetchAcfun(url, proxyAddr, cookies["acfun"])
+        isHuajiaoUrl(url) -> fetchHuajiao(url, proxyAddr, cookies["huajiao"])
+        isLiuxingUrl(url) -> fetchLiuxing(url, proxyAddr, cookies["liuxing"])
+        isInkeUrl(url) -> fetchInke(url, proxyAddr, cookies["inke"])
+        isYinboUrl(url) -> fetchYinbo(url, proxyAddr, cookies["yinbo"])
         isDirectStreamUrl(url) -> fetchDirectStream(url)
         else -> douyinSpider.fetchStreamInfo(url, quality, proxyAddr)
     }
@@ -566,6 +585,41 @@ class PlatformRouter(
             anchorName = info.anchorName, isLive = true, title = info.title,
             flvUrl = info.flvUrl, recordUrl = info.recordUrl,
         )
+    }
+
+
+    // ── Batch B: 花椒 / 流星 / 映客 / 音播 ──────────────────────────────────────
+
+    /** 9b 花椒 → 双路径：房间 app API / 用户页（spider.py:2351）。 */
+    private suspend fun fetchHuajiao(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = huajiaoSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true, title = info.title,
+            flvUrl = info.flvUrl, recordUrl = info.recordUrl)
+    }
+
+    /** 9b 流星 → wap.7u66.com API（spider.py:2400）。 */
+    private suspend fun fetchLiuxing(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = liuxingSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl)
+    }
+
+    /** 9b 映客 → webapi.busi.inke.cn（spider.py:2582）。 */
+    private suspend fun fetchInke(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = inkeSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl)
+    }
+
+    /** 9b 音播 → wap.ybw1666.com API + 房间页 var config（spider.py:2615）。 */
+    private suspend fun fetchYinbo(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = yinboSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl)
     }
 
     /** 9a AcFun → 抖音同构映射（spider.py:2498）：recordUrl = m3u8（快手协议 bitrate 最高档）。 */

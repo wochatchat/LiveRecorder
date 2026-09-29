@@ -64,6 +64,10 @@ fun platformKeyForUrl(url: String): String = when {
     url.contains("live.shopee") || url.contains("shp.ee/") -> "shopee"
     url.contains("chzzk.naver.com/") -> "chzzk"
     url.contains("acfun.cn/") -> "acfun"
+    url.contains("huajiao.com") -> "huajiao"
+    url.contains("7u66.com") -> "liuxing"
+    url.contains("inke.cn") -> "inke"
+    url.contains("ybw1666.com") -> "yinbo"
     url.contains(".m3u8") || url.contains(".flv") -> "custom"
     else -> "douyin"
 }

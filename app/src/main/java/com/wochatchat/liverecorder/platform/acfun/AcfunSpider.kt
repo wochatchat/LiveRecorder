@@ -24,8 +24,10 @@ open class AcfunSpider(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0"
 
         /** URL 末段 = author_id（上游 url.rsplit('/', maxsplit=1)[1]）。 */
-        fun parseAuthorId(url: String): String =
-            url.split("?").first().trimEnd('/').substringAfterLast("/")
+        fun parseAuthorId(url: String): String {
+            val segments = url.split("?").first().split("/")
+            return if (segments.last().isEmpty()) "" else segments.last()
+        }
 
         /** 生成上游格式 did：web_{随机16位小写字母数字}。 */
         internal fun generateDid(): String = "web_" + genRandomString(16)

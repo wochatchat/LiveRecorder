@@ -35,6 +35,10 @@ import com.wochatchat.liverecorder.platform.chzzk.CHZZKSpider
 import com.wochatchat.liverecorder.platform.youtube.YouTubeSpider
 import com.wochatchat.liverecorder.platform.shopee.ShopeeSpider
 import com.wochatchat.liverecorder.platform.acfun.AcfunSpider
+import com.wochatchat.liverecorder.platform.huajiao.HuajiaoSpider
+import com.wochatchat.liverecorder.platform.inke.InkeSpider
+import com.wochatchat.liverecorder.platform.liuxing.LiuxingSpider
+import com.wochatchat.liverecorder.platform.yinbo.YinboSpider
 
 class PlatformRouterTest {
 
@@ -619,7 +623,7 @@ class PlatformRouterTest {
 
     @Test
     fun isSupported_unknown_goesToDouyin() {
-        assertTrue(PlatformRouter.isSupported("https://unknownplatform.com/room"))
+        assertFalse(PlatformRouter.isSupported("https://unknownplatform.com/room"))
     }
 
     @Test
@@ -714,4 +718,157 @@ class PlatformRouterTest {
         assertEquals("AcFun直播", info.title)
         assertEquals(info.m3u8Url, info.recordUrl)
     }
+
+    // ── Batch B: 花椒 / 流星 / 映客 / 音播 ──────────────────────────────────────
+
+    @Test
+    fun isHuajiaoUrl_routing() {
+        assertTrue(PlatformRouter.isHuajiaoUrl("https://www.huajiao.com/l/123456"))
+        assertTrue(PlatformRouter.isHuajiaoUrl("https://www.huajiao.com/user/123456"))
+        assertFalse(PlatformRouter.isHuajiaoUrl("https://live.bilibili.com/1"))
+    }
+
+    @Test
+    fun fetchHuajiao_live() = runTest {
+        val fake = object : HuajiaoSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                HuajiaoSpider.HuajiaoStreamInfo(
+                    anchorName = "花椒主播",
+                    title = "花椒直播",
+                    isLive = true,
+                    flvUrl = "https://stream.huajiao.com/live/123.flv",
+                    recordUrl = "https://stream.huajiao.com/live/123.flv",
+                )
+        }
+        val router = PlatformRouter(huajiaoSpider = fake)
+        val info = router.fetchStreamInfo("https://www.huajiao.com/l/67890")
+        assertTrue(info.isLive)
+        assertEquals("花椒主播", info.anchorName)
+        assertEquals("花椒直播", info.title)
+        assertEquals("https://stream.huajiao.com/live/123.flv", info.recordUrl)
+    }
+
+    @Test
+    fun fetchHuajiao_offline() = runTest {
+        val fake = object : HuajiaoSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                HuajiaoSpider.HuajiaoStreamInfo(anchorName = "花椒离线", isLive = false)
+        }
+        val router = PlatformRouter(huajiaoSpider = fake)
+        val info = router.fetchStreamInfo("https://www.huajiao.com/l/67890")
+        assertFalse(info.isLive)
+        assertEquals("花椒离线", info.anchorName)
+    }
+
+    @Test
+    fun isLiuxingUrl_routing() {
+        assertTrue(PlatformRouter.isLiuxingUrl("https://www.7u66.com/198189"))
+        assertTrue(PlatformRouter.isLiuxingUrl("https://wap.7u66.com/123"))
+        assertFalse(PlatformRouter.isLiuxingUrl("https://live.bilibili.com/1"))
+    }
+
+    @Test
+    fun fetchLiuxing_live() = runTest {
+        val fake = object : LiuxingSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                LiuxingSpider.LiuxingStreamInfo(
+                    anchorName = "流星主播",
+                    isLive = true,
+                    m3u8Url = "https://hls.liuxing.com/live.m3u8",
+                    flvUrl = "https://flv.liuxing.com/live.flv",
+                    recordUrl = "https://flv.liuxing.com/live.flv",
+                )
+        }
+        val router = PlatformRouter(liuxingSpider = fake)
+        val info = router.fetchStreamInfo("https://www.7u66.com/198189")
+        assertTrue(info.isLive)
+        assertEquals("流星主播", info.anchorName)
+        assertEquals("https://flv.liuxing.com/live.flv", info.recordUrl)
+    }
+
+    @Test
+    fun fetchLiuxing_offline() = runTest {
+        val fake = object : LiuxingSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                LiuxingSpider.LiuxingStreamInfo(anchorName = "流星离线", isLive = false)
+        }
+        val router = PlatformRouter(liuxingSpider = fake)
+        val info = router.fetchStreamInfo("https://www.7u66.com/198189")
+        assertFalse(info.isLive)
+    }
+
+    @Test
+    fun isInkeUrl_routing() {
+        assertTrue(PlatformRouter.isInkeUrl("https://www.inke.cn/?uid=123&id=456"))
+        assertTrue(PlatformRouter.isInkeUrl("https://www.inke.cn/live?uid=abc"))
+        assertFalse(PlatformRouter.isInkeUrl("https://live.bilibili.com/1"))
+    }
+
+    @Test
+    fun fetchInke_live() = runTest {
+        val fake = object : InkeSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                InkeSpider.InkeStreamInfo(
+                    anchorName = "映客主播",
+                    isLive = true,
+                    m3u8Url = "https://inke.cn/hls/live.m3u8",
+                    flvUrl = "https://inke.cn/flv/live.flv",
+                    recordUrl = "https://inke.cn/hls/live.m3u8",
+                )
+        }
+        val router = PlatformRouter(inkeSpider = fake)
+        val info = router.fetchStreamInfo("https://www.inke.cn/?uid=123&id=456")
+        assertTrue(info.isLive)
+        assertEquals("映客主播", info.anchorName)
+        assertEquals("https://inke.cn/hls/live.m3u8", info.recordUrl)
+    }
+
+    @Test
+    fun fetchInke_offline() = runTest {
+        val fake = object : InkeSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                InkeSpider.InkeStreamInfo(anchorName = "映客离线", isLive = false)
+        }
+        val router = PlatformRouter(inkeSpider = fake)
+        val info = router.fetchStreamInfo("https://www.inke.cn/?uid=123&id=456")
+        assertFalse(info.isLive)
+    }
+
+    @Test
+    fun isYinboUrl_routing() {
+        assertTrue(PlatformRouter.isYinboUrl("https://www.ybw1666.com/800005143"))
+        assertTrue(PlatformRouter.isYinboUrl("https://wap.ybw1666.com/123"))
+        assertFalse(PlatformRouter.isYinboUrl("https://live.bilibili.com/1"))
+    }
+
+    @Test
+    fun fetchYinbo_live() = runTest {
+        val fake = object : YinboSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                YinboSpider.YinboStreamInfo(
+                    anchorName = "音播主播",
+                    isLive = true,
+                    m3u8Url = "https://yinbo.com/hls/live.m3u8",
+                    flvUrl = "https://yinbo.com/flv/live.flv",
+                    recordUrl = "https://yinbo.com/flv/live.flv",
+                )
+        }
+        val router = PlatformRouter(yinboSpider = fake)
+        val info = router.fetchStreamInfo("https://www.ybw1666.com/800005143")
+        assertTrue(info.isLive)
+        assertEquals("音播主播", info.anchorName)
+        assertEquals("https://yinbo.com/flv/live.flv", info.recordUrl)
+    }
+
+    @Test
+    fun fetchYinbo_offline() = runTest {
+        val fake = object : YinboSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                YinboSpider.YinboStreamInfo(anchorName = "音播离线", isLive = false)
+        }
+        val router = PlatformRouter(yinboSpider = fake)
+        val info = router.fetchStreamInfo("https://www.ybw1666.com/800005143")
+        assertFalse(info.isLive)
+    }
+
 }
