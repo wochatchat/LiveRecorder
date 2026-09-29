@@ -100,7 +100,7 @@ class LiveMeSpiderTest {
         val client = FakeClient()
         val info = spider(client).getStreamInfo("https://www.liveme.com/live/17284844223282059697/index.html")
         assertTrue(info.isLive)
-        assertEquals("LM主播", info.anchorName)
+        assertEquals("LiveMe主播", info.anchorName)
         // POST 参数含 videoid 与签名头 lm-s-sign
         assertTrue(client.seenForm.containsKey("videoid"))
         assertTrue(client.seenForm.containsKey("lm_s_id"))
