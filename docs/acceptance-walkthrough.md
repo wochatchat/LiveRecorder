@@ -1,6 +1,6 @@
-# 真机截图走查清单（Phase 5e/5f + 6b~6f 攒批验收）
+# 真机截图走查清单（Phase 5e/5f + 6b~6f + 7/8 平台与功能 攒批验收）
 
-> 用途：Phase 6f-4 收口前的统一真机走查。测试包：GitHub Actions run 36417943901 Artifact `liverecorder-apk`（versionName 0.1.1）。
+> 用途：Phase 6f-4 收口前的统一真机走查。测试包：GitHub Actions run 36527449985 Artifact `liverecorder-apk`（versionName 0.1.1，2026-09-29 出包，含 7a~8c 全部改动；旧包 run 36417943901 已过期）。
 > 规则：每项 **深色/浅色各一张**，命名 `<轮次>-<要点>-<light|dark>.png`，归档 `docs/screenshots/`，拍完在本文档勾选。
 > 操作路径：系统设置切换深色模式 → 回 App 截图（App 跟随系统，无内置开关）。
 
@@ -47,6 +47,19 @@
 - [ ] 开播通知点击 → 直达对应卡片 + 4s 高亮
 - [ ] 列表增删动画（添加/删除监控、删除记录时 item 动画）
 - [ ] 系统大字体（1.3x）下无截断（可选）
+
+## G. Phase 7 功能（7a 直录 / 7b 推送明细 / 7c 直存）
+
+- [ ] 自定义流地址直录：添加 .m3u8/.flv 直链 → 「自定义」徽标 → 直录落盘；anchor 名为 URL 哈希稳定 8 位
+- [ ] 推送明细：自定义标题/开播/关播文案（占位符 [直播间名称]/[时间] 替换生效）；bark 级别/铃声；ntfy tags/priority 生效
+- [ ] 保存格式 mkv/mp4：设置页 ChipRow 切换 → mkv/mp4 直存落盘且可播放；切回 ts 分段行为不变
+
+## H. Phase 7d~8c 新平台真机
+
+- [ ] 国内：网易CC / 知乎 / 百度 / 微博 / 京东（7d）+ 小红书（8b，xhslink 短链或 user/profile 链接）
+- [ ] 签名类：来秀 / 淘宝（cookie 需含 _m_h5_tk）/ 嗨秀 / 乐嗨 / LiveMe（8a）
+- [ ] 海外：TikTok（8c，需配置代理；区域封锁页回落未开播不崩）
+- [ ] 各新平台徽标显示正确、主播名/标题解析正确、录制落盘可播放
 
 ## 收口
 
