@@ -18,6 +18,8 @@ object RhinoJsEngine {
     private fun createContext(): Context {
         val cx = Context.enter()
         cx.optimizationLevel = -1
+        // 显式 ES6：Rhino 1.7.15 默认语言版本不支持 let（missing ; before statement）
+        cx.languageVersion = Context.VERSION_ES6
         return cx
     }
 

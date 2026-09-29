@@ -69,8 +69,8 @@ class TaobaoSpiderTest {
         val spider = TaobaoSpider()
         // OD=0（最高清 ud 在降序后首位）
         assertEquals("https://ud.m3u8" to "https://ud.flv", spider.selectPlayUrl(list, "OD"))
-        // HD=2 → md
-        assertEquals("https://md.m3u8" to "https://md.flv", spider.selectPlayUrl(list, "HD"))
+        // HD=2 → 降序 [ud,md,lld] 索引 2（上游 pad 前取第 3 项；5 档全量时才是 md）
+        assertEquals("https://lld.m3u8" to "https://lld.flv", spider.selectPlayUrl(list, "HD"))
         // LD=4 越界 → 末位（上游 pad 重复末项语义）
         assertEquals("https://lld.m3u8" to "https://lld.flv", spider.selectPlayUrl(list, "LD"))
     }

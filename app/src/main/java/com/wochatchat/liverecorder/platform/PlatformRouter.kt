@@ -107,7 +107,7 @@ class PlatformRouter(
         fun isLiveMeUrl(url: String): Boolean = url.contains("liveme.com")
 
         /** 8a：tb.cn → 淘宝直播链路（上游 main.py:977）。 */
-        fun isTaobaoUrl(url: String): Boolean = url.contains("tb.cn")
+        fun isTaobaoUrl(url: String): Boolean = url.contains("tb.cn") || url.contains("taobao.com")
 
         /** 7a R36：自定义流地址直录（上游 main.py:1026-1038「自定义录制直播」——
          *  非任何已知平台域名，且 URL 含 .m3u8/.flv 扩展时直录，不做房间解析）。 */

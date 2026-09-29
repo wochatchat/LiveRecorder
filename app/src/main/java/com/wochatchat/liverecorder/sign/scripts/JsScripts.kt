@@ -645,7 +645,7 @@ const r = `${'$'}{new Date().getTime()}${'$'}{id}`
 const Am = "LM6000101139961122666757";
 const rl = "undefined"
 
-function createRandom(length = 32) {
+function createRandom(length) { length = length === undefined ? 32 : length;
     let result = "";
     const characters = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678";
     for (let i = 0; i < length; ++i) {
@@ -655,7 +655,7 @@ function createRandom(length = 32) {
     return result;
 }
 
-function createSignature(input = "4l4m5") {
+function createSignature(input) { input = input === undefined ? "4l4m5" : input;
     let signature = "";
     let number = 0;
     for (let i = 0; i < input.length; ++i) {
@@ -918,7 +918,7 @@ var t = {
     }
 };
 
-const hC = (e, t, n=!1) => {
+const hC = (e, t, n) => { if (n === undefined) n = !1;
     if (t.params) {
         const o = {};
         Object.keys(t.params).forEach(i => {
@@ -933,10 +933,10 @@ const hC = (e, t, n=!1) => {
         t.params = Object.assign({}, e, t.params || {});
     else if (s === "post")
         if (typeof t.data == "string") {
-            let o;
+            let oo;
             t.data.split("&").forEach(i => {
-                o = i.split("="),
-                r[o[0]] = o[1]
+                oo = i.split("="),
+                r[oo[0]] = oo[1]
             }
             ),
             r = Object.assign({}, e, r),
@@ -966,7 +966,7 @@ pC = e => {
 
 // final encryption function
 let CryptoJS = null;
-lm_s_key = atob('ZGQ0NmRiYjQ0MmI2ZTRiYTgxN2Q2MzQ3ZDJkZGY0OTM=');
+lm_s_key = 'dd46dbb442b6e4ba817d6347d2ddf493'; // 上游 atob('ZGQ0...OTM=') 预解码
 function requestSign(signParams, cryptoJSPath) {
   let sKey = Object.keys(signParams).sort().map(key => {
     function getValue(val) {
@@ -987,7 +987,7 @@ function requestSign(signParams, cryptoJSPath) {
   return CryptoJS.MD5(sKey).toString();
 }
 
-function sign(videoid, cryptoJSPath, platform='web'){
+function sign(videoid, cryptoJSPath, platform){ if (platform === undefined) platform = 'web';
     const vali = createSignature();
     const data_e = {
         lm_s_id: Am,
@@ -1007,14 +1007,13 @@ function sign(videoid, cryptoJSPath, platform='web'){
     */
     console.log("data_e:",data_e);
 
-    data_i = {
-        ...data_e,
+    data_i = Object.assign({}, data_e, {
         _time: new Date().valueOf(),
         thirdchannel: 6,
         videoid: videoid,
         area: 'zh',
         vali: vali
-      }
+      })
     console.log("data_i:",data_i);
     
     // fake lm_s_sign param value
@@ -1040,19 +1039,17 @@ function sign(videoid, cryptoJSPath, platform='web'){
     }# 
     //result: 4eaf71a1ec19b49b7267e4d16e007105
     */
-    signParams = {
+    signParams = Object.assign({
         "alias": "liveme",
         "tongdun_black_box": "",
-        "os": platform,
-        ...data_i
-    }
+        "os": platform
+    }, data_i)
     console.log("signParams: ", signParams);
     lm_s_sign = requestSign(signParams, cryptoJSPath);
     console.log(`\x1b[32mfinal lm_s_sign: \x1b[0m${'$'}{lm_s_sign}\n`);
-    data = {
-        ...signParams,
-        lm_s_sign
-    }
+    data = Object.assign({}, signParams, {
+        lm_s_sign: lm_s_sign
+    })
     return data;
 
 }
