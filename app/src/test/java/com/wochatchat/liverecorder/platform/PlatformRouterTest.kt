@@ -19,6 +19,7 @@ import com.wochatchat.liverecorder.platform.yy.YySpider.YyStreamInfo
 import com.wochatchat.liverecorder.platform.bigo.BigoSpider
 import com.wochatchat.liverecorder.platform.bigo.BigoSpider.BigoStreamInfo
 import com.wochatchat.liverecorder.platform.xhs.XhsSpider
+import com.wochatchat.liverecorder.platform.tiktok.TikTokSpider
 import com.wochatchat.liverecorder.sign.RhinoJsEngine
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
@@ -544,5 +545,64 @@ class PlatformRouterTest {
         val info = router.fetchStreamInfo("https://www.xiaohongshu.com/user/profile/555")
         assertFalse(info.isLive)
         assertEquals("离线小红书", info.anchorName)
+    }
+
+    // ---- 8c TikTok：路由判定与分发 ----
+
+    private var seenQuality: String? = null
+    private var seenCookie: String? = null
+
+    @Test
+    fun isTiktokUrl() {
+        assertTrue(PlatformRouter.isTiktokUrl("https://www.tiktok.com/@user/live"))
+        assertFalse(PlatformRouter.isTiktokUrl("https://live.douyin.com/123"))
+    }
+
+    @Test
+    fun isSupported_batch8c() {
+        assertTrue(PlatformRouter.isSupported("https://www.tiktok.com/@user/live"))
+        // tiktok 域名不吃自定义直链路由
+        assertFalse(PlatformRouter.isDirectStreamUrl("https://www.tiktok.com/live/x.m3u8"))
+    }
+
+    @Test
+    fun fetchTiktok_live() = runTest {
+        val fakeTiktok = object : TikTokSpider() {
+            override suspend fun getStreamInfo(
+                url: String, quality: String?, proxyAddr: String?, cookie: String?,
+            ): TikTokSpider.TikTokStreamInfo {
+                seenQuality = quality
+                seenCookie = cookie
+                return TikTokSpider.TikTokStreamInfo(
+                    anchorName = "TikTok主播-ttuser", title = "TT标题", isLive = true,
+                    m3u8Url = "https://hls.tt.com/live0.m3u8?codec=h264",
+                    flvUrl = "https://flv.tt.com/live0.flv?codec=h264",
+                    recordUrl = "https://hls.tt.com/live0.m3u8?codec=h264",
+                )
+            }
+        }
+        val router = PlatformRouter(tiktokSpider = fakeTiktok)
+        val info = router.fetchStreamInfo(
+            "https://www.tiktok.com/@user/live", "HD", cookies = mapOf("tiktok" to "sid=abc"),
+        )
+        assertTrue(info.isLive)
+        assertEquals("TikTok主播-ttuser", info.anchorName)
+        assertEquals("TT标题", info.title)
+        assertEquals("https://hls.tt.com/live0.m3u8?codec=h264", info.recordUrl)
+        assertEquals("HD", seenQuality)
+        assertEquals("sid=abc", seenCookie)
+    }
+
+    @Test
+    fun fetchTiktok_offline() = runTest {
+        val fakeTiktok = object : TikTokSpider() {
+            override suspend fun getStreamInfo(
+                url: String, quality: String?, proxyAddr: String?, cookie: String?,
+            ) = TikTokSpider.TikTokStreamInfo(anchorName = "离线TikTok")
+        }
+        val router = PlatformRouter(tiktokSpider = fakeTiktok)
+        val info = router.fetchStreamInfo("https://www.tiktok.com/@user/live")
+        assertFalse(info.isLive)
+        assertEquals("离线TikTok", info.anchorName)
     }
 }
