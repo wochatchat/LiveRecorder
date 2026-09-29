@@ -1,0 +1,134 @@
+package com.wochatchat.liverecorder.platform.douyin
+
+import com.wochatchat.liverecorder.net.LiveHttpClient
+import com.wochatchat.liverecorder.sign.AbSign
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
+import java.net.URLEncoder
+
+/**
+ * 抖音 web 路径房间数据模型（对应上游 get_douyin_web_stream_data 返回的 room_data 子集）。
+ *
+ * 上游任何异常都兜底为 {'anchor_name': ""}，这里用 [fetchError] 保留错误信息供日志/诊断，
+ * 字段语义与上游一致：status==2 表示正在直播。
+ */
+data class DouyinWebRoom(
+    val anchorName: String,
+    val status: Int,
+    val title: String,
+    /** room_data.stream_url.flv_pull_url（含上游合并进来的 ORIGIN 档） */
+    val flvPullUrl: Map<String, String>,
+    /** room_data.stream_url.hls_pull_url_map（含上游合并进来的 ORIGIN 档） */
+    val hlsPullUrlMap: Map<String, String>,
+    val fetchError: String? = null,
+) {
+    val isLive: Boolean get() = status == 2
+
+    companion object {
+        fun empty(error: String? = null) =
+            DouyinWebRoom("", 4, "", emptyMap(), emptyMap(), error)
+    }
+}
+
+/**
+ * 抖音 web 路径爬虫（对照上游 src/spider.py:68 get_douyin_web_stream_data）。
+ *
+ * 链路：live.douyin.com/<web_rid> → /webcast/room/web/enter/ 接口（a_bogus 签名，AbSign）
+ * → 解析房间信息 → 开播时合并 ORIGIN 原画画质到画质表。
+ *
+ * 失败语义与上游一致：整体 catch，返回 [DouyinWebRoom.empty]（anchorName 为空串），
+ * 不向调用方抛异常。Cookie（ttwid）做成可替换常量，失效时用户可自行更新（docs/04-risks.md）。
+ */
+class DouyinWebSpider(
+    private val client: LiveHttpClient = LiveHttpClient(),
+    private val cookie: String? = null,
+) {
+
+    suspend fun fetch(roomUrl: String): DouyinWebRoom = withContext(Dispatchers.IO) {
+        try {
+            val webRid = extractWebRid(roomUrl)
+            val apiUrl = buildApiUrl(webRid, userAgent(), System.currentTimeMillis())
+            val resp = client.get(apiUrl, headers = requestHeaders())
+            if (!resp.isSuccess || resp.text.isEmpty()) {
+                throw RuntimeException("it triggered risk control")
+            }
+            parseRoomJson(resp.text, roomUrl)
+        } catch (e: Exception) {
+            DouyinWebRoom.empty("Douyin web data fetch error, because ${e.message}.")
+        }
+    }
+
+    internal fun requestHeaders(): Map<String, String> = mapOf(
+        "cookie" to (cookie ?: DEFAULT_COOKIE),
+        "referer" to "https://live.douyin.com/335354047186",
+        "user-agent" to userAgent(),
+    )
+
+    private fun userAgent() = LiveHttpClient.DEFAULT_UA
+
+    /**
+     * 构建 enter 接口完整 URL（含 a_bogus 签名）。
+     * 上游：api = base + urlencode(params)；a_bogus = ab_sign(query, ua)；追加到末尾。
+     */
+    internal fun buildApiUrl(webRid: String, userAgent: String, timeMs: Long): String {
+        val query = API_PARAMS.entries.joinToString("&") { (k, v) ->
+            encode(k) + "=" + encode(if (k == WEB_RID_PARAM) webRid else v)
+        }
+        val api = "$API_BASE?$query"
+        return "$api&a_bogus=" + AbSign.abSign(query, userAgent, timeMs)
+    }
+
+    /** 上游：url.split('?')[0].split('live.douyin.com/')[-1] */
+    internal fun extractWebRid(roomUrl: String): String =
+        roomUrl.substringBefore('?').substringAfterLast("live.douyin.com/")
+
+    /**
+     * 解析 enter 接口响应 JSON。
+     * 上游：data['data'][0] → nickname → status==2 时 merge stream_url → return room_data。
+     */
+    internal fun parseRoomJson(json: String, roomUrl: String): DouyinWebRoom {
+        val root = JSONObject(json)
+        val data = root.getJSONObject("data")
+        val arr = data.optJSONArray("data")
+        if (arr == null || arr.length() == 0) {
+            throw RuntimeException("$roomUrl VR live is not supported")
+        }
+        val room = arr.getJSONObject(0)
+        val anchorName = data.getJSONObject("user").getString("nickname")
+        val status = room.optInt("status", 4)
+        val title = room.optString("title", "")
+
+        if (status != 2) return DouyinWebRoom(anchorName, status, title, emptyMap(), emptyMap())
+
+        // status==2 但 stream_url 不存在 → 上游抛出 RuntimeError，被外层 catch → 空结果
+        val streamUrl = room.getJSONObject("stream_url")
+        val (flvMap, hlsMap) = DouyinRoomStreams.parseQualityMaps(streamUrl)
+        return DouyinWebRoom(anchorName, status, title, flvMap, hlsMap)
+    }
+
+    private companion object {
+        private const val WEB_RID_PARAM = "web_rid"
+        private const val API_BASE = "https://live.douyin.com/webcast/room/web/enter/"
+
+        private val API_PARAMS = linkedMapOf(
+            "aid" to "6383",
+            "app_name" to "douyin_web",
+            "live_id" to "1",
+            "device_platform" to "web",
+            "language" to "zh-CN",
+            "browser_language" to "zh-CN",
+            "browser_platform" to "Win32",
+            "browser_name" to "Chrome",
+            "browser_version" to "116.0.0.0",
+            WEB_RID_PARAM to "",
+            "msToken" to "",
+        )
+
+        /** 硬编码 ttwid 基础 Cookie，失效时替换（docs/04-risks.md）。 */
+        private const val DEFAULT_COOKIE =
+            "ttwid=1%7C2iDIYVmjzMcpZ20fcaFde0VghXAA3NaNXE_SLR68IyE%7C1761045455%7Cab35197d5cfb21df6cbb2fa7ef1c9262206b062c315b9d04da746d0b37dfbc7d"
+
+        private fun encode(s: String) = URLEncoder.encode(s, "UTF-8")
+    }
+}

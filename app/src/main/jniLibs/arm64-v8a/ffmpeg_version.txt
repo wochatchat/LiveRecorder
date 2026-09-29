@@ -1,0 +1,1 @@
+scripts/build_ffmpeg.sh: line 219: /tmp/ffmpeg-out/arm64-v8a/libffmpeg.so: cannot execute binary file: Exec format error

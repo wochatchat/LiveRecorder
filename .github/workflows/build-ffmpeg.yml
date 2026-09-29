@@ -1,0 +1,77 @@
+name: Build FFmpeg
+
+# push 触发（修改 workflow 或脚本时自动构建）+ 手动 dispatch
+on:
+  push:
+    paths:
+      - '.github/workflows/build-ffmpeg.yml'
+      - 'scripts/build_ffmpeg.sh'
+  workflow_dispatch:
+    inputs:
+      abi:
+        description: 'ABI to build'
+        required: true
+        default: 'arm64-v8a'
+        type: choice
+        options:
+          - arm64-v8a
+          - armeabi-v7a
+          - x86_64
+
+concurrency:
+  group: build-ffmpeg-${{ inputs.abi || 'arm64-v8a' }}
+  cancel-in-progress: true
+
+env:
+  FFMPEG_VERSION: n9.0.2
+  MBEDTLS_VERSION: mbedtls-3.6.2
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Resolve NDK
+        id: ndk
+        run: |
+          NDK_DIR=""
+          for dir in "$ANDROID_HOME/ndk"/* "$HOME/android-ndk-r27" "/tmp/android-ndk-r27" "/opt/android/ndk"/*; do
+            if [[ -d "$dir/toolchains" ]]; then
+              NDK_DIR="$dir"
+              break
+            fi
+          done
+          if [[ -z "$NDK_DIR" ]]; then
+            echo "下载 android-ndk-r27..."
+            curl -fsSL "https://dl.google.com/android/repository/android-ndk-r27-linux.zip" -o /tmp/ndk.zip
+            unzip -oq /tmp/ndk.zip -d /tmp/
+            NDK_DIR=/tmp/android-ndk-r27
+          fi
+          echo "NDK_DIR=$NDK_DIR"
+          echo "NDK_DIR=$NDK_DIR" >> $GITHUB_OUTPUT
+
+      - name: Build FFmpeg
+        env:
+          ABI: ${{ inputs.abi || 'arm64-v8a' }}
+          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.NDK_DIR }}
+          FFMPEG_VERSION: ${{ env.FFMPEG_VERSION }}
+          MBEDTLS_VERSION: ${{ env.MBEDTLS_VERSION }}
+        run: |
+          set -euo pipefail
+          echo "===== Build ffmpeg for $ABI ====="
+          # 运行时解析 NDK toolchain（build_ffmpeg.sh 内部调用）
+          bash scripts/build_ffmpeg.sh "$ABI" "$ANDROID_NDK_HOME"
+          echo "build complete"
+
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ inputs.abi || 'arm64-v8a' }}
+          path: /tmp/ffmpeg-out/${{ inputs.abi || 'arm64-v8a' }}/
+          retention-days: 3

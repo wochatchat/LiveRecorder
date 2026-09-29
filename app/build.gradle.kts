@@ -23,6 +23,24 @@ android {
         targetSdk = 34
         versionCode = vCode
         versionName = vName
+
+        // Phase 3a: QuickJS C core（vendor 自 Bellard quickjs-2026-06-04）。
+        // x86_64 供模拟器/后续 JVM 侧验证；纯 C 无 STL。
+        externalNativeBuild {
+            cmake {
+                abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
+            }
+        }
+    }
+
+    // QuickJS 构建入口（src/main/cpp/CMakeLists.txt）。
+    // ndkVersion 对齐 GitHub ubuntu-latest runner 预装版本，避免 CI 额外下载。
+    ndkVersion = "27.2.12479018"
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     // Keystore decoded from repo secrets at CI build time (signing.properties,
@@ -72,8 +90,18 @@ android {
         compose = true
         buildConfig = true
     }
+    testOptions {
+        // MonitorLoop 单测在 JVM 跑：android.util.Log 默认未 mock 会抛异常，
+        // 打开 returnDefaultValues 让 Log 调用静默返回
+        unitTests.isReturnDefaultValues = true
+    }
     packaging {
         resources.excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        // Phase 3-3g: ffmpeg 二进制（libffmpeg.so）不是标准 .so 不 strip；
+        // quickjs .so 已经 llvm-strip，这里不再处理。
+        jniLibs {
+            keepDebugSymbols += "**/libffmpeg.so"
+        }
     }
 }
 
@@ -83,6 +111,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.navigation.compose)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -97,4 +126,13 @@ dependencies {
     // Networking (Phase 1: spider HTTP layer + stream download)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
+
+    testImplementation(libs.junit)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
+    // Rhino: 纯 JVM JS 引擎，QuickJsEngine JNI 的单测替身（Phase 3b）
+    testImplementation(libs.rhino)
+    // org.json: 纯 Java 实现，单元测试时 org.json 在 JVM 上可用（生产代码走 Android Framework）
+    testImplementation("org.json:json:20240303")
+    // MockWebServer: StreamDownloader 的 JVM 单测（流式写文件 / 非 200 / 中途取消）
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
