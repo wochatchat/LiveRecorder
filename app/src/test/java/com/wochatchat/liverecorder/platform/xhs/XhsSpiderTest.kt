@@ -28,10 +28,17 @@ class XhsSpiderTest {
         private val redirectUrl: String? = null,
     ) : LiveHttpClient() {
         var seenProfileUrl: String = ""
+        private var roomFetches: Int = 0
 
         override suspend fun get(url: String, headers: Map<String, String>, timeoutSec: Long): HttpResult = when {
             url.contains("xhslink.com") && redirectUrl != null ->
                 HttpResult(200, "", redirectUrl, emptyMap())
+            // 直播间分享页与个人主页同为 /user/profile/ 路径：房间页只取第一次，
+            // 回落（未开播兜底主播名）走个人主页分支
+            url.contains("/user/profile/") && roomFetches == 0 && redirectUrl == null -> {
+                roomFetches++
+                HttpResult(200, roomHtml, url, emptyMap())
+            }
             url.contains("/user/profile/") -> {
                 seenProfileUrl = url
                 HttpResult(200, profileHtml, url, emptyMap())
