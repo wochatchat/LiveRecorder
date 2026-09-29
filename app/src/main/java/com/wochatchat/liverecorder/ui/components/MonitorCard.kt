@@ -61,6 +61,9 @@ fun platformKeyForUrl(url: String): String = when {
     url.contains("tiktok.com/") -> "tiktok"
     url.contains("twitch.tv/") -> "twitch"
     url.contains("youtube.com/") || url.contains("youtu.be/") -> "youtube"
+    url.contains("live.shopee") || url.contains("shp.ee/") -> "shopee"
+    url.contains("chzzk.naver.com/") -> "chzzk"
+    url.contains("acfun.cn/") -> "acfun"
     url.contains(".m3u8") || url.contains(".flv") -> "custom"
     else -> "douyin"
 }

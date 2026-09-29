@@ -37,6 +37,11 @@ import com.wochatchat.liverecorder.platform.tiktok.TikTokSpider
 import com.wochatchat.liverecorder.platform.xhs.XhsSpider
 import com.wochatchat.liverecorder.platform.yy.YySpider
 import com.wochatchat.liverecorder.platform.zhihu.ZhihuSpider
+import com.wochatchat.liverecorder.platform.twitch.TwitchSpider
+import com.wochatchat.liverecorder.platform.chzzk.CHZZKSpider
+import com.wochatchat.liverecorder.platform.youtube.YouTubeSpider
+import com.wochatchat.liverecorder.platform.shopee.ShopeeSpider
+import com.wochatchat.liverecorder.platform.acfun.AcfunSpider
 
 class PlatformRouter(
     private val douyinSpider: DouyinSpider = DouyinSpider(),
@@ -57,6 +62,11 @@ class PlatformRouter(
     private val taobaoSpider: TaobaoSpider = TaobaoSpider(),
     private val xhsSpider: XhsSpider = XhsSpider(),
     private val tiktokSpider: TikTokSpider = TikTokSpider(),
+    private val twitchSpider: TwitchSpider = TwitchSpider(),
+    private val chzzkSpider: CHZZKSpider = CHZZKSpider(),
+    private val youTubeSpider: YouTubeSpider = YouTubeSpider(),
+    private val shopeeSpider: ShopeeSpider = ShopeeSpider(),
+    private val acfunSpider: AcfunSpider = AcfunSpider(),
 ) {
     companion object {
         /** 斗鱼画质码映射（上游 stream.py get_douyu_stream_url video_quality_options）。 */
@@ -120,6 +130,25 @@ class PlatformRouter(
         /** 8c：tiktok.com → TikTok 直播链路（上游 main.py:596）。 */
         fun isTiktokUrl(url: String): Boolean = url.contains("tiktok.com/")
 
+        /** 9a：twitch.tv → Twitch 直播链路（spider.py:2141）。 */
+        fun isTwitchUrl(url: String): Boolean =
+            url.contains("twitch.tv/")
+
+        /** 9a：chzzk.naver.com → CHZZK 直播链路（spider.py:2696）。 */
+        fun isCHZZKUrl(url: String): Boolean = url.contains("chzzk.naver.com/")
+
+        /** 9a：youtube.com / youtu.be → YouTube 直播链路（spider.py:3002）。 */
+        fun isYouTubeUrl(url: String): Boolean =
+            url.contains("youtube.com/") || url.contains("youtu.be/")
+
+        /** 9a：live.shopee / shp.ee → Shopee 直播链路（main.py:960）。 */
+        fun isShopeeUrl(url: String): Boolean =
+            url.contains("live.shopee") || url.contains("shp.ee")
+
+        /** 9a：live.acfun.cn / m.acfun.cn → AcFun 直播链路（spider.py:2498）。 */
+        fun isAcfunUrl(url: String): Boolean =
+            url.contains("acfun.cn/")
+
         /** 7a R36：自定义流地址直录（上游 main.py:1026-1038「自定义录制直播」——
          *  非任何已知平台域名，且 URL 含 .m3u8/.flv 扩展时直录，不做房间解析）。 */
         fun isDirectStreamUrl(url: String): Boolean =
@@ -129,6 +158,8 @@ class PlatformRouter(
                 !isJdUrl(url) && !isZhihuUrl(url) &&
                 !isHaixiuUrl(url) && !isLaixiuUrl(url) && !isLiveMeUrl(url) && !isTaobaoUrl(url) &&
                 !isXhsUrl(url) && !isTiktokUrl(url) &&
+                !isTwitchUrl(url) && !isCHZZKUrl(url) &&
+                !isYouTubeUrl(url) && !isShopeeUrl(url) && !isAcfunUrl(url) &&
                 !url.contains("douyin.com/") && !url.contains("iesdouyin.com/") &&
                 (url.contains(".m3u8") || url.contains(".flv"))
 
@@ -139,7 +170,9 @@ class PlatformRouter(
                 isNeteaseUrl(url) || isBaiduUrl(url) || isWeiboUrl(url) ||
                 isJdUrl(url) || isZhihuUrl(url) ||
                 isHaixiuUrl(url) || isLaixiuUrl(url) || isLiveMeUrl(url) || isTaobaoUrl(url) ||
-                isXhsUrl(url) || isTiktokUrl(url) -> true
+                isXhsUrl(url) || isTiktokUrl(url) ||
+                isTwitchUrl(url) || isCHZZKUrl(url) ||
+                isYouTubeUrl(url) || isShopeeUrl(url) || isAcfunUrl(url) -> true
             else -> url.contains("douyin.com/") || url.contains("iesdouyin.com/")
         }
     }
@@ -169,6 +202,11 @@ class PlatformRouter(
         isTaobaoUrl(url) -> fetchTaobao(url, quality, proxyAddr, cookies["taobao"])
         isXhsUrl(url) -> fetchXhs(url, proxyAddr, cookies["xhs"])
         isTiktokUrl(url) -> fetchTiktok(url, quality, proxyAddr, cookies["tiktok"])
+        isTwitchUrl(url) -> fetchTwitch(url, proxyAddr, cookies["twitch"])
+        isCHZZKUrl(url) -> fetchCHZZK(url, proxyAddr, cookies["chzzk"])
+        isYouTubeUrl(url) -> fetchYouTube(url, proxyAddr, cookies["youtube"])
+        isShopeeUrl(url) -> fetchShopee(url, proxyAddr, cookies["shopee"])
+        isAcfunUrl(url) -> fetchAcfun(url, proxyAddr, cookies["acfun"])
         isDirectStreamUrl(url) -> fetchDirectStream(url)
         else -> douyinSpider.fetchStreamInfo(url, quality, proxyAddr)
     }
@@ -479,6 +517,66 @@ class PlatformRouter(
         return DouyinStreamInfo(
             anchorName = info.anchorName, isLive = true, title = info.title,
             m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 9a Twitch → 抖音同构映射（spider.py:2141）：recordUrl = m3u8。 */
+    private suspend fun fetchTwitch(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = twitchSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 9a CHZZK → 抖音同构映射（spider.py:2696）：recordUrl = m3u8。 */
+    private suspend fun fetchCHZZK(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = chzzkSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 9a YouTube → 抖音同构映射（spider.py:3002）：recordUrl = m3u8。 */
+    private suspend fun fetchYouTube(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = youTubeSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true, title = info.title,
+            m3u8Url = info.m3u8Url, recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 9a Shopee → 抖音同构映射（spider.py:2943）：recordUrl = flv。 */
+    private suspend fun fetchShopee(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = shopeeSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true, title = info.title,
+            flvUrl = info.flvUrl, recordUrl = info.recordUrl,
+        )
+    }
+
+    /** 9a AcFun → 抖音同构映射（spider.py:2498）：recordUrl = m3u8（快手协议 bitrate 最高档）。 */
+    private suspend fun fetchAcfun(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = acfunSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) {
+            return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        }
+        return DouyinStreamInfo(
+            anchorName = info.anchorName, isLive = true, title = info.title,
+            m3u8Url = info.m3u8Url, recordUrl = info.recordUrl,
         )
     }
 

@@ -63,6 +63,9 @@ val PLATFORM_LABELS = mapOf(
     "laixiu" to "来秀",
     "liveme" to "LiveMe",
     "taobao" to "淘宝",
+    "shopee" to "Shopee",
+    "chzzk" to "CHZZK",
+    "acfun" to "AcFun",
 )
 
 /** 平台主品牌色（Surface badge 背景色用 12% alpha）。 */
@@ -89,4 +92,7 @@ val PLATFORM_COLORS = mapOf(
     "laixiu" to Color(0xFF7C4DFF),
     "liveme" to Color(0xFF21C2F8),
     "taobao" to Color(0xFFFF5000),
+    "shopee" to Color(0xFFEE4D2D),
+    "chzzk" to Color(0xFF03C75A),
+    "acfun" to Color(0xFFFD4C5B),
 )

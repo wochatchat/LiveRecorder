@@ -30,6 +30,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
+import com.wochatchat.liverecorder.platform.twitch.TwitchSpider
+import com.wochatchat.liverecorder.platform.chzzk.CHZZKSpider
+import com.wochatchat.liverecorder.platform.youtube.YouTubeSpider
+import com.wochatchat.liverecorder.platform.shopee.ShopeeSpider
+import com.wochatchat.liverecorder.platform.acfun.AcfunSpider
 
 class PlatformRouterTest {
 
@@ -604,5 +609,109 @@ class PlatformRouterTest {
         val info = router.fetchStreamInfo("https://www.tiktok.com/@user/live")
         assertFalse(info.isLive)
         assertEquals("离线TikTok", info.anchorName)
+    }
+
+    @Test
+    fun isSupported_acfun() {
+        assertTrue(PlatformRouter.isAcfunUrl("https://live.acfun.cn/live/12345"))
+        assertTrue(PlatformRouter.isAcfunUrl("https://m.acfun.cn/live/12345"))
+    }
+
+    @Test
+    fun isSupported_unknown_goesToDouyin() {
+        assertTrue(PlatformRouter.isSupported("https://unknownplatform.com/room"))
+    }
+
+    @Test
+    fun fetchTwitch_online() = runTest {
+        val fakeTwitch = object : TwitchSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                TwitchSpider.TwitchStreamInfo(
+                    anchorName = "Twitch主播-twuser",
+                    isLive = true,
+                    m3u8Url = "https://usher.ttvnw.net/test.m3u8",
+                    recordUrl = "https://usher.ttvnw.net/test.m3u8",
+                )
+        }
+        val router = PlatformRouter(twitchSpider = fakeTwitch)
+        val info = router.fetchStreamInfo("https://twitch.tv/streamer")
+        assertTrue(info.isLive)
+        assertTrue(info.anchorName.contains("Twitch"))
+        assertEquals(info.m3u8Url, info.recordUrl)
+    }
+
+    @Test
+    fun fetchCHZZK_online() = runTest {
+        val fakeCHZZK = object : CHZZKSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                CHZZKSpider.ChzzkStreamInfo(
+                    anchorName = "CHZZK主播",
+                    isLive = true,
+                    m3u8Url = "https://chzzk.example.com/live.m3u8",
+                    recordUrl = "https://chzzk.example.com/live.m3u8",
+                )
+        }
+        val router = PlatformRouter(chzzkSpider = fakeCHZZK)
+        val info = router.fetchStreamInfo("https://chzzk.naver.com/live/abc123")
+        assertTrue(info.isLive)
+        assertEquals("CHZZK主播", info.anchorName)
+    }
+
+    @Test
+    fun fetchYouTube_online() = runTest {
+        val fakeYT = object : YouTubeSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                YouTubeSpider.YouTubeStreamInfo(
+                    anchorName = "YT主播",
+                    title = "直播标题",
+                    isLive = true,
+                    m3u8Url = "https://manifest.youtube.com/live.m3u8",
+                    recordUrl = "https://manifest.youtube.com/live.m3u8",
+                )
+        }
+        val router = PlatformRouter(youTubeSpider = fakeYT)
+        val info = router.fetchStreamInfo("https://youtube.com/watch?v=abc")
+        assertTrue(info.isLive)
+        assertEquals("直播标题", info.title)
+        assertEquals(info.m3u8Url, info.recordUrl)
+    }
+
+    @Test
+    fun fetchShopee_cookieRequired() = runTest {
+        val fakeShopee = object : ShopeeSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                ShopeeSpider.ShopeeStreamInfo(
+                    anchorName = "Shopee主播",
+                    isLive = true,
+                    flvUrl = "https://flv.shopee/live.flv",
+                    recordUrl = "https://flv.shopee/live.flv",
+                )
+        }
+        val router = PlatformRouter(shopeeSpider = fakeShopee)
+        val info = router.fetchStreamInfo(
+            "https://live.shopee.sg/share?sid=123",
+            cookies = mapOf("shopee" to "_m_h5_tk=abc"),
+        )
+        assertTrue(info.isLive)
+        assertEquals("https://flv.shopee/live.flv", info.recordUrl)
+    }
+
+    @Test
+    fun fetchAcfun_online() = runTest {
+        val fakeAcfun = object : AcfunSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                AcfunSpider.AcfunStreamInfo(
+                    anchorName = "AcFun主播",
+                    title = "AcFun直播",
+                    isLive = true,
+                    m3u8Url = "https://acfun.example/live.m3u8",
+                    recordUrl = "https://acfun.example/live.m3u8",
+                )
+        }
+        val router = PlatformRouter(acfunSpider = fakeAcfun)
+        val info = router.fetchStreamInfo("https://live.acfun.cn/live/12345")
+        assertTrue(info.isLive)
+        assertEquals("AcFun直播", info.title)
+        assertEquals(info.m3u8Url, info.recordUrl)
     }
 }
