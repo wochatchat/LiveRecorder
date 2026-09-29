@@ -35,3 +35,25 @@
 ## 验收
 - CI compile-check 全绿 + 单测不回退（325+）
 - 真机：添加 tb.cn（需录 cookie 含 _m_h5_tk）/ haixiutv / imkktv / liveme 链接 → 徽标正确 → 录制落盘（并入走查清单，需海外代理平台：LiveMe）
+
+---
+
+# Phase 8 — 8b：小红书（第 1-2 批收口）
+
+> 上游基准：spider.py:769 get_xhs_stream_url。原待做清单中的「网易音乐人」经核实为幽灵条目（上游 52 平台无此平台），本节以小红书收口第 1-2 批。
+
+## 交付
+
+- **XhsSpider**（纯 Kotlin）：ios UA + xy-common-params 头；xhslink.com 短链 GET 重定向取 finalUrl；user_id = /user/profile/ 路径段 ?: query host_id；房间页 `<script>window.__INITIAL_STATE__=` 正则 + undefined→null；liveStream.liveStatus=="success" 且标题非「回放」→ deeplink 解析 host_nickname/flvUrl（URL-decode）→ roomId = flvUrl 'live/' 段至首个 '.' → **固定 CDN 直链** `http://live-source-play.xhscdn.com/live/{roomId}.flv`（m3u8 同源替换）；未开播/回放/无 state → 个人主页 `<title>@xxx 的个人主页` 兜底主播名。
+- **PlatformRouter**：isXhsUrl（xiaohongshu.com/xhslink.com）+ fetchXhs 分流（cookie 键 **xhs**，对齐 AuthStore）+ isSupported/isDirectStreamUrl 链更新。
+- **UI**：platformKeyForUrl/PLATFORM_LABELS/COLORS 的小红书条目此前已备，无需改。
+- **单测 +13**：XhsSpiderTest（参数解码/路径提取/INITIAL_STATE/固定直链/回放回落/短链重定向/host_id 兜底）+ PlatformRouterTest（isXhsUrl/isSupported/fetchXhs 开播与未开播分发）。
+
+## 已知对齐点
+- 上游 flvUrl 缺失或无 'live/' 段会抛 IndexError（trace_error 兜底）→ 安卓防御性返回未开播。
+- 回放标题（含「回放」）即使 liveStatus==success 也视为未开播（上游同语义）。
+- cookie 键用 AuthStore 既有键 `xhs`（非 MonitorCard 徽标键 `xiaohongshu`），UI 徽标映射不变。
+
+## 验收
+- CI compile-check 全绿 + 单测不回退（360+）
+- 真机：添加 xhslink 分享短链或 xiaohongshu.com/user/profile/{id} → 徽标正确 → 录制落盘（并入走查清单）

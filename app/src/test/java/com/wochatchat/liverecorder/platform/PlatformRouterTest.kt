@@ -18,6 +18,7 @@ import com.wochatchat.liverecorder.platform.yy.YySpider
 import com.wochatchat.liverecorder.platform.yy.YySpider.YyStreamInfo
 import com.wochatchat.liverecorder.platform.bigo.BigoSpider
 import com.wochatchat.liverecorder.platform.bigo.BigoSpider.BigoStreamInfo
+import com.wochatchat.liverecorder.platform.xhs.XhsSpider
 import com.wochatchat.liverecorder.sign.RhinoJsEngine
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
@@ -331,7 +332,7 @@ class PlatformRouterTest {
         assertTrue(PlatformRouter.isSupported("https://live.bilibili.com/6"))
         assertTrue(PlatformRouter.isSupported("https://www.yy.com/12345678"))
         assertTrue(PlatformRouter.isSupported("https://www.bigo.tv/600024469"))
-        assertFalse(PlatformRouter.isSupported("https://www.xiaohongshu.com/user/profile/x"))
+        assertTrue(PlatformRouter.isSupported("https://www.xiaohongshu.com/user/profile/x"))
         assertFalse(PlatformRouter.isSupported("https://example.com/live/1"))
     }
 
@@ -494,5 +495,54 @@ class PlatformRouterTest {
         assertTrue(PlatformRouter.isSupported("https://tb.cn/x?id=123"))
         // 自定义直链不被新平台域名抢路由（haixiutv 域名下的 .flv 仍走平台）
         assertTrue(PlatformRouter.isDirectStreamUrl("https://cdn.example.com/live.m3u8"))
+    }
+
+    // ---- 8b 小红书：路由判定与分发 ----
+
+    @Test
+    fun isXhsUrl() {
+        assertTrue(PlatformRouter.isXhsUrl("https://www.xiaohongshu.com/user/profile/555"))
+        assertTrue(PlatformRouter.isXhsUrl("https://xhslink.com/xpJpfM"))
+        assertFalse(PlatformRouter.isXhsUrl("https://www.douyu.com/631134"))
+    }
+
+    @Test
+    fun isSupported_batch8b() {
+        assertTrue(PlatformRouter.isSupported("https://www.xiaohongshu.com/user/profile/555"))
+        assertTrue(PlatformRouter.isSupported("https://xhslink.com/xpJpfM"))
+        // xiaohongshu 域名不吃自定义直链路由
+        assertFalse(PlatformRouter.isDirectStreamUrl("https://www.xiaohongshu.com/live/x.m3u8"))
+    }
+
+    @Test
+    fun fetchXhs_live() = runTest {
+        val fakeXhs = object : XhsSpider() {
+            override suspend fun getStreamInfo(
+                url: String, proxyAddr: String?, cookie: String?,
+            ) = XhsSpider.XhsStreamInfo(
+                anchorName = "小红书主播", title = "小红书直播", isLive = true,
+                flvUrl = "http://live-source-play.xhscdn.com/live/room123.flv",
+                m3u8Url = "http://live-source-play.xhscdn.com/live/room123.m3u8",
+                recordUrl = "http://live-source-play.xhscdn.com/live/room123.flv",
+            )
+        }
+        val router = PlatformRouter(xhsSpider = fakeXhs)
+        val info = router.fetchStreamInfo("https://www.xiaohongshu.com/user/profile/555")
+        assertTrue(info.isLive)
+        assertEquals("小红书主播", info.anchorName)
+        assertEquals("http://live-source-play.xhscdn.com/live/room123.flv", info.recordUrl)
+    }
+
+    @Test
+    fun fetchXhs_offline() = runTest {
+        val fakeXhs = object : XhsSpider() {
+            override suspend fun getStreamInfo(
+                url: String, proxyAddr: String?, cookie: String?,
+            ) = XhsSpider.XhsStreamInfo(anchorName = "离线小红书")
+        }
+        val router = PlatformRouter(xhsSpider = fakeXhs)
+        val info = router.fetchStreamInfo("https://www.xiaohongshu.com/user/profile/555")
+        assertFalse(info.isLive)
+        assertEquals("离线小红书", info.anchorName)
     }
 }

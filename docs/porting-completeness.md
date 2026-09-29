@@ -37,7 +37,9 @@
 | YY | YySpider | 房间页正则 + stream-manager v3 POST；avp_info_res 存在即开播 |
 | Bigo | BigoSpider | getInternalStudioInfo + 短链解析 + 页面双正则兜底 |
 
-未移植 45 个：TikTok/小红书/网易CC/百度/知乎/微博/京东/网易音乐人（第 1-2 批剩余）、JS 签名类 7 个（QuickJS 已就绪可低成本接入）、长尾/海外/需登录 20+（详见 docs/05-platforms.md，每平台带 spider.py 行号定位）。
+未移植 44 个：TikTok（第 1 批剩余，归下一批）、JS 签名类长尾（咪咕 WASM 暂缓）、长尾/海外/需登录 20+（每平台带 spider.py 行号定位）。
+
+> 更正（2026-09-29，8b）：原审计清单中的「网易音乐人」为**幽灵条目**——上游 52 平台列表（README/spider.py）中不存在该平台；网易云系直播仅有网易CC（已移植）与 Look直播（长尾）。第 1-2 批清单实际以 **8b 小红书** 收口。
 
 上游已有但安卓缺失的解析入口：**自定义流地址直录**（上游 URL_config.ini 支持直接填 m3u8/flv 地址，PlatformRouter 目前未知域名回落抖音解析）——**待补，成本近零**。
 
