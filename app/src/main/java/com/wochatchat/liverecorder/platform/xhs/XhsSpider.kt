@@ -29,7 +29,7 @@ open class XhsSpider(
             "ios/7.830 (ios 17.0; ; iPhone 15 (A2846/A3089/A3090/A3092))"
 
         private val STATE_REGEX =
-            Pattern.compile("<script>window.__INITIAL_STATE__=(.*?)</script>")
+            Pattern.compile("<script>window.__INITIAL_STATE__=(.*?)</script>", Pattern.DOTALL)
         private val TITLE_ANCHOR = Pattern.compile("<title>@(.*?) 的个人主页</title>")
 
         fun isXhsUrl(url: String): Boolean =
