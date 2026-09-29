@@ -56,7 +56,7 @@ open class XhsSpider(
 
         /** window.__INITIAL_STATE__ JSON 提取（上游正则同语义）。 */
         fun extractInitialState(html: String): String? {
-            val m = STATE.matcher(html)
+            val m = STATE_REGEX.matcher(html)
             return if (m.find()) m.group(1) else null
         }
     }
@@ -104,7 +104,7 @@ open class XhsSpider(
         }
 
         // 回落：个人主页取主播名（上游 spider.py:811-820）
-        val anchorName = fetchProfileAnchor(c, "https://www.xiaohongshu.com/user/profile/$user_id", headers)
+        val anchorName = fetchProfileAnchor(c, "https://www.xiaohongshu.com/user/profile/$userId", headers)
         return XhsStreamInfo(anchorName = anchorName)
     }
 
