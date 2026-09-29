@@ -57,3 +57,27 @@
 ## 验收
 - CI compile-check 全绿 + 单测不回退（360+）
 - 真机：添加 xhslink 分享短链或 xiaohongshu.com/user/profile/{id} → 徽标正确 → 录制落盘（并入走查清单）
+
+---
+
+# Phase 8 — 8c：TikTok（第 3 批续）
+
+> 上游基准：spider.py:286 get_tiktok_stream_data + stream.py:82 get_tiktok_stream_url（SIGI_STATE HTML 解析，无 JS 签名）。
+> commit c7014f3（2026-09-29）。
+
+## 交付
+
+- **TikTokSpider**（纯 Kotlin）：Chrome 141 桌面 UA + referer tiktok.com + cookie（用户 > 上游硬编码兜底）；GET 房间页 3 次重试（间隔 1s）——页面含「discontinued operating TikTok」→ 区域封锁即返回未开播、含 UNEXPECTED_EOF_WHILE_READING → 重试、否则提取 `<script id="SIGI_STATE">` JSON（失败 → 未开播，同上游 raise→trace_error 兜底）；user.status==2 开播 → streamData.pull_data.stream_data（JSON 字符串二次解析）→ data 各画质键 main.flv/hls + sdk_params（vbitrate/resolution/VCodec）→ URL 按 .flv/.m3u8 后缀拼 `?codec=` 或 `&codec=` → vbitrate≠0 且有 resolution 入列 → 码率降序+宽高降序 → 补齐 5 档 → 复用 DouyinQuality.resolveQualityIndex 取档 → m3u8?:flv HEAD 探测失败 ±1 档回退 → recordUrl = m3u8 ?: flv。
+- **PlatformRouter**：isTiktokUrl（tiktok.com/）+ fetchTiktok 分流（cookie 键 **tiktok**，AuthStore 既有）+ isSupported/isDirectStreamUrl 链更新。
+- **UI**：platformKeyForUrl/PLATFORM_LABELS/COLORS 的 tiktok 条目、RecordSource FLV 优先（douyin/tiktok）、ProxySettings 代理白名单均此前已备，零改动。
+- **单测 +15**：TikTokSpiderTest（提取/URL 判定/画质排序/codec 两种拼接/零码率与缺分辨率过滤/补 5 档/未开播/默认 OD/HD 取档/探测回退/缺 stream_data/画质越界/端到端/cookie 兜底与覆盖/封锁/EOF 重试成功与放弃）+ PlatformRouterTest（isTiktokUrl/isSupported/fetch 开播与未开播）。
+
+## 已知对齐点 / 差异
+- 上游 get_quality_index 语义复用（QUALITY_MAPPING OD/BD→0, UHD→1, HD→2, SD→3, LD→4，数字越界抛 IndexError 兜未开播）。
+- **差异**：上游 main.py:598 要求配置代理才发起 TikTok 请求（否则记错误日志不请求）；安卓端改为直接尝试——未配置代理时请求失败自然回落未开播，监控循环按代理白名单逐轮重试。
+- 上游 http2=False/abroad=True 为 httpx 客户端参数，OkHttp 无对应概念，不移植。
+- 录制层：RecordSource.selectSourceUrl 已对 tiktok 做 FLV 优先（codec=h265 回落 HLS），与上游 select_source_url 同语义。
+
+## 验收
+- CI compile-check 全绿 + 单测不回退（385+）
+- 真机：添加 https://www.tiktok.com/@user/live → 徽标正确 → 需配置海外代理 → 录制落盘（并入走查清单，海外平台组）
