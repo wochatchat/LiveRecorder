@@ -56,7 +56,7 @@ open class LiveHttpClient(
     }
 
     /** HEAD 探测（对齐上游 get_response_status：follow redirects，10s 超时，异常/非 200 均为 false）。 */
-    suspend fun head(
+    open suspend fun head(
         url: String,
         headers: Map<String, String> = emptyMap(),
         timeoutSec: Long = 10L,
