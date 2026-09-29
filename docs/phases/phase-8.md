@@ -14,7 +14,7 @@
 | migu.js | 咪咕 | **暂缓**：ddCalcu 依赖 WebAssembly + fetch（QuickJS 无 WASM；上游也是 node 子进程专属）|
 | x-bogus.js | TikTok/抖音 reflow | **不随本批**：抖音 reflow 安卓端已用 a_bogus(Kotlin) 覆盖；TikTok 当前上游为 SIGI_STATE HTML 解析（无 JS），归入下一批 |
 
-## 交付（commit 待填）
+## 交付（commit 9ea0825→2cc7166，CI 全绿 run 36517291724）
 
 - **JsScripts.kt**（生成文件，勿手改）：crypto-js.min.js（3 块拼接防 JVM 常量池 64KB 上限）、taobao-sign.js、haixiu.js、liveme.js 嵌入为 Kotlin 常量；生成脚本按 `$ → ${'$'}` 转义。
 - **JsScriptRunner**：execjs.call 桥——CommonJS 预置（module/exports）→ crypto-js 先载并快照 `__CryptoJS`（平台脚本随后覆写 module.exports，必须先快照再定义 require）→ console 静默垫片 → `JSON.stringify(sign(...))`。双引擎约定：QuickJS JNI 与 Rhino 均对字符串结果原样 ToString。
