@@ -47,7 +47,7 @@ open class LianjieSpider(
         }
         val c = clientOrProxy(proxyAddr)
         val apiUrl = "https://api.lailianjie.com/ApiServices/service/live/getRoomInfo" +
-            "?&_$t=&_sign=&roomNumber=$roomId"
+            "?&_${'$'}t=&_sign=&roomNumber=$roomId"
         val resp = runCatching { c.get(apiUrl, headers) }.getOrNull()
             ?: return LianjieStreamInfo()
         val json = runCatching { org.json.JSONObject(resp.text) }.getOrNull()
