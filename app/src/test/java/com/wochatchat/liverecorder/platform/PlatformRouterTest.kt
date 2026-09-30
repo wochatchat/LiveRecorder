@@ -51,6 +51,12 @@ import com.wochatchat.liverecorder.platform.vvxqiu.VvxqiuSpider
 import com.wochatchat.liverecorder.platform.live17.Live17Spider
 import com.wochatchat.liverecorder.platform.langlive.LangliveSpider
 import com.wochatchat.liverecorder.platform.pplive.PpliveSpider
+import com.wochatchat.liverecorder.platform.liujian.LiuJianFangSpider
+import com.wochatchat.liverecorder.platform.lianjie.LianjieSpider
+import com.wochatchat.liverecorder.platform.qiandurebo.QiandureboSpider
+import com.wochatchat.liverecorder.platform.showroom.ShowroomSpider
+import com.wochatchat.liverecorder.platform.langlive.LangliveSpider
+import com.wochatchat.liverecorder.platform.pplive.PpliveSpider
 
 class PlatformRouterTest {
 
@@ -1320,5 +1326,135 @@ class PlatformRouterTest {
         // 9e 平台域名不抢自定义直链路由
         assertTrue(PlatformRouter.isDirectStreamUrl("https://cdn.example.com/live.m3u8"))
         assertFalse(PlatformRouter.isSupported("https://unknown-cn.net/live/1"))
+    }
+
+    // ── Batch F: 六间房 / 连接 / 千度热播 / ShowRoom ───────────────────────────────
+
+    @Test
+    fun fetchLiuJianFang_live() = runTest {
+        val fake = object : LiuJianFangSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                LiuJianFangSpider.LiuJianFangStreamInfo(
+                    anchorName = "六间房主播",
+                    isLive = true,
+                    flvUrl = "https://wlive.6rooms.com/httpflv/live001.flv",
+                    recordUrl = "https://wlive.6rooms.com/httpflv/live001.flv",
+                )
+        }
+        val router = PlatformRouter(liujianFangSpider = fake)
+        val info = router.fetchStreamInfo("https://6.cn/abc123")
+        assertTrue(info.isLive)
+        assertEquals("六间房主播", info.anchorName)
+        assertEquals("https://wlive.6rooms.com/httpflv/live001.flv", info.recordUrl)
+    }
+
+    @Test
+    fun fetchLiuJianFang_offline() = runTest {
+        val fake = object : LiuJianFangSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                LiuJianFangSpider.LiuJianFangStreamInfo(anchorName = "六间房离线", isLive = false)
+        }
+        val router = PlatformRouter(liujianFangSpider = fake)
+        val info = router.fetchStreamInfo("https://6.cn/abc123")
+        assertFalse(info.isLive)
+        assertEquals("六间房离线", info.anchorName)
+    }
+
+    @Test
+    fun fetchLianjie_live() = runTest {
+        val fake = object : LianjieSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                LianjieSpider.LianjieStreamInfo(
+                    anchorName = "连接主播",
+                    isLive = true,
+                    m3u8Url = "https://stream.example.com/lianjie.m3u8",
+                    flvUrl = "https://stream.example.com/lianjie.flv",
+                    recordUrl = "https://stream.example.com/lianjie.flv",
+                )
+        }
+        val router = PlatformRouter(lianjieSpider = fake)
+        val info = router.fetchStreamInfo("https://show.lailianjie.com/room123")
+        assertTrue(info.isLive)
+        assertEquals("连接主播", info.anchorName)
+    }
+
+    @Test
+    fun fetchLianjie_offline() = runTest {
+        val fake = object : LianjieSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                LianjieSpider.LianjieStreamInfo(anchorName = "连接离线", isLive = false)
+        }
+        val router = PlatformRouter(lianjieSpider = fake)
+        val info = router.fetchStreamInfo("https://show.lailianjie.com/room123")
+        assertFalse(info.isLive)
+        assertEquals("连接离线", info.anchorName)
+    }
+
+    @Test
+    fun fetchQiandurebo_live() = runTest {
+        val fake = object : QiandureboSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                QiandureboSpider.QiandureboStreamInfo(
+                    anchorName = "千度主播",
+                    isLive = true,
+                    flvUrl = "https://pull.example.com/qiandurebo.flv",
+                    recordUrl = "https://pull.example.com/qiandurebo.flv",
+                )
+        }
+        val router = PlatformRouter(qiandureboSpider = fake)
+        val info = router.fetchStreamInfo("https://qiandurebo.com/live/abc123")
+        assertTrue(info.isLive)
+        assertEquals("千度主播", info.anchorName)
+    }
+
+    @Test
+    fun fetchQiandurebo_offline() = runTest {
+        val fake = object : QiandureboSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                QiandureboSpider.QiandureboStreamInfo(anchorName = "千度离线", isLive = false)
+        }
+        val router = PlatformRouter(qiandureboSpider = fake)
+        val info = router.fetchStreamInfo("https://qiandurebo.com/live/abc123")
+        assertFalse(info.isLive)
+        assertEquals("千度离线", info.anchorName)
+    }
+
+    @Test
+    fun fetchShowroom_live() = runTest {
+        val fake = object : ShowroomSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                ShowroomSpider.ShowroomStreamInfo(
+                    anchorName = "ShowRoom主播",
+                    isLive = true,
+                    m3u8Url = "https://r.showroom-live.com/live/abc.m3u8",
+                    recordUrl = "http://r.showroom-live.com/live/abc.m3u8",
+                )
+        }
+        val router = PlatformRouter(showroomSpider = fake)
+        val info = router.fetchStreamInfo("https://www.showroom-live.com/room/profile?room_id=99999")
+        assertTrue(info.isLive)
+        assertEquals("ShowRoom主播", info.anchorName)
+        assertEquals("http://r.showroom-live.com/live/abc.m3u8", info.recordUrl)
+    }
+
+    @Test
+    fun fetchShowroom_offline() = runTest {
+        val fake = object : ShowroomSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                ShowroomSpider.ShowroomStreamInfo(anchorName = "ShowRoom离线", isLive = false)
+        }
+        val router = PlatformRouter(showroomSpider = fake)
+        val info = router.fetchStreamInfo("https://www.showroom-live.com/room/profile?room_id=99999")
+        assertFalse(info.isLive)
+        assertEquals("ShowRoom离线", info.anchorName)
+    }
+
+    @Test
+    fun isSupported_batch9f() {
+        assertTrue(PlatformRouter.isSupported("https://6.cn/abc123"))
+        assertTrue(PlatformRouter.isSupported("https://show.lailianjie.com/room123"))
+        assertTrue(PlatformRouter.isSupported("https://qiandurebo.com/live/abc123"))
+        assertTrue(PlatformRouter.isSupported("https://www.showroom-live.com/room/profile?room_id=99999"))
+        assertFalse(PlatformRouter.isSupported("https://unknown-platform.net/live/1"))
     }
 }

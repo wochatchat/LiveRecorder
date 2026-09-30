@@ -81,6 +81,10 @@ fun platformKeyForUrl(url: String): String = when {
     url.contains("17.live/") -> "live17"
     url.contains("lang.live/") -> "langlive"
     url.contains("weimipopo.com/") || url.contains("catshow168.com/") -> "pplive"
+    url.contains(".6.cn/") -> "liujianfang"
+    url.contains("lailianjie.com/") -> "lianjie"
+    url.contains("qiandurebo.com/") -> "qiandurebo"
+    url.contains("showroom-live.com/") -> "showroom"
     url.contains(".m3u8") || url.contains(".flv") -> "custom"
     else -> "douyin"
 }

@@ -82,6 +82,10 @@ val PLATFORM_LABELS = mapOf(
     "live17" to "17Live",
     "langlive" to "浪Live",
     "pplive" to "漂漂",
+    "liujianfang" to "六间房",
+    "lianjie" to "连接",
+    "qiandurebo" to "千度热播",
+    "showroom" to "ShowRoom",
 )
 
 /** 平台主品牌色（Surface badge 背景色用 12% alpha）。 */
@@ -127,4 +131,8 @@ val PLATFORM_COLORS = mapOf(
     "live17" to Color(0xFF00E5CC),
     "langlive" to Color(0xFFFF6D00),
     "pplive" to Color(0xFF00BFA5),
+    "liujianfang" to Color(0xFFFF4081),
+    "lianjie" to Color(0xFF2196F3),
+    "qiandurebo" to Color(0xFFFF9800),
+    "showroom" to Color(0xFF9C27B0),
 )

@@ -58,6 +58,10 @@ import com.wochatchat.liverecorder.platform.vvxqiu.VvxqiuSpider
 import com.wochatchat.liverecorder.platform.live17.Live17Spider
 import com.wochatchat.liverecorder.platform.langlive.LangliveSpider
 import com.wochatchat.liverecorder.platform.pplive.PpliveSpider
+import com.wochatchat.liverecorder.platform.liujian.LiuJianFangSpider
+import com.wochatchat.liverecorder.platform.lianjie.LianjieSpider
+import com.wochatchat.liverecorder.platform.qiandurebo.QiandureboSpider
+import com.wochatchat.liverecorder.platform.showroom.ShowroomSpider
 
 class PlatformRouter(
     private val douyinSpider: DouyinSpider = DouyinSpider(),
@@ -99,6 +103,10 @@ class PlatformRouter(
     private val live17Spider: Live17Spider = Live17Spider(),
     private val langliveSpider: LangliveSpider = LangliveSpider(),
     private val ppliveSpider: PpliveSpider = PpliveSpider(),
+    private val liujianFangSpider: LiuJianFangSpider = LiuJianFangSpider(),
+    private val lianjieSpider: LianjieSpider = LianjieSpider(),
+    private val qiandureboSpider: QiandureboSpider = QiandureboSpider(),
+    private val showroomSpider: ShowroomSpider = ShowroomSpider(),
 ) {
     companion object {
         /** 斗鱼画质码映射（上游 stream.py get_douyu_stream_url video_quality_options）。 */
@@ -215,6 +223,18 @@ class PlatformRouter(
         fun isPpliveUrl(url: String): Boolean =
             url.contains("weimipopo.com/") || url.contains("catshow168.com/")
 
+        /** 9f：6.cn → 六间房直播链路（spider.py:2908）。 */
+        fun isLiuJianFangUrl(url: String): Boolean = url.contains(".6.cn/")
+
+        /** 9f：lailianjie.com → 连接直播链路（spider.py:3278）。 */
+        fun isLianjieUrl(url: String): Boolean = url.contains("lailianjie.com/")
+
+        /** 9f：qiandurebo.com → 千度热播直播链路（spider.py:1220）。 */
+        fun isQiandureboUrl(url: String): Boolean = url.contains("qiandurebo.com/")
+
+        /** 9f：showroom-live.com → ShowRoom 直播链路（spider.py:2433）。 */
+        fun isShowroomUrl(url: String): Boolean = url.contains("showroom-live.com/")
+
         fun isDirectStreamUrl(url: String): Boolean =
             !isDouyuUrl(url) && !isKuaishouUrl(url) && !isHuyaUrl(url) &&
                 !isBilibiliUrl(url) && !isYyUrl(url) && !isBigoUrl(url) &&
@@ -230,6 +250,8 @@ class PlatformRouter(
                 !isMaoerfmUrl(url) && !isKugouUrl(url) &&
                 !isChangliaoUrl(url) && !isVvxqiuUrl(url) &&
                 !is17LiveUrl(url) && !isLangliveUrl(url) && !isPpliveUrl(url) &&
+                !isLiuJianFangUrl(url) && !isLianjieUrl(url) &&
+                !isQiandureboUrl(url) && !isShowroomUrl(url) &&
                 !url.contains("douyin.com/") && !url.contains("iesdouyin.com/") &&
                 (url.contains(".m3u8") || url.contains(".flv"))
 
@@ -248,7 +270,9 @@ class PlatformRouter(
                 isFlextvUrl(url) || isPopkontvUrl(url) ||
                 isMaoerfmUrl(url) || isKugouUrl(url) ||
                 isChangliaoUrl(url) || isVvxqiuUrl(url) ||
-                is17LiveUrl(url) || isLangliveUrl(url) || isPpliveUrl(url) -> true
+                is17LiveUrl(url) || isLangliveUrl(url) || isPpliveUrl(url) ||
+                isLiuJianFangUrl(url) || isLianjieUrl(url) ||
+                isQiandureboUrl(url) || isShowroomUrl(url) -> true
             else -> url.contains("douyin.com/") || url.contains("iesdouyin.com/")
         }
     }
@@ -300,6 +324,10 @@ class PlatformRouter(
         isLangliveUrl(url) -> fetchLanglive(url, proxyAddr, cookies["langlive"])
         isPpliveUrl(url) -> fetchPplive(url, proxyAddr,
             cookies["pplive"] ?: if (url.contains("catshow")) cookies["huamao"] else null)
+        isLiuJianFangUrl(url) -> fetchLiuJianFang(url, proxyAddr, cookies["liujian"])
+        isLianjieUrl(url) -> fetchLianjie(url, proxyAddr, cookies["lianjie"])
+        isQiandureboUrl(url) -> fetchQiandurebo(url, proxyAddr, cookies["qiandurebo"])
+        isShowroomUrl(url) -> fetchShowroom(url, proxyAddr, cookies["showroom"])
         isDirectStreamUrl(url) -> fetchDirectStream(url)
         else -> douyinSpider.fetchStreamInfo(url, quality, proxyAddr)
     }
@@ -793,6 +821,40 @@ class PlatformRouter(
     /** 9e 漂漂/花猫 → live/preview POST（spider.py:2872），recordUrl = m3u8。 */
     private suspend fun fetchPplive(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
         val info = ppliveSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, recordUrl = info.recordUrl)
+    }
+
+    // ── Batch F: 六间房 / 连接 / 千度热播 / ShowRoom ───────────────────────────────
+
+    /** 9f 六间房 → v.6.cn 房间页 + coo mobile API（spider.py:2908），recordUrl = flv。 */
+    private suspend fun fetchLiuJianFang(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = liujianFangSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            flvUrl = info.flvUrl, recordUrl = info.recordUrl)
+    }
+
+    /** 9f 连接 → api.lailianjie.com（spider.py:3278），recordUrl = flv。 */
+    private suspend fun fetchLianjie(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = lianjieSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl)
+    }
+
+    /** 9f 千度热播 → qiandurebo.com 房间页（spider.py:1220），recordUrl = flv。 */
+    private suspend fun fetchQiandurebo(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = qiandureboSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            flvUrl = info.flvUrl, recordUrl = info.recordUrl)
+    }
+
+    /** 9f ShowRoom → showroom-live.com API（spider.py:2433），recordUrl = http m3u8。 */
+    private suspend fun fetchShowroom(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = showroomSpider.getStreamInfo(url, proxyAddr, cookie)
         if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
         return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
             m3u8Url = info.m3u8Url, recordUrl = info.recordUrl)
