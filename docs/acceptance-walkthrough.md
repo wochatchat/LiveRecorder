@@ -1,10 +1,12 @@
 # 真机截图走查清单（Phase 5e/5f + 6b~6f + 7/8 平台与功能 攒批验收）
 
-> 用途：Phase 6f-4 收口前的统一真机走查。测试包：GitHub Actions run 36527449985 Artifact `liverecorder-apk`（versionName 0.1.1，2026-09-29 出包，含 7a~8c 全部改动；旧包 run 36417943901 已过期）。
+> 用途：Phase 6f-4 收口前的统一真机走查。测试包：GitHub Actions run 36725061192 Artifact `liverecorder-apk`（versionName 0.1.12/code 112，2026-09-30 出包，含 Phase 9 Batch A~G 全部 46 个平台；旧包 run 36527449985 已过期）。
 > 规则：每项 **深色/浅色各一张**，命名 `<轮次>-<要点>-<light|dark>.png`，归档 `docs/screenshots/`，拍完在本文档勾选。
 > 操作路径：系统设置切换深色模式 → 回 App 截图（App 跟随系统，无内置开关）。
 
 ## A. Phase 5e/5f 遗留（功能验收，截图 + 文字记录）
+
+> **注意**：Phase 9 Batch A~G 的 27 个新平台（9a~9g，46 平台合计）均未经过真机录制验证。走查时优先用这些平台实测——抖音/斗鱼/快手/虎牙 等 Phase 1-8 平台已在历史版本验证过，新平台是本次重点。
 
 - [ ] 长录制稳定性：单路连续录制 ≥30min，卡片时长/大小走秒正常，无中断
 - [ ] 后台存活：锁屏 + 挂后台 30min，常驻通知在，回前台状态一致
