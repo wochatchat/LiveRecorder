@@ -21,16 +21,8 @@ class KugouSpiderTest {
             """{"errno":0,"data":{"normalRoomInfo":{"nickName":"酷狗离线"},"liveType":-1}}"""
 
         // 流地址 fixture：lines[-1].streamProfiles[0].httpsFlv = JSON 数组
-        private val streamJson = """
-        {"errno":0,"data":{"lines":[
-            {"streamProfiles":[
-                {"httpsFlv":"[\"https:\\/\\/flv.kugou.com\\/live\\/abc.flv\"]"}
-            ]},
-            {"streamProfiles":[
-                {"httpsFlv":"[\"https:\\/\\/flv2.kugou.com\\/live\\/def.flv\"]"}
-            ]}
-        ]}}
-    """.trimIndent()
+        private val streamJson =
+            """{"errno":0,"data":{"lines":[{"streamProfiles":[{"httpsFlv":["https://flv.kugou.com/live/abc.flv"]}]}]}}"""
     }
 
     private class FakeClient(
