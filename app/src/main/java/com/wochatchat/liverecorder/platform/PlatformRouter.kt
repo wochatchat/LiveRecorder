@@ -46,6 +46,11 @@ import com.wochatchat.liverecorder.platform.huajiao.HuajiaoSpider
 import com.wochatchat.liverecorder.platform.inke.InkeSpider
 import com.wochatchat.liverecorder.platform.liuxing.LiuxingSpider
 import com.wochatchat.liverecorder.platform.yinbo.YinboSpider
+import com.wochatchat.liverecorder.platform.soop.SoopliveSpider
+import com.wochatchat.liverecorder.platform.pandatv.PandatvSpider
+import com.wochatchat.liverecorder.platform.winktv.WinktvSpider
+import com.wochatchat.liverecorder.platform.flextv.FlextvSpider
+import com.wochatchat.liverecorder.platform.popkontv.PopkontvSpider
 
 class PlatformRouter(
     private val douyinSpider: DouyinSpider = DouyinSpider(),
@@ -75,6 +80,11 @@ class PlatformRouter(
     private val liuxingSpider: LiuxingSpider = LiuxingSpider(),
     private val inkeSpider: InkeSpider = InkeSpider(),
     private val yinboSpider: YinboSpider = YinboSpider(),
+    private val soopliveSpider: SoopliveSpider = SoopliveSpider(),
+    private val pandatvSpider: PandatvSpider = PandatvSpider(),
+    private val winktvSpider: WinktvSpider = WinktvSpider(),
+    private val flextvSpider: FlextvSpider = FlextvSpider(),
+    private val popkontvSpider: PopkontvSpider = PopkontvSpider(),
 ) {
     companion object {
         /** 斗鱼画质码映射（上游 stream.py get_douyu_stream_url video_quality_options）。 */
@@ -164,6 +174,15 @@ class PlatformRouter(
         fun isInkeUrl(url: String): Boolean = url.contains("inke.cn")
         fun isYinboUrl(url: String): Boolean = url.contains("ybw1666.com")
 
+        /** 9c：韩国平台（上游 main.py:678-800）。 */
+        fun isSoopUrl(url: String): Boolean =
+            url.contains("sooplive.co.kr/") || url.contains("sooplive.com/")
+        fun isPandatvUrl(url: String): Boolean = url.contains("pandalive.co.kr/")
+        fun isWinktvUrl(url: String): Boolean = url.contains("winktv.co.kr/")
+        fun isFlextvUrl(url: String): Boolean =
+            url.contains("flextv.co.kr/") || url.contains("ttinglive.com/")
+        fun isPopkontvUrl(url: String): Boolean = url.contains("popkontv.com/")
+
         fun isDirectStreamUrl(url: String): Boolean =
             !isDouyuUrl(url) && !isKuaishouUrl(url) && !isHuyaUrl(url) &&
                 !isBilibiliUrl(url) && !isYyUrl(url) && !isBigoUrl(url) &&
@@ -174,6 +193,8 @@ class PlatformRouter(
                 !isTwitchUrl(url) && !isCHZZKUrl(url) &&
                 !isYouTubeUrl(url) && !isShopeeUrl(url) && !isAcfunUrl(url) &&
                 !isHuajiaoUrl(url) && !isLiuxingUrl(url) && !isInkeUrl(url) && !isYinboUrl(url) &&
+                !isSoopUrl(url) && !isPandatvUrl(url) && !isWinktvUrl(url) &&
+                !isFlextvUrl(url) && !isPopkontvUrl(url) &&
                 !url.contains("douyin.com/") && !url.contains("iesdouyin.com/") &&
                 (url.contains(".m3u8") || url.contains(".flv"))
 
@@ -187,7 +208,9 @@ class PlatformRouter(
                 isXhsUrl(url) || isTiktokUrl(url) ||
                 isTwitchUrl(url) || isCHZZKUrl(url) ||
                 isYouTubeUrl(url) || isShopeeUrl(url) || isAcfunUrl(url) ||
-                isHuajiaoUrl(url) || isLiuxingUrl(url) || isInkeUrl(url) || isYinboUrl(url) -> true
+                isHuajiaoUrl(url) || isLiuxingUrl(url) || isInkeUrl(url) || isYinboUrl(url) ||
+                isSoopUrl(url) || isPandatvUrl(url) || isWinktvUrl(url) ||
+                isFlextvUrl(url) || isPopkontvUrl(url) -> true
             else -> url.contains("douyin.com/") || url.contains("iesdouyin.com/")
         }
     }
@@ -226,6 +249,11 @@ class PlatformRouter(
         isLiuxingUrl(url) -> fetchLiuxing(url, proxyAddr, cookies["liuxing"])
         isInkeUrl(url) -> fetchInke(url, proxyAddr, cookies["inke"])
         isYinboUrl(url) -> fetchYinbo(url, proxyAddr, cookies["yinbo"])
+        isSoopUrl(url) -> fetchSoop(url, proxyAddr, cookies["sooplive"])
+        isPandatvUrl(url) -> fetchPandatv(url, proxyAddr, cookies["pandatv"])
+        isWinktvUrl(url) -> fetchWinktv(url, proxyAddr, cookies["winktv"])
+        isFlextvUrl(url) -> fetchFlextv(url, proxyAddr, cookies["flextv"])
+        isPopkontvUrl(url) -> fetchPopkontv(url, proxyAddr, cookies["popkontv"])
         isDirectStreamUrl(url) -> fetchDirectStream(url)
         else -> douyinSpider.fetchStreamInfo(url, quality, proxyAddr)
     }
@@ -620,6 +648,48 @@ class PlatformRouter(
         if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
         return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
             m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl)
+    }
+
+    // ── Batch C: SOOP / PandaTV / WinkTV / FlexTV / PopkonTV ──────────────────
+
+    /** 9c SOOP → 韩国站/国际站双路径（spider.py:1078），recordUrl = master m3u8。 */
+    private suspend fun fetchSoop(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = soopliveSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true, title = info.title,
+            m3u8Url = info.m3u8Url, recordUrl = info.recordUrl)
+    }
+
+    /** 9c PandaTV → api.pandalive.co.kr 双 POST（spider.py:1251）。 */
+    private suspend fun fetchPandatv(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = pandatvSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, recordUrl = info.recordUrl)
+    }
+
+    /** 9c WinkTV → api.winktv.co.kr 双 POST（spider.py:1361）。 */
+    private suspend fun fetchWinktv(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = winktvSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, recordUrl = info.recordUrl)
+    }
+
+    /** 9c FlexTV → __NEXT_DATA__ + stream API（spider.py:1472），19+ 走账密登录路径由 spider 内部处理。 */
+    private suspend fun fetchFlextv(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = flextvSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl)
+    }
+
+    /** 9c PopkonTV → search/all + castwatch（spider.py:1740），token 登录路径由 spider 内部处理。 */
+    private suspend fun fetchPopkontv(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = popkontvSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, recordUrl = info.recordUrl)
     }
 
     /** 9a AcFun → 抖音同构映射（spider.py:2498）：recordUrl = m3u8（快手协议 bitrate 最高档）。 */

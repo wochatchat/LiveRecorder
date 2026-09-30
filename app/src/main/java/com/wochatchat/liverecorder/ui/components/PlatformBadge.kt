@@ -70,6 +70,11 @@ val PLATFORM_LABELS = mapOf(
     "liuxing" to "流星",
     "inke" to "映客",
     "yinbo" to "音播",
+    "soop" to "SOOP",
+    "pandatv" to "PandaTV",
+    "winktv" to "WinkTV",
+    "flextv" to "FlexTV",
+    "popkontv" to "PopkonTV",
 )
 
 /** 平台主品牌色（Surface badge 背景色用 12% alpha）。 */
@@ -103,4 +108,9 @@ val PLATFORM_COLORS = mapOf(
     "liuxing" to Color(0xFF9C27B0),
     "inke" to Color(0xFF4CAF50),
     "yinbo" to Color(0xFF2196F3),
+    "soop" to Color(0xFFFF5722),
+    "pandatv" to Color(0xFF2196F3),
+    "winktv" to Color(0xFFFF9800),
+    "flextv" to Color(0xFF9C27B0),
+    "popkontv" to Color(0xFF03A9F4),
 )

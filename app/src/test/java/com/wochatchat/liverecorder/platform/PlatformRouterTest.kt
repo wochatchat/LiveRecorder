@@ -39,6 +39,11 @@ import com.wochatchat.liverecorder.platform.huajiao.HuajiaoSpider
 import com.wochatchat.liverecorder.platform.inke.InkeSpider
 import com.wochatchat.liverecorder.platform.liuxing.LiuxingSpider
 import com.wochatchat.liverecorder.platform.yinbo.YinboSpider
+import com.wochatchat.liverecorder.platform.soop.SoopliveSpider
+import com.wochatchat.liverecorder.platform.pandatv.PandatvSpider
+import com.wochatchat.liverecorder.platform.winktv.WinktvSpider
+import com.wochatchat.liverecorder.platform.flextv.FlextvSpider
+import com.wochatchat.liverecorder.platform.popkontv.PopkontvSpider
 
 class PlatformRouterTest {
 
@@ -871,4 +876,151 @@ class PlatformRouterTest {
         assertFalse(info.isLive)
     }
 
+    // ── Batch C: SOOP / PandaTV / WinkTV / FlexTV / PopkonTV ──────────────────
+
+    @Test
+    fun isSoopUrl_routing() {
+        assertTrue(PlatformRouter.isSoopUrl("https://play.sooplive.co.kr/oul282/249469582"))
+        assertTrue(PlatformRouter.isSoopUrl("https://www.sooplive.co.kr/station/20519630/oul282"))
+        assertTrue(PlatformRouter.isSoopUrl("https://www.sooplive.com/oul282/1"))
+        assertFalse(PlatformRouter.isSoopUrl("https://chzzk.naver.com/1"))
+    }
+
+    @Test
+    fun fetchSoop_live() = runTest {
+        val fake = object : SoopliveSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?,
+                                               username: String?, password: String?) =
+                SoopliveSpider.SoopStreamInfo(anchorName = "SOOP主播", isLive = true,
+                    m3u8Url = "https://cdn.sooplive.co.kr/live/1/master.m3u8?aid=t",
+                    recordUrl = "https://cdn.sooplive.co.kr/live/1/master.m3u8?aid=t")
+        }
+        val router = PlatformRouter(soopliveSpider = fake)
+        val info = router.fetchStreamInfo("https://play.sooplive.co.kr/oul282/249469582")
+        assertTrue(info.isLive)
+        assertEquals("SOOP主播", info.anchorName)
+        assertEquals("https://cdn.sooplive.co.kr/live/1/master.m3u8?aid=t", info.recordUrl)
+    }
+
+    @Test
+    fun fetchSoop_offline() = runTest {
+        val fake = object : SoopliveSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?,
+                                               username: String?, password: String?) =
+                SoopliveSpider.SoopStreamInfo(anchorName = "SOOP离线", isLive = false)
+        }
+        val router = PlatformRouter(soopliveSpider = fake)
+        val info = router.fetchStreamInfo("https://play.sooplive.co.kr/oul282/249469582")
+        assertFalse(info.isLive)
+        assertEquals("SOOP离线", info.anchorName)
+    }
+
+    @Test
+    fun isPandatvUrl_routing() {
+        assertTrue(PlatformRouter.isPandatvUrl("https://www.pandalive.co.kr/live/panda123"))
+        assertFalse(PlatformRouter.isPandatvUrl("https://www.winktv.co.kr/live/x"))
+    }
+
+    @Test
+    fun fetchPandatv_live() = runTest {
+        val fake = object : PandatvSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                PandatvSpider.PandatvStreamInfo(
+                    anchorName = "熊猫主播", isLive = true,
+                    m3u8Url = "https://panda.m3u8/live.m3u8",
+                    recordUrl = "https://panda.m3u8/live.m3u8")
+        }
+        val router = PlatformRouter(pandatvSpider = fake)
+        val info = router.fetchStreamInfo("https://www.pandalive.co.kr/live/panda123")
+        assertTrue(info.isLive)
+        assertEquals("熊猫主播", info.anchorName)
+        assertEquals("https://panda.m3u8/live.m3u8", info.recordUrl)
+    }
+
+    @Test
+    fun isWinktvUrl_routing() {
+        assertTrue(PlatformRouter.isWinktvUrl("https://www.winktv.co.kr/live/wink123"))
+        assertFalse(PlatformRouter.isWinktvUrl("https://www.pandalive.co.kr/live/x"))
+    }
+
+    @Test
+    fun fetchWinktv_live() = runTest {
+        val fake = object : WinktvSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                WinktvSpider.WinktvStreamInfo(
+                    anchorName = "眨眼主播", isLive = true,
+                    m3u8Url = "https://wink.m3u8/master.m3u8",
+                    recordUrl = "https://wink.m3u8/master.m3u8")
+        }
+        val router = PlatformRouter(winktvSpider = fake)
+        val info = router.fetchStreamInfo("https://www.winktv.co.kr/live/wink123")
+        assertTrue(info.isLive)
+        assertEquals("眨眼主播", info.anchorName)
+        assertEquals("https://wink.m3u8/master.m3u8", info.recordUrl)
+    }
+
+    @Test
+    fun isFlextvUrl_routing() {
+        assertTrue(PlatformRouter.isFlextvUrl("https://www.flextv.co.kr/channels/123/live"))
+        assertTrue(PlatformRouter.isFlextvUrl("https://www.ttinglive.com/channels/123/live"))
+        assertFalse(PlatformRouter.isFlextvUrl("https://www.popkontv.com/live"))
+    }
+
+    @Test
+    fun fetchFlextv_live() = runTest {
+        val fake = object : FlextvSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?,
+                                               username: String?, password: String?) =
+                FlextvSpider.FlextvStreamInfo(
+                    anchorName = "Flex主播", isLive = true,
+                    m3u8Url = "https://flex.m3u8/stream.m3u8",
+                    recordUrl = "https://flex.m3u8/stream.m3u8")
+        }
+        val router = PlatformRouter(flextvSpider = fake)
+        val info = router.fetchStreamInfo("https://www.ttinglive.com/channels/flex123/live")
+        assertTrue(info.isLive)
+        assertEquals("Flex主播", info.anchorName)
+        assertEquals("https://flex.m3u8/stream.m3u8", info.recordUrl)
+    }
+
+    @Test
+    fun isPopkontvUrl_routing() {
+        assertTrue(PlatformRouter.isPopkontvUrl(
+            "https://www.popkontv.com/live/view?castId=pk123&partnerCode=P-00001"))
+        assertFalse(PlatformRouter.isPopkontvUrl("https://www.winktv.co.kr/live/x"))
+    }
+
+    @Test
+    fun fetchPopkontv_live() = runTest {
+        val fake = object : PopkontvSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?,
+                                               accessToken: String?, username: String?, password: String?,
+                                               partnerCode: String) =
+                PopkontvSpider.PopkontvStreamInfo(
+                    anchorName = "泡泡主播", isLive = true,
+                    m3u8Url = "https://pk.m3u8/live.m3u8",
+                    recordUrl = "https://pk.m3u8/live.m3u8")
+        }
+        val router = PlatformRouter(popkontvSpider = fake)
+        val info = router.fetchStreamInfo(
+            "https://www.popkontv.com/live/view?castId=pk123&partnerCode=P-00001")
+        assertTrue(info.isLive)
+        assertEquals("泡泡主播", info.anchorName)
+        assertEquals("https://pk.m3u8/live.m3u8", info.recordUrl)
+    }
+
+    @Test
+    fun isSupported_batch9c() {
+        assertTrue(PlatformRouter.isSupported("https://play.sooplive.co.kr/oul282/249469582"))
+        assertTrue(PlatformRouter.isSupported("https://www.sooplive.com/oul282/1"))
+        assertTrue(PlatformRouter.isSupported("https://www.pandalive.co.kr/live/panda123"))
+        assertTrue(PlatformRouter.isSupported("https://www.winktv.co.kr/live/wink123"))
+        assertTrue(PlatformRouter.isSupported("https://www.flextv.co.kr/channels/123/live"))
+        assertTrue(PlatformRouter.isSupported("https://www.ttinglive.com/channels/123/live"))
+        assertTrue(PlatformRouter.isSupported(
+            "https://www.popkontv.com/live/view?castId=pk123&partnerCode=P-00001"))
+        // 9c 平台域名不抢自定义直链路由
+        assertTrue(PlatformRouter.isDirectStreamUrl("https://cdn.example.com/live.m3u8"))
+        assertFalse(PlatformRouter.isSupported("https://unknown.kr/live/1"))
+    }
 }

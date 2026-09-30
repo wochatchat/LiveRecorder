@@ -68,6 +68,11 @@ fun platformKeyForUrl(url: String): String = when {
     url.contains("7u66.com") -> "liuxing"
     url.contains("inke.cn") -> "inke"
     url.contains("ybw1666.com") -> "yinbo"
+    url.contains("sooplive.co.kr/") || url.contains("sooplive.com/") -> "soop"
+    url.contains("pandalive.co.kr/") -> "pandatv"
+    url.contains("winktv.co.kr/") -> "winktv"
+    url.contains("flextv.co.kr/") || url.contains("ttinglive.com/") -> "flextv"
+    url.contains("popkontv.com/") -> "popkontv"
     url.contains(".m3u8") || url.contains(".flv") -> "custom"
     else -> "douyin"
 }
