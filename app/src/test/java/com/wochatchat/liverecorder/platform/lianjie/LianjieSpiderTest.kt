@@ -36,8 +36,8 @@ class LianjieSpiderTest {
         val info = spider.getStreamInfo("https://show.lailianjie.com/room123")
         assertEquals("连接主播", info.anchorName)
         assertTrue(info.isLive)
-        assertEquals("https://pull.example.com/live.m3u8?", info.m3u8Url)
-        assertEquals("https://pull.example.com/live.flv?", info.flvUrl)
+        assertEquals("https://pull.example.com/live.m3u8?token=abc", info.m3u8Url)
+        assertEquals("https://pull.example.com/live.flv?token=abc", info.flvUrl)
         assertEquals(info.flvUrl, info.recordUrl)
         assertEquals(1, reqCount)
     }
@@ -61,7 +61,7 @@ class LianjieSpiderTest {
     }
 
     companion object {
-        private const val LIVE_JSON = """{"data":{"nickname":"连接主播","isonline":1,"videoUrl":"webrtc://pull.example.com/live"}}"""
+        private const val LIVE_JSON = """{"data":{"nickname":"连接主播","isonline":1,"videoUrl":"webrtc://pull.example.com/live?token=abc"}}"""
         private const val OFFLINE_JSON = """{"data":{"nickname":"连接主播","isonline":0,"videoUrl":""}}"""
     }
 }

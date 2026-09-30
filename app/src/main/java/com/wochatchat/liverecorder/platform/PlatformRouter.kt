@@ -224,7 +224,7 @@ class PlatformRouter(
             url.contains("weimipopo.com/") || url.contains("catshow168.com/")
 
         /** 9f：6.cn → 六间房直播链路（spider.py:2908）。 */
-        fun isLiuJianFangUrl(url: String): Boolean = url.contains(".6.cn/")
+        fun isLiuJianFangUrl(url: String): Boolean = url.contains("6.cn/")
 
         /** 9f：lailianjie.com → 连接直播链路（spider.py:3278）。 */
         fun isLianjieUrl(url: String): Boolean = url.contains("lailianjie.com/")
