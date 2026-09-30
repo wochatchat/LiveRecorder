@@ -48,6 +48,9 @@ import com.wochatchat.liverecorder.platform.maoerfm.MaoerfmSpider
 import com.wochatchat.liverecorder.platform.kugou.KugouSpider
 import com.wochatchat.liverecorder.platform.changliao.ChangliaoSpider
 import com.wochatchat.liverecorder.platform.vvxqiu.VvxqiuSpider
+import com.wochatchat.liverecorder.platform.live17.Live17Spider
+import com.wochatchat.liverecorder.platform.langlive.LangliveSpider
+import com.wochatchat.liverecorder.platform.pplive.PpliveSpider
 
 class PlatformRouterTest {
 
@@ -1192,5 +1195,130 @@ class PlatformRouterTest {
         // 9d 平台域名不抢自定义直链路由
         assertTrue(PlatformRouter.isDirectStreamUrl("https://cdn.example.com/live.m3u8"))
         assertFalse(PlatformRouter.isSupported("https://unknown.cn/live/1"))
+    }
+
+    // ── Batch E: 17Live / 浪Live / 漂漂 ─────────────────────────────────────────
+
+    @Test
+    fun is17LiveUrl_routing() {
+        assertTrue(PlatformRouter.is17LiveUrl("https://17.live/live/abc123"))
+        assertTrue(PlatformRouter.is17LiveUrl("https://web.17.live/room/abc123"))
+        assertFalse(PlatformRouter.is17LiveUrl("https://live.bilibili.com/1"))
+    }
+
+    @Test
+    fun isLangliveUrl_routing() {
+        assertTrue(PlatformRouter.isLangliveUrl("https://www.lang.live/room/456def"))
+        assertTrue(PlatformRouter.isLangliveUrl("https://m.lang.live/room/123"))
+        assertFalse(PlatformRouter.isLangliveUrl("https://live.bilibili.com/1"))
+    }
+
+    @Test
+    fun isPpliveUrl_routing() {
+        assertTrue(PlatformRouter.isPpliveUrl("https://m.pp.weimipopo.com/?anchorUid=uid123"))
+        assertTrue(PlatformRouter.isPpliveUrl("https://h.catshow168.com/?anchorUid=cat999"))
+        assertFalse(PlatformRouter.isPpliveUrl("https://live.bilibili.com/1"))
+    }
+
+    @Test
+    fun fetch17Live_live() = runTest {
+        val fake = object : Live17Spider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                Live17Spider.StreamInfo(
+                    anchorName = "17Live主播",
+                    isLive = true,
+                    flvUrl = "https://pull.example.com/17live.flv",
+                    recordUrl = "https://pull.example.com/17live.flv",
+                )
+        }
+        val router = PlatformRouter(live17Spider = fake)
+        val info = router.fetchStreamInfo("https://17.live/live/abc123")
+        assertTrue(info.isLive)
+        assertEquals("17Live主播", info.anchorName)
+        assertEquals("https://pull.example.com/17live.flv", info.recordUrl)
+    }
+
+    @Test
+    fun fetch17Live_offline() = runTest {
+        val fake = object : Live17Spider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                Live17Spider.StreamInfo(anchorName = "17Live离线", isLive = false)
+        }
+        val router = PlatformRouter(live17Spider = fake)
+        val info = router.fetchStreamInfo("https://17.live/live/abc123")
+        assertFalse(info.isLive)
+        assertEquals("17Live离线", info.anchorName)
+    }
+
+    @Test
+    fun fetchLanglive_live() = runTest {
+        val fake = object : LangliveSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                LangliveSpider.StreamInfo(
+                    anchorName = "浪Live主播",
+                    isLive = true,
+                    m3u8Url = "https://stream.example.com/langlive.m3u8",
+                    flvUrl = "https://flv.example.com/langlive.flv",
+                    recordUrl = "https://stream.example.com/langlive.m3u8",
+                )
+        }
+        val router = PlatformRouter(langliveSpider = fake)
+        val info = router.fetchStreamInfo("https://www.lang.live/room/456def")
+        assertTrue(info.isLive)
+        assertEquals("浪Live主播", info.anchorName)
+        assertEquals("https://stream.example.com/langlive.m3u8", info.recordUrl)
+    }
+
+    @Test
+    fun fetchLanglive_offline() = runTest {
+        val fake = object : LangliveSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                LangliveSpider.StreamInfo(anchorName = "浪Live离线", isLive = false)
+        }
+        val router = PlatformRouter(langliveSpider = fake)
+        val info = router.fetchStreamInfo("https://www.lang.live/room/456def")
+        assertFalse(info.isLive)
+        assertEquals("浪Live离线", info.anchorName)
+    }
+
+    @Test
+    fun fetchPplive_live() = runTest {
+        val fake = object : PpliveSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                PpliveSpider.StreamInfo(
+                    anchorName = "漂漂主播",
+                    isLive = true,
+                    m3u8Url = "https://stream.example.com/pplive.m3u8",
+                    recordUrl = "https://stream.example.com/pplive.m3u8",
+                )
+        }
+        val router = PlatformRouter(ppliveSpider = fake)
+        val info = router.fetchStreamInfo("https://m.pp.weimipopo.com/?anchorUid=uid123")
+        assertTrue(info.isLive)
+        assertEquals("漂漂主播", info.anchorName)
+        assertEquals(info.m3u8Url, info.recordUrl)
+    }
+
+    @Test
+    fun fetchPplive_offline() = runTest {
+        val fake = object : PpliveSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                PpliveSpider.StreamInfo(anchorName = "漂漂离线", isLive = false)
+        }
+        val router = PlatformRouter(ppliveSpider = fake)
+        val info = router.fetchStreamInfo("https://m.pp.weimipopo.com/?anchorUid=uid123")
+        assertFalse(info.isLive)
+        assertEquals("漂漂离线", info.anchorName)
+    }
+
+    @Test
+    fun isSupported_batch9e() {
+        assertTrue(PlatformRouter.isSupported("https://17.live/live/abc123"))
+        assertTrue(PlatformRouter.isSupported("https://www.lang.live/room/456def"))
+        assertTrue(PlatformRouter.isSupported("https://m.pp.weimipopo.com/?anchorUid=uid123"))
+        assertTrue(PlatformRouter.isSupported("https://h.catshow168.com/?anchorUid=cat999"))
+        // 9e 平台域名不抢自定义直链路由
+        assertTrue(PlatformRouter.isDirectStreamUrl("https://cdn.example.com/live.m3u8"))
+        assertFalse(PlatformRouter.isSupported("https://unknown-cn.net/live/1"))
     }
 }

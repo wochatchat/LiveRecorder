@@ -79,6 +79,9 @@ val PLATFORM_LABELS = mapOf(
     "kugou" to "酷狗",
     "changliao" to "畅聊",
     "vvxqiu" to "VV星球",
+    "live17" to "17Live",
+    "langlive" to "浪Live",
+    "pplive" to "漂漂",
 )
 
 /** 平台主品牌色（Surface badge 背景色用 12% alpha）。 */
@@ -121,4 +124,7 @@ val PLATFORM_COLORS = mapOf(
     "kugou" to Color(0xFF00D2FF),
     "changliao" to Color(0xFF4CAF50),
     "vvxqiu" to Color(0xFFFF9800),
+    "live17" to Color(0xFF00E5CC),
+    "langlive" to Color(0xFFFF6D00),
+    "pplive" to Color(0xFF00BFA5),
 )

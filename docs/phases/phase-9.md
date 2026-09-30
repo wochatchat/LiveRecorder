@@ -1,9 +1,9 @@
-# 平台移植进度：Phase 9 — 剩余 27 平台接入
+# 平台移植进度：Phase 9 — 剩余 18 平台接入
 
 > 上游基准：ihmily/DouyinLiveRecorder v4.0.7（add187f），`main.py` 46 条 URL 模式分支。
 > 安卓端：wochatchat/LiveRecorder @ main（2026-09-30）。
 > 
-> **目标：接入上游全部 51 个平台，已完成 33 个，剩余 18 个。**
+> **目标：接入上游全部 51 个平台，已完成 36 个，剩余 15 个。**
 
 ---
 
@@ -50,11 +50,14 @@
 | 35 | 酷狗 | fanxing2.kugou.com | KugouSpider | 9d |
 | 36 | 畅聊 | live.tlclw.com | ChangliaoSpider | 9d |
 | 37 | VV星球 | vvxqiu.com | VvxqiuSpider | 9d |
+| 38 | 17Live | 17.live | Live17Spider | 9e |
+| 39 | 浪Live | lang.live | LangliveSpider | 9e |
+| 40 | 漂漂/花猫 | weimipopo.com / catshow168.com | PpliveSpider | 9e |
 | — | **自定义流** | .m3u8 / .flv 直链 | fetchDirectStream | 7a |
 
 ---
 
-### 剩余 27 平台（剩余 Batch D~H 5 批）
+### 剩余 15 平台（剩余 Batch F~H 3 批）
 
 #### Batch A — 无登录·简单 API（5 个）✅ 已完成（9a）
 
@@ -94,13 +97,13 @@
 | 36 | 畅聊 | live.tlclw.com | get_changliao_stream_url | ★★ | 简单 API |
 | 37 | VV星球 | vvxqiu.com | get_vvxqiu_stream_url | ★★ | 简单 API |
 
-#### Batch E — 小众中文平台·无登录（续，3 个）
+#### Batch E — 小众中文平台·无登录（续，3 个）✅ 已完成（9e）
 
 | # | 平台 | URL 模式 | 上游函数 | 复杂度 | 备注 |
 |---|---|---|---|---|---|
 | 38 | 17Live | 17.live | get_17live_stream_url | ★★★ | REST API，cookie 可能必须 |
 | 39 | 浪Live | www.lang.live | get_langlive_stream_url | ★★ | 简单 API |
-| 40 | 漂漂 | m.pp.weimipopo.com | get_pplive_stream_url | ★★ | 简单 API |
+| 40 | 漂漂 | m.pp.weimipopo.com | get_pplive_stream_url | ★★ | 简单 API（花猫复用同函数） |
 
 #### Batch F — 小众中文平台·无登录（续，4 个）
 
@@ -122,7 +125,7 @@
 
 | # | 平台 | URL 模式 | 上游函数 | 复杂度 | 决策 |
 |---|---|---|---|---|---|
-| 47 | 花猫 | h.catshow168.com | get_pplive_stream_url（复用！main.py 调用） | ★ | 上游复用 pplive 函数，确认行为后决策 |
+| 47 | 花猫 | h.catshow168.com | get_pplive_stream_url（复用！main.py 调用） | ★ | ✅ 9e 已随漂漂接入（PpliveSpider catshow 分支） |
 | 48 | 咪咕 | miguvideo.com | get_migu_stream_url（依赖 migu.js WASM） | — | **暂缓**：ddCalcu 依赖 WebAssembly + fetch，QuickJS 无 WASM；上游是 node 子进程专属 |
 
 ---
@@ -211,7 +214,7 @@ Batch A      Twitch YouTube Shopee Acfun CHZZK                              ✅ 
 Batch B      花椒 流星 映客 音播                                            ✅ 9b
 Batch C      SOOP PandaTV WinkTV FlexTV PopkonTV                            ✅ 9c
 Batch D      猫耳FM 酷狗 畅聊 VV星球                                       ✅ 9d
-Batch E      17Live 浪Live 漂漂                                            ⬜
+Batch E      17Live 浪Live 漂漂                                            ✅ 9e
 Batch F      六间房 连接 千度热播 ShowRoom                                 ⬜
 Batch G      Blued TwitCasting                                              ⬜
 Batch H      花猫（复用） 咪咕（暂缓）                                     ⬜
