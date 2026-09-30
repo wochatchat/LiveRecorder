@@ -1,15 +1,15 @@
-# 平台移植进度：Phase 9 — 剩余 32 平台接入
+# 平台移植进度：Phase 9 — 剩余 27 平台接入
 
 > 上游基准：ihmily/DouyinLiveRecorder v4.0.7（add187f），`main.py` 46 条 URL 模式分支。
-> 安卓端：wochatchat/LiveRecorder @ main（2026-09-29 合流后）。
+> 安卓端：wochatchat/LiveRecorder @ main（2026-09-30）。
 > 
-> **目标：接入上游全部 51 个平台，剩余 32 个，分批次推进。**
+> **目标：接入上游全部 51 个平台，已完成 24 个，剩余 27 个。**
 
 ---
 
 ## 一、上游全量平台审计
 
-### 已完成（19 个平台 + 1 自定义直链）
+### 已完成（29 个平台 + 1 自定义直链）
 
 | # | 平台 | URL 模式 | Android 实现 | 批次 |
 |---|---|---|---|---|
@@ -32,13 +32,27 @@
 | 17 | LiveMe | www.liveme.com | LiveMeSpider（liveme.js） | 8a |
 | 18 | 小红书 | xiaohongshu.com | XhsSpider | 8b |
 | 19 | TikTok | tiktok.com | TikTokSpider | 8c |
+| 20 | Twitch | twitch.tv | TwitchSpider | 9a |
+| 21 | YouTube | youtube.com | YouTubeSpider | 9a |
+| 22 | Shopee | live.shopee / shp.ee | ShopeeSpider | 9a |
+| 23 | Acfun | live.acfun.cn | AcfunSpider | 9a |
+| 24 | CHZZK | chzzk.naver.com | CHZZKSpider | 9a |
+| 25 | 花椒 | www.huajiao.com | HuajiaoSpider | 9b |
+| 26 | 流星 | 7u66.com | LiuxingSpider | 9b |
+| 27 | 映客 | www.inke.cn | InkeSpider | 9b |
+| 28 | 音播 | ybw1666.com | YinboSpider | 9b |
+| 29 | SOOP | sooplive.co.kr / sooplive.com | SoopliveSpider | 9c |
+| 30 | PandaTV | pandalive.co.kr | PandatvSpider | 9c |
+| 31 | WinkTV | winktv.co.kr | WinktvSpider | 9c |
+| 32 | FlexTV | flextv.co.kr / ttinglive.com | FlextvSpider | 9c |
+| 33 | PopkonTV | popkontv.com | PopkontvSpider | 9c |
 | — | **自定义流** | .m3u8 / .flv 直链 | fetchDirectStream | 7a |
 
 ---
 
-### 剩余 32 平台（分 8 批次）
+### 剩余 27 平台（剩余 Batch D~H 5 批）
 
-#### Batch A — 无登录·简单 API（5 个）
+#### Batch A — 无登录·简单 API（5 个）✅ 已完成（9a）
 
 | # | 平台 | URL 模式 | 上游函数 | 复杂度 | 备注 |
 |---|---|---|---|---|---|
@@ -48,7 +62,7 @@
 | 23 | Acfun | live.acfun.cn | get_acfun_stream_data | ★★★ | visitor login → userId → 快手流协议 |
 | 24 | CHZZK | chzzk.naver.com | get_chzzk_stream_data | ★★ | 韩国 Naver 平台，REST API，m3u8 后处理 |
 
-#### Batch B — 无登录·中等复杂度（4 个）
+#### Batch B — 无登录·中等复杂度（4 个）✅ 已完成（9b）
 
 | # | 平台 | URL 模式 | 上游函数 | 复杂度 | 备注 |
 |---|---|---|---|---|---|
@@ -57,7 +71,7 @@
 | 27 | 映客 | www.inke.cn | get_yingke_stream_url | ★★ | busi.inke.cn API |
 | 28 | 音播 | ybw1666.com | get_yinbo_stream_url | ★★ | wap.ybw1666.com API |
 
-#### Batch C — 韩国平台·需登录（5 个）
+#### Batch C — 韩国平台·需登录（5 个）✅ 已完成（9c）
 
 | # | 平台 | URL 模式 | 上游函数 | 复杂度 | 备注 |
 |---|---|---|---|---|---|
@@ -189,14 +203,16 @@
 
 ```
 [Phase 1-8]  ████████████████████░░░░░░░░░░░  19/51 平台（37%）  ✅
-Batch A      Twitch YouTube Shopee Acfun CHZZK                              ⬜
-Batch B      花椒 流星 映客 音播                                            ⬜
-Batch C      SOOP PandaTV WinkTV FlexTV PopkonTV                            ⬜
+Batch A      Twitch YouTube Shopee Acfun CHZZK                              ✅ 9a
+Batch B      花椒 流星 映客 音播                                            ✅ 9b
+Batch C      SOOP PandaTV WinkTV FlexTV PopkonTV                            ✅ 9c
 Batch D      猫耳FM 酷狗 畅聊 VV星球                                       ⬜
 Batch E      17Live 浪Live 漂漂                                            ⬜
 Batch F      六间房 连接 千度热播 ShowRoom                                 ⬜
 Batch G      Blued TwitCasting                                              ⬜
 Batch H      花猫（复用） 咪咕（暂缓）                                     ⬜
+
+当前：29/51 平台（57%）
 ```
 
 ---
