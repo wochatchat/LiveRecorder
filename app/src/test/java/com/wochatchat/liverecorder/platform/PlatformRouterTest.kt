@@ -55,8 +55,6 @@ import com.wochatchat.liverecorder.platform.liujian.LiuJianFangSpider
 import com.wochatchat.liverecorder.platform.lianjie.LianjieSpider
 import com.wochatchat.liverecorder.platform.qiandurebo.QiandureboSpider
 import com.wochatchat.liverecorder.platform.showroom.ShowroomSpider
-import com.wochatchat.liverecorder.platform.langlive.LangliveSpider
-import com.wochatchat.liverecorder.platform.pplive.PpliveSpider
 
 class PlatformRouterTest {
 

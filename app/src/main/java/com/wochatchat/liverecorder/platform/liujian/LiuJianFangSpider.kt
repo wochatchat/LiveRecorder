@@ -21,6 +21,9 @@ open class LiuJianFangSpider(
         private val RE_RID = Pattern.compile("rid: '(.*?)',\n\\s+roomid")
 
         private const val UA = "ios/7.830 (ios 17.0; ; iPhone 15 (A2846/A3089/A3090/A3092))"
+
+        fun parseRoomId(url: String): String =
+            url.split("?").first().substringAfterLast("/")
     }
 
     data class LiuJianFangStreamInfo(
@@ -29,10 +32,6 @@ open class LiuJianFangSpider(
         val flvUrl: String = "",
         val recordUrl: String = "",
     )
-
-    /** roomId 为 URL 路径末段（如 https://6.cn/abc123 → abc123）。 */
-    fun parseRoomId(url: String): String =
-        url.split("?").first().substringAfterLast("/")
 
     open suspend fun getStreamInfo(
         url: String,

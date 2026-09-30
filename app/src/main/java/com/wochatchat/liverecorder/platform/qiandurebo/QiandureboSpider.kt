@@ -15,6 +15,9 @@ open class QiandureboSpider(
         private val RE_PLAY_URL = Pattern.compile("\"play_url\": \"(.*?)\"")
         private val RE_OFFLINE = Pattern.compile("common-text-center\" style=\"display:block")
         private const val UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0"
+
+        fun parseRoomId(url: String): String =
+            url.split("?").first().substringAfterLast("/")
     }
 
     data class QiandureboStreamInfo(
@@ -23,9 +26,6 @@ open class QiandureboSpider(
         val flvUrl: String = "",
         val recordUrl: String = "",
     )
-
-    fun parseRoomId(url: String): String =
-        url.split("?").first().substringAfterLast("/")
 
     open suspend fun getStreamInfo(
         url: String,

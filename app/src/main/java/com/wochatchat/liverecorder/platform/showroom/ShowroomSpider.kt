@@ -12,6 +12,10 @@ open class ShowroomSpider(
     companion object {
         private val RE_ROOM_ID = Pattern.compile("href=\"/room/profile\\?room_id=(.*?)\"")
         private const val UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0"
+
+        fun parseRoomId(url: String): String =
+            if (url.contains("room_id=")) url.split("room_id=").last().split("&").first()
+            else url.split("?").first().substringAfterLast("/")
     }
 
     data class ShowroomStreamInfo(
@@ -20,10 +24,6 @@ open class ShowroomSpider(
         val m3u8Url: String = "",
         val recordUrl: String = "",
     )
-
-    fun parseRoomId(url: String): String =
-        if (url.contains("room_id=")) url.split("room_id=").last().split("&").first()
-        else url.split("?").first().substringAfterLast("/")
 
     open suspend fun getStreamInfo(
         url: String,

@@ -60,13 +60,15 @@ class QiandureboSpiderTest {
     }
 
     companion object {
-        private const val LIVE_HTML = """
-            var user = {"zb_nickname": "千度主播", "uid": 123};
-            user.play_url
+        private val LIVE_HTML = """
+            var user = {
+            "zb_nickname": "千度主播",
             "play_url": "https://pull.example.com/live.flv"
+            }
+            user.play_url
         """.trimIndent()
 
-        private const val OFFLINE_HTML = """
+        private val OFFLINE_HTML = """
             <div class="common-text-center" style="display:block">未开播</div>
         """.trimIndent()
     }

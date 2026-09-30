@@ -19,6 +19,9 @@ open class LianjieSpider(
     companion object {
         private const val UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 Edg/121.0.0.0"
+
+        fun parseRoomId(url: String): String =
+            url.split("?").first().substringAfter("lailianjie.com/").substringAfterLast("/")
     }
 
     data class LianjieStreamInfo(
@@ -28,10 +31,6 @@ open class LianjieSpider(
         val m3u8Url: String = "",
         val recordUrl: String = "",
     )
-
-    /** roomId 为 lailianjie.com/ 后的路径段。 */
-    fun parseRoomId(url: String): String =
-        url.split("?").first().substringAfter("lailianjie.com/").substringAfterLast("/")
 
     open suspend fun getStreamInfo(
         url: String,
