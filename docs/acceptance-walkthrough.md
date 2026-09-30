@@ -63,7 +63,54 @@
 - [ ] 海外：TikTok（8c，需配置代理；区域封锁页回落未开播不崩）
 - [ ] 各新平台徽标显示正确、主播名/标题解析正确、录制落盘可播放
 
+## I. Phase 9 新平台真机（27 个新平台）
+
+> 本批次全部 27 个新平台均需真机验证，重点检查：①徽标是否正确显示；②主播名/标题解析是否正常；③录制是否落盘且可播放。可选择各批次代表性平台重点测试。
+
+### 9a 简单 API 类
+- [ ] Twitch（twitch.tv）：徽标、m3u8 录制
+- [ ] YouTube（youtube.com）：徽标、HLS 录制
+- [ ] Shopee（shopee 直播，需 cookie 含 _m_h5_tk）
+- [ ] Acfun（acfun.cn）：visitor login 流程
+- [ ] CHZZK（chzzk.naver.com）：韩国平台，m3u8 录制
+
+### 9b 中文小众平台
+- [ ] 花椒（huajiao.com）：双路径录制
+- [ ] 流星（7u66.com）：简单 JSON
+- [ ] 映客（inke.cn）：简单 JSON
+- [ ] 音播（ybw1666.com）：简单 JSON
+
+### 9c 韩国平台（需登录）
+- [ ] SOOP（sooplive.co.kr）：登录 cookie
+- [ ] PandaTV（pandalive.co.kr）：简单 JSON
+- [ ] WinkTV（winktv.co.kr）：双 API
+- [ ] FlexTV（flextv.co.kr）：登录流程
+- [ ] PopkonTV（popkontv.com）：登录流程
+
+### 9d 小众中文平台
+- [ ] 猫耳FM（missevan.com）：二次请求
+- [ ] 酷狗（fanxing2.kugou.com）：双 API
+- [ ] 畅聊（tlclw.com）：简单 JSON
+- [ ] VV星球（vvxqiu.com）：简单 JSON
+
+### 9e 小众中文平台（续）
+- [ ] 17Live（17.live）：REST API
+- [ ] 浪Live（lang.live）：简单 API
+- [ ] 漂漂（weimipopo.com）+ 花猫（catshow168.com）：同 spider 双域名
+
+### 9f 小众中文平台（续）
+- [ ] 六间房（6.cn）：HTML + POST API
+- [ ] 连接（lailianjie.com）：webrtc→https 协议
+- [ ] 千度热播（qiandurebo.com）：HTML 提取
+- [ ] ShowRoom（showroom-live.com）：双 API，HLS
+
+### 9g 需账号平台
+- [ ] Blued（blued.cn）：decodeURIComponent JSON，需 cookie
+- [ ] TwitCasting（twitcasting.tv）：双域名验证（.tv/.jp/.net），visitor token 流程
+
 ## 收口
 
-- [ ] 全部截图归档 `docs/screenshots/`
-- [ ] 本清单勾完 → phase-6f.md 6f-4 打勾 → Phase 6 收口（README 补「界面」章节）
+- [ ] 截图归档 `docs/screenshots/`（命名规范：`<轮次>-<要点>-<light|dark>.png`）
+- [ ] 功能验收项（长录制/后台存活/分段可播放性）文字记录
+- [ ] Phase 9 所有平台均验证至少 1 个可录制落盘
+- [ ] 本清单勾完 → 更新 docs/porting-completeness.md 取消「真机验收」待办 → Phase 9 正式收口

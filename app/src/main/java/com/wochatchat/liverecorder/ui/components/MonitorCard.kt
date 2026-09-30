@@ -86,7 +86,9 @@ fun platformKeyForUrl(url: String): String = when {
     url.contains("qiandurebo.com/") -> "qiandurebo"
     url.contains("showroom-live.com/") -> "showroom"
     url.contains("blued.cn/") -> "blued"
-    url.contains("twitcasting.tv/") -> "twitcasting"
+    url.contains("twitcasting.tv/") ||
+    url.contains("twitcasting.jp/") ||
+    url.contains("twitcasting.net/") -> "twitcasting"
     url.contains(".m3u8") || url.contains(".flv") -> "custom"
     else -> "douyin"
 }
