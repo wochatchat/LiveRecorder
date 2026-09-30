@@ -59,10 +59,10 @@ class BluedSpiderTest {
     }
 
     companion object {
-        // decodeURIComponent("...") block: JSON URL-encoded (python urllib.parse.quote(json, safe=''))
+        // NOTE: decodeURIComponent(...) without quotes (upstream format)
         // {"userInfo":{"name":"Blued主播","onLive":1},"liveInfo":{"liveUrl":"https://hls.example.com/blued.m3u8"}}
-        private const val LIVE_HTML = """<html><body>decodeURIComponent("%7B%22userInfo%22%3A%7B%22name%22%3A%22Blued%E4%B8%BB%E6%92%AD%22%2C%22onLive%22%3A1%7D%2C%22liveInfo%22%3A%7B%22liveUrl%22%3A%22https%3A%2F%2Fhls.example.com%2Fblued.m3u8%22%7D%7D"),window.Promise</body></html>"""
+        private val LIVE_HTML = """<html><body>decodeURIComponent(%7B%22userInfo%22%3A%7B%22name%22%3A%22Blued%E4%B8%BB%E6%92%AD%22%2C%22onLive%22%3A1%7D%2C%22liveInfo%22%3A%7B%22liveUrl%22%3A%22https%3A%2F%2Fhls.example.com%2Fblued.m3u8%22%7D%7D),window.Promise</body></html>"""
         // {"userInfo":{"name":"Blued主播","onLive":0},"liveInfo":{}}
-        private const val OFFLINE_HTML = """<html><body>decodeURIComponent("%7B%22userInfo%22%3A%7B%22name%22%3A%22Blued%E4%B8%BB%E6%92%AD%22%2C%22onLive%22%3A0%7D%2C%22liveInfo%22%3A%7B%7D%7D"),window.Promise</body></html>"""
+        private val OFFLINE_HTML = """<html><body>decodeURIComponent(%7B%22userInfo%22%3A%7B%22name%22%3A%22Blued%E4%B8%BB%E6%92%AD%22%2C%22onLive%22%3A0%7D%2C%22liveInfo%22%3A%7B%7D%7D),window.Promise</body></html>"""
     }
 }

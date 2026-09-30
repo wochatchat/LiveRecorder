@@ -17,8 +17,9 @@ open class BluedSpider(
     private val client: LiveHttpClient = LiveHttpClient(),
 ) {
     companion object {
+        // NOTE: fixture HTML has decodeURIComponent(%7B...) WITHOUT quotes around the encoded data
         private val RE_DATA = Pattern.compile(
-            "decodeURIComponent\\(\"(.+?)\"\\)\\),window\\.Promise",
+            "decodeURIComponent\\((.+?)\\),window\\.Promise",
             Pattern.DOTALL
         )
         private const val UA = "ios/7.830 (ios 17.0; ; iPhone 15 (A2846/A3089/A3090/A3092))"
