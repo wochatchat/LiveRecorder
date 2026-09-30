@@ -37,11 +37,11 @@ class FlextvSpiderTest {
             "message":"直播间未开播","offline":true}}}}
     """.trimIndent()
 
-        private const val LIVE_HTML = """<!DOCTYPE html>
+        private val LIVE_HTML = """<!DOCTYPE html>
         <html><head><title>Flex直播</title></head>
         <script id="__NEXT_DATA__" type="application/json">$liveNextData</script></body></html>"""
 
-        private const val LOGIN_NEED_HTML = """
+        private val LOGIN_NEED_HTML = """
         <html><head><title>需登录</title></head>
         <script id="__NEXT_DATA__" type="application/json">$loginNeedNextData</script></body></html>"""
 

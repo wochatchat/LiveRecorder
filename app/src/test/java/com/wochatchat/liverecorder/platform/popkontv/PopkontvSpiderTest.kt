@@ -28,7 +28,7 @@ class PopkontvSpiderTest {
             "mc_signId":"pk123","castType":"live"}}}}}
     """.trimIndent()
 
-        private const val ROOM_HTML = """<html><head><title>popkon</title></head>
+        private val ROOM_HTML = """<html><head><title>popkon</title></head>
         <script id="__NEXT_DATA__" type="application/json">$roomNextData</script></body></html>"""
 
         private val watchOkJson = """
@@ -41,17 +41,17 @@ class PopkontvSpiderTest {
     }
 
     private class FakeClient(
-        private val searchJson: String = searchJson,
+        private val searchResp: String = searchJson,
         private val roomHtml: String = ROOM_HTML,
-        private val watchJson: String = watchOkJson,
+        private val watchResp: String = watchOkJson,
     ) : LiveHttpClient() {
         override suspend fun get(url: String, headers: Map<String, String>, timeoutSec: Long): HttpResult =
             HttpResult(200, roomHtml, url, emptyMap())
 
         override suspend fun post(url: String, headers: Map<String, String>,
                                   body: okhttp3.RequestBody, timeoutSec: Long): HttpResult = when {
-            url.contains("search/all") -> HttpResult(200, searchJson, url, emptyMap())
-            url.contains("castwatchonoffguest") -> HttpResult(200, watchJson, url, emptyMap())
+            url.contains("search/all") -> HttpResult(200, searchResp, url, emptyMap())
+            url.contains("castwatchonoffguest") -> HttpResult(200, watchResp, url, emptyMap())
             else -> HttpResult(404, "not found", url, emptyMap())
         }
     }
@@ -76,7 +76,7 @@ class PopkontvSpiderTest {
 
     @Test
     fun getStreamInfo_L0001_dateShiftRetry() = runTest {
-        val spider = PopkontvSpider(FakeClient(watchJson = watchDateShiftJson))
+        val spider = PopkontvSpider(FakeClient(watchResp = watchDateShiftJson))
         val info = spider.getStreamInfo(LIVE_URL)
         // L0001 → castStartDate-1 重试，fixture 的 watch 始终回 L0001 JSON，
         // 第二次重试 data.castHlsUrl 缺失 → 防御性返回未开播（上游会炸出异常）
