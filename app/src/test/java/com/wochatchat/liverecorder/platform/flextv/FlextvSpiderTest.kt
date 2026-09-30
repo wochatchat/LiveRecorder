@@ -45,28 +45,36 @@ class FlextvSpiderTest {
         <html><head><title>需登录</title></head>
         <script id="__NEXT_DATA__" type="application/json">$loginNeedNextData</script></body></html>"""
 
-        private const val OFFLINE_HTML = """<!DOCTYPE html>
+        private val OFFLINE_HTML = """<!DOCTYPE html>
         <html><head>
         <meta name="twitter:title" content="Flex离线主播的直播间"/>
-        </head></html>"""
+        </head>
+        <script id="__NEXT_DATA__" type="application/json">$offlineNextData</script></body></html>"""
     }
 
+    /** 登录态切换 FakeClient：post（登录）后 get 返回 afterLoginHtml。 */
     private class FakeClient(
         private val liveJson: String = liveStreamJson,
-        private val pageHtml: String = LIVE_HTML,
+        private val initialHtml: String = LIVE_HTML,
+        private val afterLoginHtml: String = LIVE_HTML,
     ) : LiveHttpClient() {
+        private var loggedIn = false
+
         override suspend fun get(url: String, headers: Map<String, String>, timeoutSec: Long): HttpResult {
+            val html = if (loggedIn) afterLoginHtml else initialHtml
             return when {
                 url.startsWith("https://www.ttinglive.com/api/channels/") ->
                     HttpResult(200, liveJson, url, emptyMap())
-                else -> HttpResult(200, pageHtml, url, emptyMap())
+                else -> HttpResult(200, html, url, emptyMap())
             }
         }
 
         override suspend fun post(url: String, headers: Map<String, String>,
-                                  body: okhttp3.RequestBody, timeoutSec: Long): HttpResult =
-            HttpResult(200, """{"flx_oauth_access":"token123456"}""", url,
+                                  body: okhttp3.RequestBody, timeoutSec: Long): HttpResult {
+            loggedIn = true
+            return HttpResult(200, """{"flx_oauth_access":"token123456"}""", url,
                 mapOf("flx_oauth_access" to "token123456"))
+        }
     }
 
     @Test
@@ -87,7 +95,7 @@ class FlextvSpiderTest {
 
     @Test
     fun getStreamInfo_loginNeeded_withCredentials() = runTest {
-        val client = FakeClient(pageHtml = LOGIN_NEED_HTML)
+        val client = FakeClient(initialHtml = LOGIN_NEED_HTML)
         val spider = FlextvSpider(client)
         val info = spider.getStreamInfo(
             "https://www.ttinglive.com/channels/flex123/live",
@@ -99,7 +107,7 @@ class FlextvSpiderTest {
 
     @Test
     fun getStreamInfo_loginNeeded_noCredentials_offline() = runTest {
-        val client = FakeClient(pageHtml = LOGIN_NEED_HTML)
+        val client = FakeClient(initialHtml = LOGIN_NEED_HTML)
         val spider = FlextvSpider(client)
         val info = spider.getStreamInfo("https://www.ttinglive.com/channels/flex123/live")
         assertFalse(info.isLive)
@@ -107,7 +115,7 @@ class FlextvSpiderTest {
 
     @Test
     fun getStreamInfo_offline() = runTest {
-        val spider = FlextvSpider(FakeClient(pageHtml = OFFLINE_HTML))
+        val spider = FlextvSpider(FakeClient(initialHtml = OFFLINE_HTML))
         val info = spider.getStreamInfo("https://www.ttinglive.com/channels/flex123/live")
         assertFalse(info.isLive)
         assertEquals("Flex离线主播", info.anchorName)
