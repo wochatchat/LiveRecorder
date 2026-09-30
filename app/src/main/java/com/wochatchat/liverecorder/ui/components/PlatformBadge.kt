@@ -86,6 +86,8 @@ val PLATFORM_LABELS = mapOf(
     "lianjie" to "连接",
     "qiandurebo" to "千度热播",
     "showroom" to "ShowRoom",
+    "blued" to "Blued",
+    "twitcasting" to "TwitCasting",
 )
 
 /** 平台主品牌色（Surface badge 背景色用 12% alpha）。 */
@@ -135,4 +137,6 @@ val PLATFORM_COLORS = mapOf(
     "lianjie" to Color(0xFF2196F3),
     "qiandurebo" to Color(0xFFFF9800),
     "showroom" to Color(0xFF9C27B0),
+    "blued" to Color(0xFF1E88E5),
+    "twitcasting" to Color(0xFF1DA1F2),
 )

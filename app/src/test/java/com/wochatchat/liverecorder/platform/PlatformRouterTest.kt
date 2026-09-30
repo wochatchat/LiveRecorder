@@ -55,6 +55,8 @@ import com.wochatchat.liverecorder.platform.liujian.LiuJianFangSpider
 import com.wochatchat.liverecorder.platform.lianjie.LianjieSpider
 import com.wochatchat.liverecorder.platform.qiandurebo.QiandureboSpider
 import com.wochatchat.liverecorder.platform.showroom.ShowroomSpider
+import com.wochatchat.liverecorder.platform.blued.BluedSpider
+import com.wochatchat.liverecorder.platform.twitcasting.TwitcastingSpider
 
 class PlatformRouterTest {
 
@@ -1453,6 +1455,74 @@ class PlatformRouterTest {
         assertTrue(PlatformRouter.isSupported("https://show.lailianjie.com/room123"))
         assertTrue(PlatformRouter.isSupported("https://qiandurebo.com/live/abc123"))
         assertTrue(PlatformRouter.isSupported("https://www.showroom-live.com/room/profile?room_id=99999"))
+        assertFalse(PlatformRouter.isSupported("https://unknown-platform.net/live/1"))
+    }
+
+    // ── Batch G: Blued / TwitCasting ───────────────────────────────────────────
+
+    @Test
+    fun fetchBlued_live() = runTest {
+        val fake = object : BluedSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                BluedSpider.BluedStreamInfo(
+                    anchorName = "Blued主播",
+                    isLive = true,
+                    m3u8Url = "https://hls.example.com/blued.m3u8",
+                    recordUrl = "https://hls.example.com/blued.m3u8",
+                )
+        }
+        val router = PlatformRouter(bluedSpider = fake)
+        val info = router.fetchStreamInfo("https://app.blued.cn/live/abc123")
+        assertTrue(info.isLive)
+        assertEquals("Blued主播", info.anchorName)
+    }
+
+    @Test
+    fun fetchBlued_offline() = runTest {
+        val fake = object : BluedSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                BluedSpider.BluedStreamInfo(anchorName = "Blued离线", isLive = false)
+        }
+        val router = PlatformRouter(bluedSpider = fake)
+        val info = router.fetchStreamInfo("https://app.blued.cn/live/abc123")
+        assertFalse(info.isLive)
+        assertEquals("Blued离线", info.anchorName)
+    }
+
+    @Test
+    fun fetchTwitcasting_live() = runTest {
+        val fake = object : TwitcastingSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                TwitcastingSpider.TwitcastingStreamInfo(
+                    anchorName = "Twitcasting主播",
+                    isLive = true,
+                    title = "直播标题",
+                    m3u8Url = "https://hls.example.com/twitcasting.m3u8",
+                    recordUrl = "https://hls.example.com/twitcasting.m3u8",
+                )
+        }
+        val router = PlatformRouter(twitcastingSpider = fake)
+        val info = router.fetchStreamInfo("https://twitcasting.tv/broadcaster")
+        assertTrue(info.isLive)
+        assertEquals("Twitcasting主播", info.anchorName)
+    }
+
+    @Test
+    fun fetchTwitcasting_offline() = runTest {
+        val fake = object : TwitcastingSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                TwitcastingSpider.TwitcastingStreamInfo(anchorName = "Twitcasting离线", isLive = false)
+        }
+        val router = PlatformRouter(twitcastingSpider = fake)
+        val info = router.fetchStreamInfo("https://twitcasting.tv/broadcaster")
+        assertFalse(info.isLive)
+        assertEquals("Twitcasting离线", info.anchorName)
+    }
+
+    @Test
+    fun isSupported_batch9g() {
+        assertTrue(PlatformRouter.isSupported("https://app.blued.cn/live/abc123"))
+        assertTrue(PlatformRouter.isSupported("https://twitcasting.tv/broadcaster"))
         assertFalse(PlatformRouter.isSupported("https://unknown-platform.net/live/1"))
     }
 }

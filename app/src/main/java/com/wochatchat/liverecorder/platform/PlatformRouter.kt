@@ -62,6 +62,8 @@ import com.wochatchat.liverecorder.platform.liujian.LiuJianFangSpider
 import com.wochatchat.liverecorder.platform.lianjie.LianjieSpider
 import com.wochatchat.liverecorder.platform.qiandurebo.QiandureboSpider
 import com.wochatchat.liverecorder.platform.showroom.ShowroomSpider
+import com.wochatchat.liverecorder.platform.blued.BluedSpider
+import com.wochatchat.liverecorder.platform.twitcasting.TwitcastingSpider
 
 class PlatformRouter(
     private val douyinSpider: DouyinSpider = DouyinSpider(),
@@ -107,6 +109,8 @@ class PlatformRouter(
     private val lianjieSpider: LianjieSpider = LianjieSpider(),
     private val qiandureboSpider: QiandureboSpider = QiandureboSpider(),
     private val showroomSpider: ShowroomSpider = ShowroomSpider(),
+    private val bluedSpider: BluedSpider = BluedSpider(),
+    private val twitcastingSpider: TwitcastingSpider = TwitcastingSpider(),
 ) {
     companion object {
         /** 斗鱼画质码映射（上游 stream.py get_douyu_stream_url video_quality_options）。 */
@@ -235,6 +239,12 @@ class PlatformRouter(
         /** 9f：showroom-live.com → ShowRoom 直播链路（spider.py:2433）。 */
         fun isShowroomUrl(url: String): Boolean = url.contains("showroom-live.com/")
 
+        /** 9g：app.blued.cn → Blued 直播链路（spider.py:876）。 */
+        fun isBluedUrl(url: String): Boolean = url.contains("blued.cn/")
+
+        /** 9g：twitcasting.tv → TwitCasting 直播链路（spider.py:1877）。 */
+        fun isTwitcastingUrl(url: String): Boolean = url.contains("twitcasting.tv/")
+
         fun isDirectStreamUrl(url: String): Boolean =
             !isDouyuUrl(url) && !isKuaishouUrl(url) && !isHuyaUrl(url) &&
                 !isBilibiliUrl(url) && !isYyUrl(url) && !isBigoUrl(url) &&
@@ -252,6 +262,7 @@ class PlatformRouter(
                 !is17LiveUrl(url) && !isLangliveUrl(url) && !isPpliveUrl(url) &&
                 !isLiuJianFangUrl(url) && !isLianjieUrl(url) &&
                 !isQiandureboUrl(url) && !isShowroomUrl(url) &&
+                !isBluedUrl(url) && !isTwitcastingUrl(url) &&
                 !url.contains("douyin.com/") && !url.contains("iesdouyin.com/") &&
                 (url.contains(".m3u8") || url.contains(".flv"))
 
@@ -272,7 +283,8 @@ class PlatformRouter(
                 isChangliaoUrl(url) || isVvxqiuUrl(url) ||
                 is17LiveUrl(url) || isLangliveUrl(url) || isPpliveUrl(url) ||
                 isLiuJianFangUrl(url) || isLianjieUrl(url) ||
-                isQiandureboUrl(url) || isShowroomUrl(url) -> true
+                isQiandureboUrl(url) || isShowroomUrl(url) ||
+                isBluedUrl(url) || isTwitcastingUrl(url) -> true
             else -> url.contains("douyin.com/") || url.contains("iesdouyin.com/")
         }
     }
@@ -328,6 +340,8 @@ class PlatformRouter(
         isLianjieUrl(url) -> fetchLianjie(url, proxyAddr, cookies["lianjie"])
         isQiandureboUrl(url) -> fetchQiandurebo(url, proxyAddr, cookies["qiandurebo"])
         isShowroomUrl(url) -> fetchShowroom(url, proxyAddr, cookies["showroom"])
+        isBluedUrl(url) -> fetchBlued(url, proxyAddr, cookies["blued"])
+        isTwitcastingUrl(url) -> fetchTwitcasting(url, proxyAddr, cookies["twitcasting"])
         isDirectStreamUrl(url) -> fetchDirectStream(url)
         else -> douyinSpider.fetchStreamInfo(url, quality, proxyAddr)
     }
@@ -857,6 +871,24 @@ class PlatformRouter(
         val info = showroomSpider.getStreamInfo(url, proxyAddr, cookie)
         if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
         return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, recordUrl = info.recordUrl)
+    }
+
+    // ── Batch G: Blued / TwitCasting ───────────────────────────────────────────
+
+    /** 9g Blued → app.blued.cn 房间页 decodeURIComponent JSON（spider.py:876），recordUrl = m3u8。 */
+    private suspend fun fetchBlued(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = bluedSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, recordUrl = info.recordUrl)
+    }
+
+    /** 9g TwitCasting → twitcasting.tv 房间页 + streamserver API（spider.py:1877），recordUrl = m3u8。 */
+    private suspend fun fetchTwitcasting(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = twitcastingSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true, title = info.title,
             m3u8Url = info.m3u8Url, recordUrl = info.recordUrl)
     }
 
