@@ -1,4 +1,4 @@
-# 平台移植进度：Phase 9 — 剩余 18 平台接入
+# 平台移植进度：Phase 9 — 剩余 7 平台接入
 
 > 上游基准：ihmily/DouyinLiveRecorder v4.0.7（add187f），`main.py` 46 条 URL 模式分支。
 > 安卓端：wochatchat/LiveRecorder @ main（2026-09-30）。
@@ -53,6 +53,10 @@
 | 38 | 17Live | 17.live | Live17Spider | 9e |
 | 39 | 浪Live | lang.live | LangliveSpider | 9e |
 | 40 | 漂漂/花猫 | weimipopo.com / catshow168.com | PpliveSpider | 9e |
+| 41 | 六间房 | 6.cn | LiuJianFangSpider | 9f |
+| 42 | 连接 | lailianjie.com | LianjieSpider | 9f |
+| 43 | 千度热播 | qiandurebo.com | QiandureboSpider | 9f |
+| 44 | ShowRoom | showroom-live.com | ShowroomSpider | 9f |
 | — | **自定义流** | .m3u8 / .flv 直链 | fetchDirectStream | 7a |
 
 ---
@@ -105,14 +109,7 @@
 | 39 | 浪Live | www.lang.live | get_langlive_stream_url | ★★ | 简单 API |
 | 40 | 漂漂 | m.pp.weimipopo.com | get_pplive_stream_url | ★★ | 简单 API（花猫复用同函数） |
 
-#### Batch F — 小众中文平台·无登录（续，4 个）
-
-| # | 平台 | URL 模式 | 上游函数 | 复杂度 | 备注 |
-|---|---|---|---|---|---|
-| 41 | 六间房 | .6.cn | get_6room_stream_url | ★★ | 简单 API |
-| 42 | 连接 | show.lailianjie.com | get_lianjie_stream_url | ★★ | 简单 API |
-| 43 | 千度热播 | qiandurebo.com | get_qiandurebo_stream_data | ★★ | 简单 API |
-| 44 | ShowRoom | showroom-live.com | get_showroom_stream_data | ★★ | 简单 API |
+#### Batch F — 小众中文平台·无登录（续，4 个）✅ 已完成（9f）
 
 #### Batch G — 需账号·中文平台（2 个）
 
@@ -215,11 +212,11 @@ Batch B      花椒 流星 映客 音播                                        
 Batch C      SOOP PandaTV WinkTV FlexTV PopkonTV                            ✅ 9c
 Batch D      猫耳FM 酷狗 畅聊 VV星球                                       ✅ 9d
 Batch E      17Live 浪Live 漂漂                                            ✅ 9e
-Batch F      六间房 连接 千度热播 ShowRoom                                 ⬜
+Batch F      六间房 连接 千度热播 ShowRoom                                 ✅ 9f
 Batch G      Blued TwitCasting                                              ⬜
 Batch H      花猫（复用） 咪咕（暂缓）                                     ⬜
 
-当前：33/51 平台（65%）
+当前：44/51 平台（86%）
 ```
 
 ---
