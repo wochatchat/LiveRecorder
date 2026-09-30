@@ -47,7 +47,7 @@ class FlextvSpiderTest {
 
         private val OFFLINE_HTML = """<!DOCTYPE html>
         <html><head>
-        <meta name="twitter:title" content="Flex离线主播的直播间"/>
+        <meta name="twitter:title" content="Flex离线主播의直播间"/>
         </head>
         <script id="__NEXT_DATA__" type="application/json">$offlineNextData</script></body></html>"""
     }
