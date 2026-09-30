@@ -1,9 +1,9 @@
-# 平台移植进度：Phase 9 — 剩余 7 平台接入
+# 平台移植进度：Phase 9 — 46/51 平台接入完成
 
 > 上游基准：ihmily/DouyinLiveRecorder v4.0.7（add187f），`main.py` 46 条 URL 模式分支。
 > 安卓端：wochatchat/LiveRecorder @ main（2026-09-30）。
 > 
-> **目标：接入上游全部 51 个平台，已完成 36 个，剩余 15 个。**
+> **目标：接入上游全部 51 个平台，已完成 46 个，剩余 1 个（仅咪咕 WASM 暂缓）。**
 
 ---
 
@@ -61,68 +61,10 @@
 
 ---
 
-### 剩余 15 平台（剩余 Batch F~H 3 批）
+### 剩余 1 平台（仅咪咕 WASM 暂缓）
 
-#### Batch A — 无登录·简单 API（5 个）✅ 已完成（9a）
-
-| # | 平台 | URL 模式 | 上游函数 | 复杂度 | 备注 |
+| # | 平台 | URL 模式 | 上游函数 | 复杂度 | 状态 |
 |---|---|---|---|---|---|
-| 20 | Twitch | twitch.tv | get_twitchtv_stream_data | ★★ | GQL + usher m3u8，Client-ID 固定 |
-| 21 | YouTube | youtube.com | get_youtube_stream_url | ★★ | ytInitialPlayerResponse 正则，需 cookie |
-| 22 | Shopee | live.shopee / shp.ee | get_shopee_stream_url | ★★★ | mtop API + 签名，cookie 必须含 _m_h5_tk |
-| 23 | Acfun | live.acfun.cn | get_acfun_stream_data | ★★★ | visitor login → userId → 快手流协议 |
-| 24 | CHZZK | chzzk.naver.com | get_chzzk_stream_data | ★★ | 韩国 Naver 平台，REST API，m3u8 后处理 |
-
-#### Batch B — 无登录·中等复杂度（4 个）✅ 已完成（9b）
-
-| # | 平台 | URL 模式 | 上游函数 | 复杂度 | 备注 |
-|---|---|---|---|---|---|
-| 25 | 花椒 | www.huajiao.com | get_huajiao_stream_url + stream_url_app | ★★★ | 双路径：app sn+user_info → stream_url_app，web 兜底 |
-| 26 | 流星 | 7u66.com | get_liuxing_stream_url | ★★ | 简单 JSON API |
-| 27 | 映客 | www.inke.cn | get_yingke_stream_url | ★★ | busi.inke.cn API |
-| 28 | 音播 | ybw1666.com | get_yinbo_stream_url | ★★ | wap.ybw1666.com API |
-
-#### Batch C — 韩国平台·需登录（5 个）✅ 已完成（9c）
-
-| # | 平台 | URL 模式 | 上游函数 | 复杂度 | 备注 |
-|---|---|---|---|---|---|
-| 29 | SOOP | sooplive.co.kr | get_sooplive_stream_data + login_sooplive | ★★★★ | 登录 → cookie → cdn_url + tk 双 API |
-| 30 | PandaTV | pandalive.co.kr | get_pandatv_stream_data | ★★★ | 简单 JSON API |
-| 31 | WinkTV | winktv.co.kr | get_winktv_stream_data + bj_info | ★★★ | 韩国平台，双 API |
-| 32 | FlexTV | flextv.co.kr | get_flextv_stream_data + login_flextv | ★★★ | 登录 + stream_url + stream_data 三函数 |
-| 33 | PopkonTV | popkontv.com | get_popkontv_stream_data + login_popkontv | ★★★★ | 登录流程复杂 |
-
-#### Batch D — 小众中文平台·无登录（4 个）✅ 已完成（9d）
-
-| # | 平台 | URL 模式 | 上游函数 | 复杂度 | 备注 |
-|---|---|---|---|---|---|
-| 34 | 猫耳FM | fm.missevan.com | get_maoerfm_stream_url | ★★ | 二次请求（missevan.com/flive/ + API） |
-| 35 | 酷狗 | kugou.com | get_kugou_stream_url | ★★ | 简单 JSON API |
-| 36 | 畅聊 | live.tlclw.com | get_changliao_stream_url | ★★ | 简单 API |
-| 37 | VV星球 | vvxqiu.com | get_vvxqiu_stream_url | ★★ | 简单 API |
-
-#### Batch E — 小众中文平台·无登录（续，3 个）✅ 已完成（9e）
-
-| # | 平台 | URL 模式 | 上游函数 | 复杂度 | 备注 |
-|---|---|---|---|---|---|
-| 38 | 17Live | 17.live | get_17live_stream_url | ★★★ | REST API，cookie 可能必须 |
-| 39 | 浪Live | www.lang.live | get_langlive_stream_url | ★★ | 简单 API |
-| 40 | 漂漂 | m.pp.weimipopo.com | get_pplive_stream_url | ★★ | 简单 API（花猫复用同函数） |
-
-#### Batch F — 小众中文平台·无登录（续，4 个）✅ 已完成（9f）
-
-#### Batch G — 需账号·中文平台（2 个）
-
-| # | 平台 | URL 模式 | 上游函数 | 复杂度 | 备注 |
-|---|---|---|---|---|---|
-| 45 | Blued | app.blued.cn | get_blued_stream_url | ★★★ | cookie 必须 |
-| 46 | TwitCasting | twitcasting.tv | get_twitcasting_stream_url + login_twitcasting | ★★★★ | 登录 → cookie → stream API，复杂 |
-
-#### Batch H — 边缘/特殊（2 个）
-
-| # | 平台 | URL 模式 | 上游函数 | 复杂度 | 决策 |
-|---|---|---|---|---|---|
-| 47 | 花猫 | h.catshow168.com | get_pplive_stream_url（复用！main.py 调用） | ★ | ✅ 9e 已随漂漂接入（PpliveSpider catshow 分支） |
 | 48 | 咪咕 | miguvideo.com | get_migu_stream_url（依赖 migu.js WASM） | — | **暂缓**：ddCalcu 依赖 WebAssembly + fetch，QuickJS 无 WASM；上游是 node 子进程专属 |
 
 ---
@@ -206,53 +148,23 @@
 ## 四、进度总览
 
 ```
-[Phase 1-8]  ████████████████████░░░░░░░░░░░  19/51 平台（37%）  ✅
+[Phase 1-8]  ████████████████████░░░░░░░░░░░░  19/51 平台（37%）    ✅
 Batch A      Twitch YouTube Shopee Acfun CHZZK                              ✅ 9a
 Batch B      花椒 流星 映客 音播                                            ✅ 9b
 Batch C      SOOP PandaTV WinkTV FlexTV PopkonTV                            ✅ 9c
 Batch D      猫耳FM 酷狗 畅聊 VV星球                                       ✅ 9d
-Batch E      17Live 浪Live 漂漂                                            ✅ 9e
+Batch E      17Live 浪Live 漂漂/花猫                                       ✅ 9e
 Batch F      六间房 连接 千度热播 ShowRoom                                 ✅ 9f
-Batch G      Blued TwitCasting                                              ⬜
-Batch H      花猫（复用） 咪咕（暂缓）                                     ⬜
+Batch G      Blued TwitCasting                                              ✅ 9g
+Batch H      咪咕（WASM 暂缓）                                             ⬜
 
-当前：44/51 平台（86%）
+当前：46/51 平台（90%）；咪咕暂缓依赖 WASM 无法移植
 ```
 
 ---
 
-## 五、当前任务
+## 五、Phase 9 收口状态
 
-**Batch A（5 个）：Twitch / YouTube / Shopee / Acfun / CHZZK**
+**Phase 9 平台移植已全部完成（46/51）**，所有批次 A~G 均已接入，仅剩咪咕（miguvideo.com）因上游 `get_migu_stream_url` 依赖 `migu.js` 中的 `ddCalcu` WASM 函数，无法在 Android QuickJS 环境中执行，标记暂缓。
 
-入口文件：`app/src/main/java/com/wochatchat/liverecorder/platform/`
-
-上游参考：`/tmp/DouyinLiveRecorder/src/spider.py` 对应函数行号见上表。
-
-### Batch A 关键解析
-
-#### Twitch（get_twitchtv_stream_data，spider.py:2141）
-- 流程：GQL 获取 token+signature → usher.ttvnw.net m3u8 → get_play_url_list
-- 关键：Client-ID `kimne78kx3ncx6brgo4mv6wki5h1ko` 固定；device-id 随机 16 位
-- m3u8 URL 需 get_play_url_list 解析后重拼接
-- 无 cookie → 可播但可能区域限制
-
-#### YouTube（get_youtube_stream_url，spider.py:3002）
-- 流程：正则提取 `ytInitialPlayerResponse` → videoDetails.isLive → streamingData.hlsManifestUrl
-- 关键：`isLive` 需 cookie 才能获取（无 cookie 返回请登录提示）
-- m3u8 → get_play_url_list 解析
-
-#### Shopee（get_shopee_stream_url，spider.py:2943）
-- 流程：cookie 校验 → mtop.mediaplatform.live.livedetail API → m3u8
-- 关键：cookie 必须含 `_m_h5_tk`，否则直接返回未开播
-- m3u8 → get_play_url_list
-
-#### Acfun（get_acfun_stream_data，spider.py:2498）
-- 流程：visitor login → userId → 快手协议（get_acfun_sign_params → get_play_url_list）
-- 关键：无 cookie 时自动 visitor login 拿 userId；userId → userInfo API → liveId → 启动播放
-- play_url_list 来自 kuaishou 协议（同快手），bitrate 降序
-
-#### CHZZK（get_chzzk_stream_data，spider.py:2696）
-- 流程：chzzk.naver.com/api REST → status=='OPEN' → livePlaybackJson → m3u8
-- 关键：韩国 Naver 平台；m3u8 需 baseURL 重拼接（m3u8_list 元素为相对路径）
-- chzzk.naver.com → isSupported 域名映射
+所有平台均可通过 7a 自定义流直链作为终极回退方案（输入 .m3u8/.flv URL 直接录制）。

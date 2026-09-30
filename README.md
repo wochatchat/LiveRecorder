@@ -8,7 +8,7 @@
 
 ### 监控与录制
 - **多房间监控**：前台 Service 常驻轮询（默认 300s，可调），开播即录，关播自动结束
-- **18 个平台解析**：抖音（web/app/HTML 三路径，a_bogus 签名 Kotlin 重写）、斗鱼（动态 JS 签名，QuickJS）、快手（web/api2 双路径）、虎牙（web anti-code / app 双路径 + 画质分流）、B站（qn 画质映射）、YY、Bigo、网易CC、知乎、百度、微博、京东（7d）、来秀、淘宝、嗨秀、乐嗨、LiveMe（8a，QuickJS/纯 Kotlin 签名）、小红书（8b）、TikTok（8c，SIGI_STATE）
+- **46 个平台解析**：抖音（web/app/HTML 三路径，a_bogus 签名 Kotlin 重写）、斗鱼（动态 JS 签名，QuickJS）、快手（web/api2 双路径）、虎牙（web anti-code / app 双路径 + 画质分流）、B站、YY、Bigo、网易CC、知乎、百度、微博、京东、来秀、淘宝、嗨秀、乐嗨、LiveMe、Twitch、YouTube、Shopee、Acfun、CHZZK、花椒、流星、映客、音播、SOOP、PandaTV、WinkTV、FlexTV、PopkonTV、猫耳FM、酷狗、畅聊、VV星球、17Live、浪Live、漂漂、花猫、六间房、连接、千度热播、ShowRoom、Blued、TwitCasting、小红书、TikTok；详见 [docs/phases/phase-9.md](docs/phases/phase-9.md)
 - **录制**：FLV 直下（OkHttp 流式）+ ffmpeg 分段（`-c copy -f segment`，HLS/FLV 通用）；断流重连（指数退避 2s→60s 封顶）；关播/断流语义对齐上游
 - **转封装**：TS→MP4 remux、m4a 提取（`-c copy` 容器级），可开关、可删原片
 - **文件命名**：平台/主播/日期/标题目录层级 + 文件名含标题 + emoji 清理，逐行对齐上游 main.py 命名规则
@@ -34,9 +34,9 @@
 
 ## 平台支持
 
-✅ 抖音 · 斗鱼 · 快手 · 虎牙 · B站 · YY · Bigo · 网易CC · 知乎 · 百度 · 微博 · 京东 · 来秀 · 淘宝 · 嗨秀 · 乐嗨 · LiveMe · 小红书 · TikTok（18/52）
+✅ 抖音 · 斗鱼 · 快手 · 虎牙 · B站 · YY · Bigo · 网易CC · 知乎 · 百度 · 微博 · 京东 · 来秀 · 淘宝 · 嗨秀 · 乐嗨 · LiveMe · 小红书 · TikTok · Twitch · YouTube · Shopee · Acfun · CHZZK · 花椒 · 流星 · 映客 · 音播 · SOOP · PandaTV · WinkTV · FlexTV · PopkonTV · 猫耳FM · 酷狗 · 畅聊 · VV星球 · 17Live · 浪Live · 漂漂 · 花猫 · 六间房 · 连接 · 千度热播 · ShowRoom · Blued · TwitCasting（46/51）
 
-其余平台（咪咕 WASM 暂缓、Twitch、SOOP 等 34 个）按批次推进，矩阵见 [docs/05-platforms.md](https://github.com/ihmily/DouyinLiveRecorder)（shared 文档）。上游 52 平台为逐函数独立实现，移植按同节奏增量交付，未移植平台不影响已完成平台运行。
+❌ 咪咕（miguvideo.com，WASM 依赖，暂缓）。所有未接入平台均支持 7a 自定义流直链（输入 .m3u8/.flv URL 直接录制）。详细进度见 [docs/phases/phase-9.md](docs/phases/phase-9.md)。
 
 ## 架构
 
@@ -46,7 +46,7 @@ service/       MonitorService（前台服务 dataSync）+ EventNotifier
 monitor/       MonitorLoop 轮询调度（健康检查 / 错误窗口 / 低存储暂停）
 recorder/      RecordController 状态机 · RecordSource（选源/命名/画质）
                StreamDownloader（OkHttp 直下）· FfmpegRecorder（分段/remux）
-platform/      PlatformRouter + 各平台 Spider（douyin/douyu/kuaishou/huya/bilibili/yy/bigo/netease/zhihu/baidu/weibo/jd/laixiu/taobao/haixiu/liveme/xhs/tiktok）
+platform/      PlatformRouter + 48 个平台 Spider（douyin/douyu/kuaishou/huya/bilibili/yy/bigo/netease/zhihu/baidu/weibo/jd/laixiu/taobao/haixiu/liveme/xhs/tiktok/twitch/youtube/shopee/acfun/chzzk/huajiao/liuxing/inke/yinbo/soop/pandatv/winktv/flextv/popkontv/maoerfm/kugou/changliao/vvxqiu/live17/langlive/pplive/liujianfang/lianjie/qiandurebo/showroom/blued/twitcasting 等）
 sign/          AbSign（RC4+SM3 a_bogus）· Sm3 · QuickJS（JNI，斗鱼动态签名）
 data/          MonitorStore · AppSettings · AuthStore · ProxySettings · AppLog（DataStore）
 net/           OkHttp 封装（HTTP/2、UA 伪装、per-platform header、自签兜底）
