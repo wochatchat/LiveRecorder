@@ -53,6 +53,7 @@ open class SoopliveSpider(
         val title: String = "",
         val isLive: Boolean = false,
         val m3u8Url: String = "",
+        val recordUrl: String = "",
         val newCookies: String? = null,
     )
 

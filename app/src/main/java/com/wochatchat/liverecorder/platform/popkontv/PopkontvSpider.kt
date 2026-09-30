@@ -200,7 +200,7 @@ open class PopkontvSpider(
         )
     }
 
-    private fun postJson(c: LiveHttpClient, url: String, headers: Map<String, String>, data: JSONObject) = try {
+    private suspend fun postJson(c: LiveHttpClient, url: String, headers: Map<String, String>, data: JSONObject): LiveHttpClient.HttpResult? = try {
         c.post(url, headers, data.toString().toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull()))
     } catch (e: Exception) { null }
 
