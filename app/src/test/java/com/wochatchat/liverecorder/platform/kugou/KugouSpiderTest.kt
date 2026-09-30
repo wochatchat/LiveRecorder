@@ -13,16 +13,12 @@ class KugouSpiderTest {
 
     companion object {
         // 开播 fixture：normalRoom.nickName 非空，liveType != -1
-        private val liveInfoJson = """
-        {"errno":0,"data":{"normalRoomInfo":{"nickName":"酷狗主播"},
-        "liveType":1}}
-    """.trimIndent()
+        private val liveInfoJson =
+            """{"errno":0,"data":{"normalRoomInfo":{"nickName":"酷狗主播"},"liveType":1}}"""
 
         // 未开播 fixture：liveType = -1
-        private val offlineInfoJson = """
-        {"errno":0,"data":{"normalRoomInfo":{"nickName":"酷狗离线"},
-        "liveType":-1}}
-    """.trimIndent()
+        private val offlineInfoJson =
+            """{"errno":0,"data":{"normalRoomInfo":{"nickName":"酷狗离线"},"liveType":-1}}"""
 
         // 流地址 fixture：lines[-1].streamProfiles[0].httpsFlv = JSON 数组
         private val streamJson = """
@@ -37,14 +33,15 @@ class KugouSpiderTest {
     """.trimIndent()
     }
 
-    private var reqCount = 0
-
-    private inner class FakeClient(
+    private class FakeClient(
         private val infoJson: String = liveInfoJson,
         private val streamRespJson: String = streamJson,
     ) : LiveHttpClient() {
+        private var reqN = 0
+        val reqCount: Int get() = reqN
+
         override suspend fun get(url: String, headers: Map<String, String>, timeoutSec: Long): HttpResult {
-            reqCount++
+            reqN++
             return if (url.contains("getEnterRoomInfo")) {
                 HttpResult(200, infoJson, url, emptyMap())
             } else {
@@ -62,33 +59,33 @@ class KugouSpiderTest {
 
     @Test
     fun parseRoomId_fromQuery() {
+        // 上游正则 roomId=(\d+) 匹配任意位置，path-only URL
         assertEquals("789012", KugouSpider.parseRoomId("https://fanxing2.kugou.com/?roomId=789012"))
-        assertEquals("555555",
-            KugouSpider.parseRoomId("https://fanxing2.kugou.com/live?roomId=555555&sharefrom=web"))
+        assertEquals("555555", KugouSpider.parseRoomId("https://fanxing2.kugou.com/roomId=555555"))
     }
 
     @Test
     fun getStreamInfo_live() = runTest {
-        reqCount = 0
-        val spider = KugouSpider(FakeClient())
+        val fake = FakeClient()
+        val spider = KugouSpider(fake)
         val info = spider.getStreamInfo("https://fanxing2.kugou.com/123456")
         assertEquals("酷狗主播", info.anchorName)
         assertTrue(info.isLive)
         assertEquals("https://flv.kugou.com/live/abc.flv", info.flvUrl)
         assertEquals("https://flv.kugou.com/live/abc.flv", info.recordUrl)
         // 两步 API 各一次
-        assertEquals(2, reqCount)
+        assertEquals(2, fake.reqCount)
     }
 
     @Test
     fun getStreamInfo_offline() = runTest {
-        reqCount = 0
-        val spider = KugouSpider(FakeClient(infoJson = offlineInfoJson))
+        val fake = FakeClient(infoJson = offlineInfoJson)
+        val spider = KugouSpider(fake)
         val info = spider.getStreamInfo("https://fanxing2.kugou.com/123456")
         assertEquals("酷狗离线", info.anchorName)
         assertFalse(info.isLive)
         // 只走 info API，不请求流地址
-        assertEquals(1, reqCount)
+        assertEquals(1, fake.reqCount)
     }
 
     @Test

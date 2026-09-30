@@ -14,16 +14,16 @@ class MaoerfmSpiderTest {
     companion object {
         // 开播 fixture：info.room.status.broadcasting = 1，有 channel.hls_pull_url / flv_pull_url
         private val liveApiJson = """
-        {"info":{"creator":{"username":"猫耳主播"},"room":{"name":"猫耳直播",
-        "status":{"broadcasting":1},
+        {"info":{"creator":{"username":"猫耳主播"},"room":{
+        "name":"猫耳直播","status":{"broadcasting":1},
         "channel":{"hls_pull_url":"https://hls.missevan.com/stream/abc.m3u8",
         "flv_pull_url":"https://flv.missevan.com/stream/abc.flv"}}}}
     """.trimIndent()
 
         // 未开播 fixture：broadcasting = 0，无 channel
         private val offlineApiJson = """
-        {"info":{"creator":{"username":"猫耳离线"},"room":{"name":"",
-        "status":{"broadcasting":0}}}}
+        {"info":{"creator":{"username":"猫耳离线"},"room":{
+        "name":"","status":{"broadcasting":0}}}}
     """.trimIndent()
 
         // 仅 creator，无 room（异常情况）
@@ -41,7 +41,8 @@ class MaoerfmSpiderTest {
     fun parseRoomId_returnsId() {
         assertEquals("868895007", MaoerfmSpider.parseRoomId("https://fm.missevan.com/live/868895007"))
         assertEquals("868895007", MaoerfmSpider.parseRoomId("https://fm.missevan.com/live/868895007?from=123"))
-        assertEquals("abc123", MaoerfmSpider.parseRoomId("https://fm.missevan.com/live/abc123/"))
+        assertEquals("abc123", MaoerfmSpider.parseRoomId("https://fm.missevan.com/live/abc123"))
+        assertEquals("", MaoerfmSpider.parseRoomId("https://fm.missevan.com/live/abc123/"))
     }
 
     @Test

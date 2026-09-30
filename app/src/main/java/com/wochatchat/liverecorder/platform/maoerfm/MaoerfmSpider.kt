@@ -56,8 +56,10 @@ open class MaoerfmSpider(
         val info = root.optJSONObject("info") ?: return MaoerfmStreamInfo()
         val creator = info.optJSONObject("creator")
         val anchorName = creator?.optString("username", "") ?: ""
-        val room = info.optJSONObject("room") ?: return MaoerfmStreamInfo(anchorName = anchorName)
-        val status = room.optJSONObject("status") ?: return MaoerfmStreamInfo(anchorName = anchorName)
+        val room = runCatching { info.optJSONObject("room") }.getOrNull()
+            ?: return MaoerfmStreamInfo(anchorName = anchorName)
+        val status = room.optJSONObject("status")
+            ?: return MaoerfmStreamInfo(anchorName = anchorName)
         if (status.optInt("broadcasting", 0) != 1) {
             return MaoerfmStreamInfo(anchorName = anchorName)
         }

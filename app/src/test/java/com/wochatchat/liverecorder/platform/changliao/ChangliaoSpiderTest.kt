@@ -50,7 +50,7 @@ class ChangliaoSpiderTest {
     fun extractDomains_parsesConfig() {
         val html = """
             <script>var config = {"domainpullstream_flv":"https://flv.cdn.com",
-            "domainpullstream_hls":"https://hls.cdn.com"}config.ready();</script>
+            "domainpullstream_hls":"https://hls.cdn.com"}config.webskins.ready();</script>
         """.trimIndent()
         val (flv, hls) = ChangliaoSpider.extractDomains(html)!!
         assertEquals("https://flv.cdn.com", flv)
