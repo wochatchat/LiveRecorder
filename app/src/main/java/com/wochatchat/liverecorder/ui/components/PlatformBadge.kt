@@ -75,6 +75,10 @@ val PLATFORM_LABELS = mapOf(
     "winktv" to "WinkTV",
     "flextv" to "FlexTV",
     "popkontv" to "PopkonTV",
+    "maoerfm" to "猫耳FM",
+    "kugou" to "酷狗",
+    "changliao" to "畅聊",
+    "vvxqiu" to "VV星球",
 )
 
 /** 平台主品牌色（Surface badge 背景色用 12% alpha）。 */
@@ -113,4 +117,8 @@ val PLATFORM_COLORS = mapOf(
     "winktv" to Color(0xFFFF9800),
     "flextv" to Color(0xFF9C27B0),
     "popkontv" to Color(0xFF03A9F4),
+    "maoerfm" to Color(0xFFFF6B6B),
+    "kugou" to Color(0xFF00D2FF),
+    "changliao" to Color(0xFF4CAF50),
+    "vvxqiu" to Color(0xFFFF9800),
 )

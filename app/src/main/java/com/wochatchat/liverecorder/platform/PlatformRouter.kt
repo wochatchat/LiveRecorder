@@ -51,6 +51,10 @@ import com.wochatchat.liverecorder.platform.pandatv.PandatvSpider
 import com.wochatchat.liverecorder.platform.winktv.WinktvSpider
 import com.wochatchat.liverecorder.platform.flextv.FlextvSpider
 import com.wochatchat.liverecorder.platform.popkontv.PopkontvSpider
+import com.wochatchat.liverecorder.platform.maoerfm.MaoerfmSpider
+import com.wochatchat.liverecorder.platform.kugou.KugouSpider
+import com.wochatchat.liverecorder.platform.changliao.ChangliaoSpider
+import com.wochatchat.liverecorder.platform.vvxqiu.VvxqiuSpider
 
 class PlatformRouter(
     private val douyinSpider: DouyinSpider = DouyinSpider(),
@@ -85,6 +89,10 @@ class PlatformRouter(
     private val winktvSpider: WinktvSpider = WinktvSpider(),
     private val flextvSpider: FlextvSpider = FlextvSpider(),
     private val popkontvSpider: PopkontvSpider = PopkontvSpider(),
+    private val maoerfmSpider: MaoerfmSpider = MaoerfmSpider(),
+    private val kugouSpider: KugouSpider = KugouSpider(),
+    private val changliaoSpider: ChangliaoSpider = ChangliaoSpider(),
+    private val vvxqiuSpider: VvxqiuSpider = VvxqiuSpider(),
 ) {
     companion object {
         /** 斗鱼画质码映射（上游 stream.py get_douyu_stream_url video_quality_options）。 */
@@ -183,6 +191,14 @@ class PlatformRouter(
             url.contains("flextv.co.kr/") || url.contains("ttinglive.com/")
         fun isPopkontvUrl(url: String): Boolean = url.contains("popkontv.com/")
 
+        /** 9d：小众中文平台（上游 main.py:678-800）。 */
+        fun isMaoerfmUrl(url: String): Boolean = url.contains("missevan.com")
+        fun isKugouUrl(url: String): Boolean =
+            url.contains("kugou.com/") || url.contains("fanxing.kugou.com") ||
+                url.contains("fanxing2.kugou.com") || url.contains("mfanxing.kugou.com")
+        fun isChangliaoUrl(url: String): Boolean = url.contains("tlclw.com/")
+        fun isVvxqiuUrl(url: String): Boolean = url.contains("vvxqiu.com/")
+
         fun isDirectStreamUrl(url: String): Boolean =
             !isDouyuUrl(url) && !isKuaishouUrl(url) && !isHuyaUrl(url) &&
                 !isBilibiliUrl(url) && !isYyUrl(url) && !isBigoUrl(url) &&
@@ -195,6 +211,8 @@ class PlatformRouter(
                 !isHuajiaoUrl(url) && !isLiuxingUrl(url) && !isInkeUrl(url) && !isYinboUrl(url) &&
                 !isSoopUrl(url) && !isPandatvUrl(url) && !isWinktvUrl(url) &&
                 !isFlextvUrl(url) && !isPopkontvUrl(url) &&
+                !isMaoerfmUrl(url) && !isKugouUrl(url) &&
+                !isChangliaoUrl(url) && !isVvxqiuUrl(url) &&
                 !url.contains("douyin.com/") && !url.contains("iesdouyin.com/") &&
                 (url.contains(".m3u8") || url.contains(".flv"))
 
@@ -210,7 +228,9 @@ class PlatformRouter(
                 isYouTubeUrl(url) || isShopeeUrl(url) || isAcfunUrl(url) ||
                 isHuajiaoUrl(url) || isLiuxingUrl(url) || isInkeUrl(url) || isYinboUrl(url) ||
                 isSoopUrl(url) || isPandatvUrl(url) || isWinktvUrl(url) ||
-                isFlextvUrl(url) || isPopkontvUrl(url) -> true
+                isFlextvUrl(url) || isPopkontvUrl(url) ||
+                isMaoerfmUrl(url) || isKugouUrl(url) ||
+                isChangliaoUrl(url) || isVvxqiuUrl(url) -> true
             else -> url.contains("douyin.com/") || url.contains("iesdouyin.com/")
         }
     }
@@ -254,6 +274,10 @@ class PlatformRouter(
         isWinktvUrl(url) -> fetchWinktv(url, proxyAddr, cookies["winktv"])
         isFlextvUrl(url) -> fetchFlextv(url, proxyAddr, cookies["flextv"])
         isPopkontvUrl(url) -> fetchPopkontv(url, proxyAddr, cookies["popkontv"])
+        isMaoerfmUrl(url) -> fetchMaoerfm(url, proxyAddr, cookies["maoerfm"])
+        isKugouUrl(url) -> fetchKugou(url, proxyAddr, cookies["kugou"])
+        isChangliaoUrl(url) -> fetchChangliao(url, proxyAddr, cookies["changliao"])
+        isVvxqiuUrl(url) -> fetchVvxqiu(url, proxyAddr, cookies["vvxqiu"])
         isDirectStreamUrl(url) -> fetchDirectStream(url)
         else -> douyinSpider.fetchStreamInfo(url, quality, proxyAddr)
     }
@@ -687,6 +711,40 @@ class PlatformRouter(
     /** 9c PopkonTV → search/all + castwatch（spider.py:1740），token 登录路径由 spider 内部处理。 */
     private suspend fun fetchPopkontv(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
         val info = popkontvSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, recordUrl = info.recordUrl)
+    }
+
+    // ── Batch D: 猫耳FM / 酷狗 / 畅聊 / VV星球 ─────────────────────────────────
+
+    /** 9d 猫耳FM → fm.missevan.com API（spider.py:1303），recordUrl = flv ?: m3u8。 */
+    private suspend fun fetchMaoerfm(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = maoerfmSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true, title = info.title,
+            m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl)
+    }
+
+    /** 9d 酷狗 → getEnterRoomInfo + streamaddr 双 API（spider.py:2054），recordUrl = httpsFlv。 */
+    private suspend fun fetchKugou(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = kugouSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            flvUrl = info.flvUrl, recordUrl = info.recordUrl)
+    }
+
+    /** 9d 畅聊 → wap.tlclw.com API + 房间页 var config（spider.py:2541），recordUrl = flv。 */
+    private suspend fun fetchChangliao(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = changliaoSpider.getStreamInfo(url, proxyAddr, cookie)
+        if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
+        return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
+            m3u8Url = info.m3u8Url, flvUrl = info.flvUrl, recordUrl = info.recordUrl)
+    }
+
+    /** 9d VV星球 → captain/banner + m3u8 探测（spider.py:2776），recordUrl = m3u8。 */
+    private suspend fun fetchVvxqiu(url: String, proxyAddr: String?, cookie: String?): DouyinStreamInfo {
+        val info = vvxqiuSpider.getStreamInfo(url, proxyAddr, cookie)
         if (!info.isLive) return DouyinStreamInfo(anchorName = info.anchorName, isLive = false)
         return DouyinStreamInfo(anchorName = info.anchorName, isLive = true,
             m3u8Url = info.m3u8Url, recordUrl = info.recordUrl)

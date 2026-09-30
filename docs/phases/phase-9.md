@@ -3,7 +3,7 @@
 > 上游基准：ihmily/DouyinLiveRecorder v4.0.7（add187f），`main.py` 46 条 URL 模式分支。
 > 安卓端：wochatchat/LiveRecorder @ main（2026-09-30）。
 > 
-> **目标：接入上游全部 51 个平台，已完成 24 个，剩余 27 个。**
+> **目标：接入上游全部 51 个平台，已完成 33 个，剩余 18 个。**
 
 ---
 
@@ -46,6 +46,10 @@
 | 31 | WinkTV | winktv.co.kr | WinktvSpider | 9c |
 | 32 | FlexTV | flextv.co.kr / ttinglive.com | FlextvSpider | 9c |
 | 33 | PopkonTV | popkontv.com | PopkontvSpider | 9c |
+| 34 | 猫耳FM | fm.missevan.com | MaoerfmSpider | 9d |
+| 35 | 酷狗 | fanxing2.kugou.com | KugouSpider | 9d |
+| 36 | 畅聊 | live.tlclw.com | ChangliaoSpider | 9d |
+| 37 | VV星球 | vvxqiu.com | VvxqiuSpider | 9d |
 | — | **自定义流** | .m3u8 / .flv 直链 | fetchDirectStream | 7a |
 
 ---
@@ -81,7 +85,7 @@
 | 32 | FlexTV | flextv.co.kr | get_flextv_stream_data + login_flextv | ★★★ | 登录 + stream_url + stream_data 三函数 |
 | 33 | PopkonTV | popkontv.com | get_popkontv_stream_data + login_popkontv | ★★★★ | 登录流程复杂 |
 
-#### Batch D — 小众中文平台·无登录（4 个）
+#### Batch D — 小众中文平台·无登录（4 个）✅ 已完成（9d）
 
 | # | 平台 | URL 模式 | 上游函数 | 复杂度 | 备注 |
 |---|---|---|---|---|---|
@@ -206,13 +210,13 @@
 Batch A      Twitch YouTube Shopee Acfun CHZZK                              ✅ 9a
 Batch B      花椒 流星 映客 音播                                            ✅ 9b
 Batch C      SOOP PandaTV WinkTV FlexTV PopkonTV                            ✅ 9c
-Batch D      猫耳FM 酷狗 畅聊 VV星球                                       ⬜
+Batch D      猫耳FM 酷狗 畅聊 VV星球                                       ✅ 9d
 Batch E      17Live 浪Live 漂漂                                            ⬜
 Batch F      六间房 连接 千度热播 ShowRoom                                 ⬜
 Batch G      Blued TwitCasting                                              ⬜
 Batch H      花猫（复用） 咪咕（暂缓）                                     ⬜
 
-当前：29/51 平台（57%）
+当前：33/51 平台（65%）
 ```
 
 ---

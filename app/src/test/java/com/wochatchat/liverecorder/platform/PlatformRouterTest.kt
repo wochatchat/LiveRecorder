@@ -44,6 +44,10 @@ import com.wochatchat.liverecorder.platform.pandatv.PandatvSpider
 import com.wochatchat.liverecorder.platform.winktv.WinktvSpider
 import com.wochatchat.liverecorder.platform.flextv.FlextvSpider
 import com.wochatchat.liverecorder.platform.popkontv.PopkontvSpider
+import com.wochatchat.liverecorder.platform.maoerfm.MaoerfmSpider
+import com.wochatchat.liverecorder.platform.kugou.KugouSpider
+import com.wochatchat.liverecorder.platform.changliao.ChangliaoSpider
+import com.wochatchat.liverecorder.platform.vvxqiu.VvxqiuSpider
 
 class PlatformRouterTest {
 
@@ -1022,5 +1026,171 @@ class PlatformRouterTest {
         // 9c 平台域名不抢自定义直链路由
         assertTrue(PlatformRouter.isDirectStreamUrl("https://cdn.example.com/live.m3u8"))
         assertFalse(PlatformRouter.isSupported("https://unknown.kr/live/1"))
+    }
+
+    // ── Batch D: 猫耳FM / 酷狗 / 畅聊 / VV星球 ───────────────────────────────
+
+    @Test
+    fun isMaoerfmUrl_routing() {
+        assertTrue(PlatformRouter.isMaoerfmUrl("https://fm.missevan.com/live/868895007"))
+        assertTrue(PlatformRouter.isMaoerfmUrl("https://www.missevan.com/live/123"))
+        assertFalse(PlatformRouter.isMaoerfmUrl("https://live.bilibili.com/1"))
+    }
+
+    @Test
+    fun isKugouUrl_routing() {
+        assertTrue(PlatformRouter.isKugouUrl("https://fanxing2.kugou.com/123456"))
+        assertTrue(PlatformRouter.isKugouUrl("https://fanxing.kugou.com/live/123"))
+        assertFalse(PlatformRouter.isKugouUrl("https://live.bilibili.com/1"))
+    }
+
+    @Test
+    fun isChangliaoUrl_routing() {
+        assertTrue(PlatformRouter.isChangliaoUrl("https://live.tlclw.com/15777"))
+        assertTrue(PlatformRouter.isChangliaoUrl("https://wap.tlclw.com/123"))
+        assertFalse(PlatformRouter.isChangliaoUrl("https://live.bilibili.com/1"))
+    }
+
+    @Test
+    fun isVvxqiuUrl_routing() {
+        assertTrue(PlatformRouter.isVvxqiuUrl("https://vvxqiu.com/?roomId=123456"))
+        assertTrue(PlatformRouter.isVvxqiuUrl("https://www.vvxqiu.com/live?roomId=789"))
+        assertFalse(PlatformRouter.isVvxqiuUrl("https://live.bilibili.com/1"))
+    }
+
+    @Test
+    fun fetchMaoerfm_live() = runTest {
+        val fake = object : MaoerfmSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                MaoerfmSpider.MaoerfmStreamInfo(
+                    anchorName = "猫耳主播",
+                    title = "猫耳直播",
+                    isLive = true,
+                    m3u8Url = "https://hls.missevan.com/stream/abc.m3u8",
+                    flvUrl = "https://flv.missevan.com/stream/abc.flv",
+                    recordUrl = "https://flv.missevan.com/stream/abc.flv",
+                )
+        }
+        val router = PlatformRouter(maoerfmSpider = fake)
+        val info = router.fetchStreamInfo("https://fm.missevan.com/live/868895007")
+        assertTrue(info.isLive)
+        assertEquals("猫耳主播", info.anchorName)
+        assertEquals("猫耳直播", info.title)
+        assertEquals("https://flv.missevan.com/stream/abc.flv", info.recordUrl)
+    }
+
+    @Test
+    fun fetchMaoerfm_offline() = runTest {
+        val fake = object : MaoerfmSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                MaoerfmSpider.MaoerfmStreamInfo(anchorName = "猫耳离线", isLive = false)
+        }
+        val router = PlatformRouter(maoerfmSpider = fake)
+        val info = router.fetchStreamInfo("https://fm.missevan.com/live/868895007")
+        assertFalse(info.isLive)
+        assertEquals("猫耳离线", info.anchorName)
+    }
+
+    @Test
+    fun fetchKugou_live() = runTest {
+        val fake = object : KugouSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                KugouSpider.KugouStreamInfo(
+                    anchorName = "酷狗主播",
+                    isLive = true,
+                    flvUrl = "https://flv.kugou.com/live/abc.flv",
+                    recordUrl = "https://flv.kugou.com/live/abc.flv",
+                )
+        }
+        val router = PlatformRouter(kugouSpider = fake)
+        val info = router.fetchStreamInfo("https://fanxing2.kugou.com/123456")
+        assertTrue(info.isLive)
+        assertEquals("酷狗主播", info.anchorName)
+        assertEquals("https://flv.kugou.com/live/abc.flv", info.recordUrl)
+    }
+
+    @Test
+    fun fetchKugou_offline() = runTest {
+        val fake = object : KugouSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                KugouSpider.KugouStreamInfo(anchorName = "酷狗离线", isLive = false)
+        }
+        val router = PlatformRouter(kugouSpider = fake)
+        val info = router.fetchStreamInfo("https://fanxing2.kugou.com/123456")
+        assertFalse(info.isLive)
+        assertEquals("酷狗离线", info.anchorName)
+    }
+
+    @Test
+    fun fetchChangliao_live() = runTest {
+        val fake = object : ChangliaoSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                ChangliaoSpider.ChangliaoStreamInfo(
+                    anchorName = "畅聊主播",
+                    isLive = true,
+                    m3u8Url = "https://hls.tlclw.com/live/lid.m3u8",
+                    flvUrl = "https://flv.tlclw.com/live/lid.flv",
+                    recordUrl = "https://flv.tlclw.com/live/lid.flv",
+                )
+        }
+        val router = PlatformRouter(changliaoSpider = fake)
+        val info = router.fetchStreamInfo("https://live.tlclw.com/15777")
+        assertTrue(info.isLive)
+        assertEquals("畅聊主播", info.anchorName)
+        assertEquals("https://flv.tlclw.com/live/lid.flv", info.recordUrl)
+    }
+
+    @Test
+    fun fetchChangliao_offline() = runTest {
+        val fake = object : ChangliaoSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                ChangliaoSpider.ChangliaoStreamInfo(anchorName = "畅聊离线", isLive = false)
+        }
+        val router = PlatformRouter(changliaoSpider = fake)
+        val info = router.fetchStreamInfo("https://live.tlclw.com/15777")
+        assertFalse(info.isLive)
+        assertEquals("畅聊离线", info.anchorName)
+    }
+
+    @Test
+    fun fetchVvxqiu_live() = runTest {
+        val fake = object : VvxqiuSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                VvxqiuSpider.VvxqiuStreamInfo(
+                    anchorName = "VV星球主播",
+                    isLive = true,
+                    m3u8Url = "https://liveplay-pro.wasaixiu.com/live/test.m3u8",
+                    recordUrl = "https://liveplay-pro.wasaixiu.com/live/test.m3u8",
+                )
+        }
+        val router = PlatformRouter(vvxqiuSpider = fake)
+        val info = router.fetchStreamInfo("https://vvxqiu.com/?roomId=123456")
+        assertTrue(info.isLive)
+        assertEquals("VV星球主播", info.anchorName)
+        assertEquals(info.m3u8Url, info.recordUrl)
+    }
+
+    @Test
+    fun fetchVvxqiu_offline() = runTest {
+        val fake = object : VvxqiuSpider() {
+            override suspend fun getStreamInfo(url: String, proxyAddr: String?, cookie: String?) =
+                VvxqiuSpider.VvxqiuStreamInfo(anchorName = "VV星球离线", isLive = false)
+        }
+        val router = PlatformRouter(vvxqiuSpider = fake)
+        val info = router.fetchStreamInfo("https://vvxqiu.com/?roomId=123456")
+        assertFalse(info.isLive)
+        assertEquals("VV星球离线", info.anchorName)
+    }
+
+    @Test
+    fun isSupported_batch9d() {
+        assertTrue(PlatformRouter.isSupported("https://fm.missevan.com/live/868895007"))
+        assertTrue(PlatformRouter.isSupported("https://fanxing2.kugou.com/123456"))
+        assertTrue(PlatformRouter.isSupported("https://fanxing.kugou.com/live/123"))
+        assertTrue(PlatformRouter.isSupported("https://live.tlclw.com/15777"))
+        assertTrue(PlatformRouter.isSupported("https://vvxqiu.com/?roomId=123456"))
+        // 9d 平台域名不抢自定义直链路由
+        assertTrue(PlatformRouter.isDirectStreamUrl("https://cdn.example.com/live.m3u8"))
+        assertFalse(PlatformRouter.isSupported("https://unknown.cn/live/1"))
     }
 }
