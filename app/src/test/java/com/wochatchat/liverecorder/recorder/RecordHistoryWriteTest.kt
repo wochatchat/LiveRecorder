@@ -60,9 +60,13 @@ class RecordHistoryWriteTest {
     @Test
     fun `B1-S1 recorded bytes then live ends → Finished written`() = runTest {
         val history = mutableListOf<Pair<String, RecordController.RecordState.Finished>>()
+        val fetchCount = AtomicInteger(0)
         val controller = RecordController(
             baseDir = tempDir(),
-            fetchInfo = { _, _ -> info(isLive = false) },
+            fetchInfo = { _, _ ->
+                val n = fetchCount.incrementAndGet()
+                info(isLive = n <= 1) // 首轮开播；第 2 轮探测关播，触发 B1 修复路径
+            },
             scope = CoroutineScope(SupervisorJob() + UnconfinedTestDispatcher()),
             ffmpeg = FakeFfmpegWithBytes(4096),
             onFinished = { url, state -> history.add(url to state) },
