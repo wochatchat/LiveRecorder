@@ -38,7 +38,7 @@ class TwitcastingSpiderTest {
         reqCount = 0
         val spider = TwitcastingSpider(FakeClient(OFFLINE_PAGE))
         val info = spider.getStreamInfo("https://twitcasting.tv/broadcaster")
-        assertEquals("Broadcaster- broadcaster-67890", info.anchorName)
+        assertEquals("Broadcaster-broadcaster-67890", info.anchorName)
         assertFalse(info.isLive)
         assertEquals(1, reqCount)
     }
@@ -48,7 +48,7 @@ class TwitcastingSpiderTest {
         reqCount = 0
         val spider = TwitcastingSpider(FakeClient(LIVE_PAGE))
         val info = spider.getStreamInfo("https://twitcasting.tv/broadcaster")
-        assertEquals("Broadcaster- broadcaster-12345", info.anchorName)
+        assertEquals("Broadcaster-broadcaster-12345", info.anchorName)
         assertTrue(info.isLive)
         assertEquals("Stream Title", info.title)
         assertEquals("https://hls.01.02.03.com/playlist.m3u8", info.m3u8Url)
