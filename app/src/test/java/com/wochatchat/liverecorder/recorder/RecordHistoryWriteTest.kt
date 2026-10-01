@@ -6,11 +6,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
-import org.junit.Assert.assertFalse
 import org.junit.Test
 import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * B1 修复验证：录制历史写入条件测试（4 场景）。
@@ -57,7 +58,7 @@ class RecordHistoryWriteTest {
      * 修复后：lastPath.isNotBlank() && totalBytes>0 → Finished(completed=true) 写入。
      */
     @Test
-    fun `B1-S1: recorded bytes then live ends → Finished written`() = runTest {
+    fun `B1-S1 recorded bytes then live ends → Finished written`() = runTest {
         val history = mutableListOf<Pair<String, RecordController.RecordState.Finished>>()
         val controller = RecordController(
             baseDir = tempDir(),
@@ -80,7 +81,7 @@ class RecordHistoryWriteTest {
      * B1-S2：首次探测未开播（无录文件）→ Failed，不写 history。
      */
     @Test
-    fun `B1-S2: first probe offline no bytes → Failed no history`() = runTest {
+    fun `B1-S2 first probe offline no bytes → Failed no history`() = runTest {
         val history = mutableListOf<Any>()
         val controller = RecordController(
             baseDir = tempDir(),
@@ -100,7 +101,7 @@ class RecordHistoryWriteTest {
      * 修复前 attempt=0 时走 Failed 不写。
      */
     @Test
-    fun `B1-S3: download mid-stream fail with bytes → Finished written`() = runTest {
+    fun `B1-S3 download mid-stream fail with bytes → Finished written`() = runTest {
         val history = mutableListOf<Pair<String, RecordController.RecordState.Finished>>()
         val fetchCount = AtomicInteger(0)
         // FakeDownloader：首段写文件返回 false（模拟中途断流），断流后探测关播
@@ -139,7 +140,7 @@ class RecordHistoryWriteTest {
      * B1-S4：录制中重探测 isLive=false（attempt=1）→ Finished 写入（修复前后都应写入）。
      */
     @Test
-    fun `B1-S4: reconnect probe offline with bytes → Finished written`() = runTest {
+    fun `B1-S4 reconnect probe offline with bytes → Finished written`() = runTest {
         val history = mutableListOf<Pair<String, RecordController.RecordState.Finished>>()
         val fetchCount = AtomicInteger(0)
         val downloader = object : StreamDownloader() {
