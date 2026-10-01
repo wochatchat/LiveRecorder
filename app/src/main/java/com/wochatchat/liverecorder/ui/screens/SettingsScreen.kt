@@ -67,6 +67,14 @@ fun SettingsScreen(
     val diskLimitGb by viewModel.diskLimitGb.collectAsState()
 
     var showLogDialog by remember { mutableStateOf(false) }
+    // QW8：设置页搜索（非空时各分组按行标题/说明过滤）
+    var searchQuery by remember { mutableStateOf("") }
+    // QW7：折叠分组状态（组标题 → 是否展开；搜索时全部展开）
+    var collapsedGroups by remember { mutableStateOf(setOf<String>()) }
+    fun isGroupExpanded(title: String) = searchQuery.isBlank() || title !in collapsedGroups
+    fun toggleGroup(title: String) {
+        collapsedGroups = if (title in collapsedGroups) collapsedGroups - title else collapsedGroups + title
+    }
 
     // R17：推送测试 Snackbar 反馈
     val snackbarHostState = remember { SnackbarHostState() }
@@ -92,22 +100,32 @@ fun SettingsScreen(
                 .padding(bottom = 24.dp)
         ) {
             Spacer(Modifier.height(8.dp))
-            RecordingGroup(settings, convertMp4, viewModel)
+            // QW8：搜索栏
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = { Text(stringResource(R.string.settings_search_hint)) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
             Spacer(Modifier.height(12.dp))
-            StorageGroup(storageUsage, diskLimitGb, viewModel)
+            RecordingGroup(settings, convertMp4, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
+            Spacer(Modifier.height(12.dp))
+            StorageGroup(storageUsage, diskLimitGb, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
             PushGroup(
                 pushConfig, settings, viewModel,
-                onTestPush = { viewModel.sendTestPush() }
+                onTestPush = { viewModel.sendTestPush() },
+                query = searchQuery, isGroupExpanded = ::isGroupExpanded, toggleGroup = ::toggleGroup,
             )
             Spacer(Modifier.height(12.dp))
-            NamingGroup(settings, viewModel)
+            NamingGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
-            ProxyGroup(proxy, viewModel)
+            ProxyGroup(proxy, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
-            AuthGroup(cookies.size + credentials.size, onOpenCookies)
+            AuthGroup(cookies.size + credentials.size, onOpenCookies, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
-            MaintenanceGroup { showLogDialog = true }
+            MaintenanceGroup({ showLogDialog = true }, searchQuery, ::isGroupExpanded, ::toggleGroup)
         }
     }
 
@@ -116,35 +134,63 @@ fun SettingsScreen(
     }
 }
 
-/** 分组卡片：组标题 + Surface 卡片容器。 */
+/** 分组卡片：组标题（QW7 可点击折叠/展开）+ Surface 卡片容器。 */
 @Composable
-private fun SettingsGroup(title: String, content: @Composable ColumnScope.() -> Unit) {
+private fun SettingsGroup(
+    title: String,
+    isExpanded: Boolean = true,
+    onToggle: (() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     Column {
-        Text(
-            title,
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
-        )
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            tonalElevation = 1.dp,
-            shadowElevation = 1.dp,
-            modifier = Modifier.fillMaxWidth()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .let { if (onToggle != null) it.clickable { onToggle() } else it }
+                .padding(start = 4.dp, end = 4.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.padding(vertical = 4.dp)) { content() }
+            Text(
+                title,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f),
+            )
+            if (onToggle != null) {
+                Text(
+                    if (isExpanded) "▾" else "▸",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        if (isExpanded) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                tonalElevation = 1.dp,
+                shadowElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(vertical = 4.dp)) { content() }
+            }
         }
     }
 }
 
-/** 开关行：标题 + 说明 + Switch，即改即存。 */
+/** QW8：搜索命中判断（大小写不敏感；query 空恒匹配）。 */
+private fun rowMatchesQuery(text: String?, query: String): Boolean =
+    !text.isNullOrBlank() && (query.isBlank() || text.contains(query.trim(), ignoreCase = true))
+
+/** 开关行：标题 + 说明 + Switch，即改即存（QW8：query 非空时按标题/说明过滤）。 */
 @Composable
 private fun SwitchSettingRow(
     title: String,
     subtitle: String? = null,
     checked: Boolean,
     onChange: (Boolean) -> Unit,
+    query: String = "",
 ) {
+    if (!rowMatchesQuery(title, query) && (subtitle == null || !rowMatchesQuery(subtitle, query))) return
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -165,14 +211,16 @@ private fun SwitchSettingRow(
     }
 }
 
-/** 选项 chips 行（画质 / 推送类型）。 */
+/** 选项 chips 行（画质 / 推送类型）。QW8：query 非空时按 label 过滤。 */
 @Composable
 private fun ChipRow(
     label: String,
     options: List<String>,
     selected: String,
     onSelect: (String) -> Unit,
+    query: String = "",
 ) {
+    if (!rowMatchesQuery(label, query)) return
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(label, style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.height(6.dp))
@@ -196,8 +244,13 @@ private fun StorageGroup(
     usage: StorageUsage,
     diskLimitGb: Double,
     viewModel: SettingsViewModel,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
 ) {
-    SettingsGroup(stringResource(R.string.settings_group_storage)) {
+    val title = stringResource(R.string.settings_group_storage)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             usage.usedFraction?.let { fraction ->
                 LinearProgressIndicator(
@@ -231,14 +284,30 @@ private fun RecordingGroup(
     settings: AppSettings,
     convertMp4: Boolean,
     viewModel: SettingsViewModel,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
 ) {
-    SettingsGroup(stringResource(R.string.settings_group_recording)) {
+    val title = stringResource(R.string.settings_group_recording)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
         ChipRow(
             label = stringResource(R.string.settings_quality_label),
             options = listOf("原画", "超清", "高清", "标清", "流畅"),
             selected = settings.quality,
-            onSelect = { viewModel.setAppSettings(settings.copy(quality = it)) }
+            onSelect = { viewModel.setAppSettings(settings.copy(quality = it)) },
+            query = query,
         )
+        // QW4：画质参考码率提示
+        if (rowMatchesQuery(stringResource(R.string.settings_quality_bitrate), query)) {
+            Text(
+                stringResource(R.string.settings_quality_bitrate),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+            )
+        }
         // 7c：保存格式（ts=分段默认 / mkv|mp4=直存单文件，对齐上游 save_type）
         val directSave = settings.saveFormat == "mkv" || settings.saveFormat == "mp4"
         ChipRow(
@@ -299,8 +368,13 @@ private fun PushGroup(
     settings: AppSettings,
     viewModel: SettingsViewModel,
     onTestPush: () -> Unit,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
 ) {
-    SettingsGroup(stringResource(R.string.settings_group_push)) {
+    val title = stringResource(R.string.settings_group_push)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
         Text(
             stringResource(R.string.settings_push_desc),
             style = MaterialTheme.typography.bodySmall,
@@ -431,8 +505,16 @@ private fun PushGroup(
 
 /** 命名规则（5b 五项）。 */
 @Composable
-private fun NamingGroup(settings: AppSettings, viewModel: SettingsViewModel) {
-    SettingsGroup(stringResource(R.string.settings_group_naming)) {
+private fun NamingGroup(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
+) {
+    val title = stringResource(R.string.settings_group_naming)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
         SwitchSettingRow(
             title = stringResource(R.string.settings_folder_author),
             subtitle = stringResource(R.string.settings_folder_author_sub),
@@ -468,8 +550,16 @@ private fun NamingGroup(settings: AppSettings, viewModel: SettingsViewModel) {
 
 /** 代理（4a per-platform）。 */
 @Composable
-private fun ProxyGroup(proxy: ProxySettings, viewModel: SettingsViewModel) {
-    SettingsGroup(stringResource(R.string.settings_group_proxy)) {
+private fun ProxyGroup(
+    proxy: ProxySettings,
+    viewModel: SettingsViewModel,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
+) {
+    val title = stringResource(R.string.settings_group_proxy)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
         SwitchSettingRow(
             title = stringResource(R.string.settings_proxy_title),
             subtitle = stringResource(R.string.settings_proxy_subtitle),
@@ -508,8 +598,13 @@ private fun ProxyGroup(proxy: ProxySettings, viewModel: SettingsViewModel) {
 private fun AuthGroup(
     configuredCount: Int,
     onOpenPage: () -> Unit,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
 ) {
-    SettingsGroup(stringResource(R.string.settings_group_auth)) {
+    val title = stringResource(R.string.settings_group_auth)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -533,8 +628,15 @@ private fun AuthGroup(
 
 /** 维护：运行日志。 */
 @Composable
-private fun MaintenanceGroup(onOpenLogs: () -> Unit) {
-    SettingsGroup(stringResource(R.string.settings_group_maintenance)) {
+private fun MaintenanceGroup(
+    onOpenLogs: () -> Unit,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
+) {
+    val title = stringResource(R.string.settings_group_maintenance)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

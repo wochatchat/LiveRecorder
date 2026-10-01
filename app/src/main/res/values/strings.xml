@@ -95,6 +95,15 @@
     <string name="add_dialog_title">添加直播间</string>
     <string name="add_dialog_placeholder">粘贴直播间链接\n支持多行/逗号分隔批量添加</string>
     <string name="add_dialog_unsupported_warn">包含暂不支持的平台链接，点击「添加」仍会加入监控</string>
+    <string name="add_dialog_platform_unknown">不支持</string>
+    <string name="add_dialog_more">+%1$d 条</string>
+    <string name="records_title_copied">标题已复制</string>
+    <string name="records_segments_count">%1$d 个分段文件，点此查看</string>
+    <string name="records_segments_title">分段文件（%1$d 个）</string>
+    <string name="records_segments_empty">目录下没有可播放的分段文件</string>
+    <string name="desc_copy_title">复制标题</string>
+    <string name="settings_quality_bitrate">参考码率：原画 ≈8 Mbps · 超清 ≈4 Mbps · 高清 ≈2 Mbps · 标清 ≈1 Mbps · 流畅 ≈500 kbps</string>
+    <string name="settings_search_hint">搜索设置…</string>
     <string name="edit_dialog_title">编辑直播间</string>
     <string name="edit_dialog_url_label">直播间链接</string>
     <string name="remove_dialog_title_stop">停止并移除监控？</string>

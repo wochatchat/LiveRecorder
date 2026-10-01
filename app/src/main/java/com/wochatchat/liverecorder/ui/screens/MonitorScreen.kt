@@ -68,6 +68,8 @@ import com.wochatchat.liverecorder.data.AppLog
 import com.wochatchat.liverecorder.platform.PlatformRouter
 import com.wochatchat.liverecorder.ui.MonitorViewModel
 import com.wochatchat.liverecorder.ui.components.MonitorCard
+import com.wochatchat.liverecorder.ui.components.PlatformBadge
+import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
 import com.wochatchat.liverecorder.ui.navigation.FocusRouter
 
 /** 监控主页 */
@@ -405,6 +407,7 @@ fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (List<String>) -> Unit, initi
         .filter { it.isNotBlank() }
         .distinct()
     val allSupported = urls.isNotEmpty() && urls.all { PlatformRouter.isSupported(it) }
+    // QW1：实时平台预览——解析出的每条链接显示平台徽标（不支持平台显示「不支持」）
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.add_dialog_title)) },
@@ -418,7 +421,32 @@ fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (List<String>) -> Unit, initi
                     minLines = 1,
                     maxLines = 4
                 )
+                if (urls.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        urls.take(4).forEach { u ->
+                            val key = platformKeyForUrl(u)
+                            val supported = PlatformRouter.isSupported(u)
+                            PlatformBadge(
+                                platformKey = key,
+                                text = if (supported) null else stringResource(R.string.add_dialog_platform_unknown),
+                            )
+                        }
+                        if (urls.size > 4) {
+                            Text(
+                                stringResource(R.string.add_dialog_more, urls.size - 4),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
                 if (urls.isNotEmpty() && !allSupported) {
+                    Spacer(Modifier.height(4.dp))
                     Text(
                         stringResource(R.string.add_dialog_unsupported_warn),
                         style = MaterialTheme.typography.bodySmall,
@@ -438,7 +466,6 @@ fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (List<String>) -> Unit, initi
         }
     )
 }
-
 
 @Composable
 fun EditUrlDialog(

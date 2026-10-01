@@ -196,9 +196,10 @@ class RecordController(
                 curPlatform = platformName(url)
 
                 if (!info.isLive) {
+                    // B1 修复：有任何已录文件字节即写 Finished（含首探已开录一轮后关播场景）
                     setState(
                         url,
-                        if (attempt > 0) RecordState.Finished(
+                        if (lastPath.isNotBlank() && totalBytes > 0) RecordState.Finished(
                             lastPath, totalBytes, completed = true, durationMs = accMs,
                             anchorName = curAnchor, title = curTitle, platform = curPlatform,
                         )
