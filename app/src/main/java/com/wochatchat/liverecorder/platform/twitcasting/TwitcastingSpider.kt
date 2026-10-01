@@ -20,7 +20,9 @@ open class TwitcastingSpider(
     companion object {
         private val RE_IS_LIVE = Pattern.compile("data-is-onlive=\"(.*?)\"")
         private val RE_MOVIE_ID = Pattern.compile("data-movie-id=\"(.*?)\"")
-        private val RE_TITLE = Pattern.compile("<title>(.*?) \\(@(.*?)" + "\\)  的直播 - Twit")
+        private val RE_TITLE = Pattern.compile(
+            "<title>(.*?) \\(@(.*?)\\)" + "[ 　]{2,}\u7684\u76f4\u64ad - Twit",
+        )
         // twitter:title 元标签：用于提取开播时的直播标题（content 值紧跟引号后换行或直接 </head>）
         private val RE_TW_TITLE = Pattern.compile(
             "<meta name=\"twitter:title\" content=\"([^\"]+)\"",
