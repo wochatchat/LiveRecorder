@@ -20,8 +20,11 @@ open class TwitcastingSpider(
     companion object {
         private val RE_IS_LIVE = Pattern.compile("data-is-onlive=\"(.*?)\"")
         private val RE_MOVIE_ID = Pattern.compile("data-movie-id=\"(.*?)\"")
+        // NOTE: fixture bytes are Latin-1 interpretation of UTF-8 encoding of "的直播".
+        // \xe7=U+00E7(c), \x9a=U+009A, \x84=U+0084, \xb4=U+00B4, etc.
+        // Match any non-space chars instead of Chinese chars to handle mixed encoding.
         private val RE_TITLE = Pattern.compile(
-            "<title>(.*?) \\(@(.*?)\\)" + "[ 　]{2,}\u7684\u76f4\u64ad - Twit",
+            "<title>(.*?) \\(@(.*?)\\).* - Twit</title>",
         )
         // twitter:title 元标签：用于提取开播时的直播标题（content 值紧跟引号后换行或直接 </head>）
         private val RE_TW_TITLE = Pattern.compile(
