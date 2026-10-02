@@ -46,7 +46,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
+import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -365,7 +368,7 @@ private fun RecordTimeline(files: List<File>, metas: List<FileMeta>) {
                     val weight = (meta.durationMs.toFloat() / totalDuration).coerceAtLeast(0.02f)
                     Box(
                         modifier = Modifier
-                            .weight(weight.toDouble().coerceAtMost(0.98))
+                            .weight(weight.coerceAtMost(0.98f))
                             .fillMaxSize()
                             .background(segmentColors[idx % 4].copy(alpha = 0.6f)),
                     )

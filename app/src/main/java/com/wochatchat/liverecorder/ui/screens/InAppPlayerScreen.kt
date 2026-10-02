@@ -8,6 +8,9 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.view.ViewGroup
 import android.widget.FrameLayout
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -159,7 +162,8 @@ fun InAppPlayerScreen(
         ExoPlayer.Builder(context).build().apply {
             repeatMode = Player.REPEAT_MODE_OFF
             playWhenReady = true
-            setMediaSources(files.map { MediaItem.fromUri(android.net.Uri.fromFile(it)) })
+            val items = files.map { MediaItem.fromUri(android.net.Uri.fromFile(it)) }
+            setMediaItems(items)
             prepare()
         }
     }
@@ -383,7 +387,6 @@ fun InAppPlayerScreen(
             color = MaterialTheme.colorScheme.inverseSurface,
             shape = MaterialTheme.shapes.small,
             modifier = Modifier
-                .align(Alignment.Center)
                 .padding(16.dp),
         ) {
             Text(
@@ -406,7 +409,7 @@ fun InAppPlayerScreen(
             title = { Text(stringResource(R.string.player_speed)) },
             text = {
                 Column {
-                    PLAYBACK_SPEEDS.chunked(3).forEach { row ->
+                    PLAYBACK_SPEEDS.chunked(3).forEachIndexed { idx, row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             row.forEach { speed ->
                                 FilterChip(
@@ -419,7 +422,7 @@ fun InAppPlayerScreen(
                                 )
                             }
                         }
-                        if (row !== PLAYBACK_SPEEDS.last()) Spacer(Modifier.height(8.dp))
+                        if (idx < PLAYBACK_SPEEDS.chunked(3).size - 1) Spacer(Modifier.height(8.dp))
                     }
                 }
             },
@@ -508,7 +511,7 @@ private fun readMediaMetadata(context: android.content.Context, file: File?): Me
             val w = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_WIDTH)?.toIntOrNull() ?: 0
             val h = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_HEIGHT)?.toIntOrNull() ?: 0
             val bitrate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toLongOrNull() ?: 0L
-            val mime = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_VIDEO_CODEC_TYPE) ?: ""
+            val mime = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE) ?: ""
             MediaMetadata(durationMs = dur, sizeBytes = file.length(), width = w, height = h, bitrateBps = bitrate, codec = mime)
         }
     }.getOrDefault(MediaMetadata(sizeBytes = file.length()))
@@ -518,9 +521,11 @@ private fun readMediaMetadata(context: android.content.Context, file: File?): Me
 private suspend fun takeScreenshot(context: android.content.Context, exoPlayer: ExoPlayer): String {
     return withContext(Dispatchers.Main) {
         runCatching {
-            val bitmap: Bitmap? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            // 尝试从 ExoPlayer 抓当前帧（@UnstableApi；失败时返回 null）
+            @Suppress("invisible_reference", "InvisibleMemberAPI")
+            val bitmap: Bitmap? = try {
                 exoPlayer.currentBitmap(1920, 1080)
-            } else null
+            } catch (_: Throwable) { null }
             if (bitmap == null) return@withContext context.getString(R.string.player_screenshot_failed)
             val name = "LR_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.jpg"
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
