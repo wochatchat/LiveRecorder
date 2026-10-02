@@ -16,6 +16,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -30,11 +32,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.wochatchat.liverecorder.R
+import com.wochatchat.liverecorder.data.UpdateChecker
+import com.wochatchat.liverecorder.data.UpdateChecker.UpdateInfo
 import com.wochatchat.liverecorder.ui.screens.CookieManagementScreen
 import com.wochatchat.liverecorder.ui.screens.MonitorScreen
 import com.wochatchat.liverecorder.ui.screens.OnboardingScreen
 import com.wochatchat.liverecorder.ui.screens.RecordsScreen
 import com.wochatchat.liverecorder.ui.screens.SettingsScreen
+import com.wochatchat.liverecorder.ui.screens.UpdateDialog
 import kotlinx.coroutines.launch
 
 /** 导航目标（6b-2：3 Tab 骨架）。 */
@@ -62,6 +67,26 @@ fun AppNavigation() {
     }
     val onboardingDone by appSettings.onboardingCompleted.collectAsState(initial = null)
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+
+    // Phase 3：更新检查（引导完成后静默执行，有结果则弹 UpdateDialog）
+    var updateInfo by androidx.compose.runtime.remember { mutableStateOf<UpdateInfo?>(null) }
+    val ignoredVersion by appSettings.ignoredVersion.collectAsState(initial = null)
+    LaunchedEffect(onboardingDone, ignoredVersion) {
+        if (onboardingDone == true) {
+            updateInfo = UpdateChecker.check(context, ignoredVersion)
+        }
+    }
+    updateInfo?.let { info ->
+        UpdateDialog(
+            info = info,
+            onIgnore = {
+                scope.launch { appSettings.setIgnoredVersion(info.latestVersion) }
+                updateInfo = null
+            },
+            onDismiss = { updateInfo = null },
+        )
+    }
+
     when (onboardingDone) {
         // DataStore 首帧未就绪：空白一帧，避免引导页闪现
         null -> Box(Modifier.fillMaxSize())

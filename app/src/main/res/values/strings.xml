@@ -97,6 +97,13 @@
     <string name="action_add_monitor">添加监控</string>
     <string name="action_dismiss">忽略</string>
     <string name="snackbar_added_from_panel">已添加到监控：%1$s</string>
+
+    <!-- Phase 3：应用内更新 -->
+    <string name="update_dialog_title">发现新版本 v%1$s</string>
+    <string name="update_dialog_current_version">当前版本 v%1$s</string>
+    <string name="update_dialog_changelog_label">更新内容</string>
+    <string name="update_action_download">下载安装</string>
+    <string name="update_action_ignore">忽略此版本</string>
     <string name="monitor_state_running">监控中</string>
     <string name="monitor_state_paused">已暂停</string>
     <string name="add_dialog_title">添加直播间</string>

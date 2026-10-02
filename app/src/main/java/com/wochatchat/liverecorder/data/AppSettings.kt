@@ -79,6 +79,8 @@ class AppSettingsStore(private val context: android.content.Context) {
     private val cleanEmojiKey = booleanPreferencesKey("clean_emoji")
     /** 6f R21：首启引导完成标记（独立 Flow，不进 AppSettings 设置页）。 */
     private val onboardingCompletedKey = booleanPreferencesKey("onboarding_completed")
+    /** Phase 3：用户忽略的版本号（忽略后不再提示，直到有新版本）。 */
+    private val ignoredVersionKey = stringPreferencesKey("ignored_version")
 
     /** 6f R21：首启引导是否已完成。 */
     val onboardingCompleted: Flow<Boolean> = context.settingsDataStore.data
@@ -88,6 +90,17 @@ class AppSettingsStore(private val context: android.content.Context) {
     suspend fun completeOnboarding() {
         context.settingsDataStore.edit { prefs ->
             prefs[onboardingCompletedKey] = true
+        }
+    }
+
+    /** Phase 3：已忽略的版本号（忽略后不再提示）。 */
+    val ignoredVersion: Flow<String?> = context.settingsDataStore.data
+        .map { prefs -> prefs[ignoredVersionKey] }
+
+    /** Phase 3：忽略指定版本。 */
+    suspend fun setIgnoredVersion(version: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[ignoredVersionKey] = version
         }
     }
 
