@@ -1,8 +1,8 @@
 name: Build Release APK
 
+# 仅手动触发（用户明确要求"出新版本"时 dispatch）。
+# push main 不再自动构建 release——日常推送默认只跑 compile-check.yml。
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # Never let two release jobs race over version.properties, APKs and tags.

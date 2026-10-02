@@ -1,15 +1,17 @@
 name: Compile Check
 
-# Refactor/fix branches + PRs: compile validation only.
-# No version bump, no APK archive, no release — those stay in build.yml (main).
+# Refactor/fix/feature 分支 + PR + push main：编译 + 单测。
+# push main 自动触发（日常开发默认路径）；paths-ignore 排除纯文档改动。
 on:
   push:
-    branches: [fix, 'refactor/**', 'feature/**']
-    # 纯文档改动不触发（含本文件的修改本身）
+    branches:
+      - fix/**
+      - 'refactor/**'
+      - 'feature/**'
+      - main
     paths-ignore:
       - '**.md'
       - 'docs/**'
-      - '.github/**'
   pull_request:
   workflow_dispatch:
 
