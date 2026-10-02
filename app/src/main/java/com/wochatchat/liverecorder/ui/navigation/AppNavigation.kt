@@ -36,12 +36,15 @@ import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.data.UpdateChecker
 import com.wochatchat.liverecorder.data.UpdateChecker.UpdateInfo
 import com.wochatchat.liverecorder.ui.screens.CookieManagementScreen
+import com.wochatchat.liverecorder.ui.screens.InAppPlayerScreen
 import com.wochatchat.liverecorder.ui.screens.MonitorScreen
 import com.wochatchat.liverecorder.ui.screens.OnboardingScreen
 import com.wochatchat.liverecorder.ui.screens.RecordsScreen
+import com.wochatchat.liverecorder.ui.screens.RecordDetailScreen
 import com.wochatchat.liverecorder.ui.screens.SettingsScreen
 import com.wochatchat.liverecorder.ui.screens.UpdateDialog
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 
 /** 导航目标（6b-2：3 Tab 骨架）。 */
 sealed class Destination(val route: String, @StringRes val labelRes: Int, val icon: ImageVector) {
@@ -52,6 +55,19 @@ sealed class Destination(val route: String, @StringRes val labelRes: Int, val ic
 
 /** 设置子页路由（6d R16）。 */
 const val ROUTE_COOKIES = "settings/cookies"
+
+/** Phase 3：录制详情页路由（path = URLEncoder.encode(savePath, "UTF-8")）。 */
+const val ROUTE_RECORD_DETAIL = "record_detail/{path}"
+
+/** Phase 3：内置播放器路由（path = URLEncoder.encode(savePath, "UTF-8")）。 */
+const val ROUTE_PLAYER = "player/{path}"
+
+/** 编码 savePath 用于路由参数（/ 等字符需转义）。 */
+fun encodeNavPath(path: String): String = java.net.URLEncoder.encode(path, "UTF-8")
+
+/** 从路由参数解码 savePath。 */
+fun decodeNavPath(encoded: String?): String =
+    runCatching { java.net.URLDecoder.decode(encoded ?: "", "UTF-8") }.getOrDefault("")
 
 private val bottomNavItems = listOf(
     Destination.Monitor,
@@ -149,7 +165,12 @@ private fun MainScaffold() {
                     }
                 )
             }
-            composable(Destination.Records.route) { RecordsScreen() }
+            composable(Destination.Records.route) {
+                val onNavigateToDetail: (String) -> Unit = { encodedPath ->
+                    navController.navigate("record_detail/$encodedPath")
+                }
+                RecordsScreen(onNavigateToDetail = onNavigateToDetail)
+            }
             composable(Destination.Settings.route) {
                 SettingsScreen(
                     onOpenCookies = { navController.navigate(ROUTE_COOKIES) }
@@ -157,6 +178,23 @@ private fun MainScaffold() {
             }
             composable(ROUTE_COOKIES) {
                 CookieManagementScreen(onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_RECORD_DETAIL) { backStackEntry ->
+                val encodedPath = backStackEntry.arguments?.getString("path") ?: ""
+                val decodedPath = decodeNavPath(encodedPath)
+                RecordDetailScreen(
+                    savePath = decodedPath,
+                    onBack = { navController.popBackStack() },
+                    onMerge = { _, _ -> navController.popBackStack() },
+                    onPlayAll = { navController.navigate("player/$encodedPath") },
+                )
+            }
+            composable(ROUTE_PLAYER) { backStackEntry ->
+                val encodedPath = backStackEntry.arguments?.getString("path") ?: ""
+                InAppPlayerScreen(
+                    savePath = decodeNavPath(encodedPath),
+                    onBack = { navController.popBackStack() },
+                )
             }
         }
     }

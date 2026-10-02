@@ -265,4 +265,37 @@
     <string name="settings_filename_sub">{主播}_{标题}_{时间}.flv</string>
     <string name="settings_clean_emoji">去除名称中的表情符号</string>
     <string name="settings_clean_emoji_sub">主播名与标题同步生效（默认开）</string>
+    <!-- Phase 3 5.1 内置播放器 -->
+    <string name="player_title">播放</string>
+    <string name="player_no_files">未找到可播放的文件</string>
+    <string name="player_audio_mode">音频模式</string>
+    <string name="player_speed">倍速</string>
+    <string name="player_screenshot">截图</string>
+    <string name="player_file_info">文件信息</string>
+    <string name="player_info_duration">时长</string>
+    <string name="player_info_size">大小</string>
+    <string name="player_info_resolution">分辨率</string>
+    <string name="player_info_bitrate">码率</string>
+    <string name="player_info_codec">编码</string>
+    <string name="player_screenshot_saved">截图已保存：%1$s</string>
+    <string name="player_screenshot_failed">截图失败</string>
+    <!-- Phase 3 5.2 录制详情页 -->
+    <string name="detail_url_copied">URL 已复制</string>
+    <string name="detail_segments_title">分段文件（%1$d 个）</string>
+    <string name="detail_timeline_title">录制时间轴</string>
+    <string name="detail_stat_duration">时长</string>
+    <string name="detail_stat_size">大小</string>
+    <string name="detail_stat_resolution">分辨率</string>
+    <string name="detail_stat_bitrate">码率</string>
+    <string name="detail_merge_export">合并导出</string>
+    <string name="detail_merge_title">合并分段</string>
+    <string name="detail_merge_confirm_text">将 %1$d 个分段合并为一个完整 MP4 文件</string>
+    <string name="detail_merge_start">开始合并</string>
+    <string name="detail_merge_progress">合并中 %1$d%%</string>
+    <string name="detail_merge_single_file">单文件无需合并</string>
+    <string name="detail_delete_file_title">删除文件</string>
+    <string name="detail_delete_file_done">文件已删除</string>
+    <string name="detail_delete_file_failed">删除失败</string>
+    <string name="action_back">返回</string>
+    <string name="action_pause">暂停</string>
 </resources>

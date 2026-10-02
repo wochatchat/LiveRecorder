@@ -84,7 +84,10 @@ import java.util.Locale
  */
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
+fun RecordsScreen(
+    viewModel: RecordsViewModel = viewModel(),
+    onNavigateToDetail: (String) -> Unit = {},
+) {
     val filtered by viewModel.filtered.collectAsState()
     val filter by viewModel.filter.collectAsState()
     val stats by viewModel.stats.collectAsState()
@@ -214,6 +217,13 @@ fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
                                 selected = selected + entry
                             },
                             onDelete = { if (selectionMode) toggleSelect(entry) else pendingDelete = entry },
+                            onOpenDetail = {
+                                if (!selectionMode) {
+                                    onNavigateToDetail(
+                                        java.net.URLEncoder.encode(entry.savePath, "UTF-8"),
+                                    )
+                                }
+                            },
                         )
                     }
                 }
@@ -402,6 +412,7 @@ private fun RecordCard(
     isSelected: Boolean = false,
     onToggleSelect: () -> Unit = {},
     onLongPress: () -> Unit = {},
+    onOpenDetail: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var showSegments by remember { mutableStateOf(false) }
@@ -421,7 +432,7 @@ private fun RecordCard(
         modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
-                onClick = { if (selectionMode) onToggleSelect() else Unit },
+                onClick = { if (selectionMode) onToggleSelect() else onOpenDetail() },
                 onLongClick = onLongPress,
             ),
         colors = if (isSelected) {

@@ -127,6 +127,10 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
 
+    // Media3 ExoPlayer（Phase 3：内置播放器 + 录制详情页）
+    implementation(libs.androidxMedia3Exoplayer)
+    implementation(libs.androidxMedia3Ui)
+
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     // Rhino: 纯 JVM JS 引擎，QuickJsEngine JNI 的单测替身（Phase 3b）
