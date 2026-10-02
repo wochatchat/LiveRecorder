@@ -22,8 +22,9 @@ import java.io.File
 import java.util.Calendar
 
 /**
- * 录制记录页 ViewModel（6e R19）：读取 [RecordHistoryStore]（经 RecorderApp 单例落库），
- * 提供筛选（全部/今日 + 平台）、统计与删除（文件 + 记录）。
+ * 录制记录页 ViewModel（6e R19 / R21 Phase 1.1）：
+ * 读取 [RecordHistoryStore]（经 RecorderApp 单例落库），
+ * 提供筛选（全部/今日 + 平台）、搜索、排序、批量操作。
  */
 class RecordsViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -52,14 +53,48 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
         _filter.value = _filter.value.copy(platformKey = platformKey)
     }
 
-    /** 筛选后的记录（列表页主数据源）。 */
+    // ---- 搜索（R21 Phase 1.1）----
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    fun setSearchQuery(query: String) {
+        _searchQuery.value = query
+    }
+
+    // ---- 排序（R21 Phase 1.1）----
+
+    enum class SortMode { TIME, SIZE, DURATION }
+
+    private val _sortMode = MutableStateFlow(SortMode.TIME)
+    val sortMode: StateFlow<SortMode> = _sortMode.asStateFlow()
+
+    fun setSortMode(mode: SortMode) {
+        _sortMode.value = mode
+    }
+
+    private fun sortEntries(list: List<RecordHistoryEntry>, mode: SortMode): List<RecordHistoryEntry> =
+        when (mode) {
+            SortMode.TIME -> list.sortedByDescending { it.endTimeMs }
+            SortMode.SIZE -> list.sortedByDescending { it.bytes }
+            SortMode.DURATION -> list.sortedByDescending { it.durationMs }
+        }
+
+    // ---- 筛选后的记录（列表页主数据源，含搜索+排序）----
+
     val filtered: StateFlow<List<RecordHistoryEntry>> =
-        combine(allEntries, _filter) { list, f ->
+        combine(allEntries, _filter, _searchQuery, _sortMode) { list, f, query, sort ->
             val todayStart = if (f.todayOnly) startOfTodayMs() else 0L
-            list.filter { e ->
+            val base = list.filter { e ->
                 (todayStart == 0L || e.endTimeMs >= todayStart) &&
-                    (f.platformKey == null || platformKeyForUrl(e.url) == f.platformKey)
+                    (f.platformKey == null || platformKeyForUrl(e.url) == f.platformKey) &&
+                    (query.isBlank() || (
+                        e.anchorName.contains(query, ignoreCase = true) ||
+                            e.title.contains(query, ignoreCase = true) ||
+                            platformKeyForUrl(e.url).contains(query, ignoreCase = true)
+                        ))
             }
+            sortEntries(base, sort)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // ---- 统计（R19 顶部统计行） ----
@@ -108,6 +143,33 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun consumeDeleteResult() {
         _deleteResult.value = null
+    }
+
+    // ---- 批量操作（R21 Phase 1.1）----
+
+    private val _batchDeleteResult = MutableStateFlow<String?>(null)
+    val batchDeleteResult: StateFlow<String?> = _batchDeleteResult.asStateFlow()
+
+    /** 批量删除记录列表。 */
+    fun batchDelete(entries: List<RecordHistoryEntry>) {
+        viewModelScope.launch {
+            val failedCount = entries.count { entry ->
+                runCatching {
+                    val f = File(entry.savePath)
+                    f.exists() && !f.deleteRecursively()
+                }.getOrDefault(true)
+            }
+            entries.forEach { historyStore.remove(it) }
+            _batchDeleteResult.value = if (failedCount > 0) {
+                getApplication<Application>().getString(R.string.records_delete_error)
+            } else {
+                getApplication<Application>().getString(R.string.records_delete_done, "${entries.size}")
+            }
+        }
+    }
+
+    fun consumeBatchDeleteResult() {
+        _batchDeleteResult.value = null
     }
 
     private fun startOfTodayMs(): Long =

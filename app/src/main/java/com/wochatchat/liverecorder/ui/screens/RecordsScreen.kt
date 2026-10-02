@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Folder
@@ -27,8 +29,11 @@ import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.StopCircle
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -36,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -72,20 +78,28 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * 录制记录页（6e R19 / U12）：筛选（全部/今日/平台）+ 记录卡片列表，
- * 每条支持播放（FileProvider）/分享/删除（确认弹窗）。
+ * 录制记录页（6e R19 / U12 / R21 Phase 1.1）：筛选（全部/今日/平台）+ 搜索 + 排序
+ * + 批量选择（长按多选、批量删除/分享）+ 记录卡片列表，
+ * 每条支持播放（FileProvider）/分享/删除（确认弹窗）/打开所在文件夹。
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
     val filtered by viewModel.filtered.collectAsState()
     val filter by viewModel.filter.collectAsState()
     val stats by viewModel.stats.collectAsState()
     val deleteResult by viewModel.deleteResult.collectAsState()
+    val batchDeleteResult by viewModel.batchDeleteResult.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val sortMode by viewModel.sortMode.collectAsState()
     // R20：存储占比进度条
     val storageUsage by viewModel.storageUsage.collectAsState()
     val snackbar = remember { SnackbarHostState() }
     var pendingDelete by remember { mutableStateOf<RecordHistoryEntry?>(null) }
+    // R21 Phase 1.1：批量选择模式（长按进入）
+    var selectionMode by remember { mutableStateOf(false) }
+    var selected by remember { mutableStateOf(setOf<RecordHistoryEntry>()) }
+    var pendingBatchDelete by remember { mutableStateOf(false) }
 
     LaunchedEffect(deleteResult) {
         deleteResult?.let {
@@ -93,9 +107,59 @@ fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
             viewModel.consumeDeleteResult()
         }
     }
+    LaunchedEffect(batchDeleteResult) {
+        batchDeleteResult?.let {
+            snackbar.showSnackbar(it)
+            viewModel.consumeBatchDeleteResult()
+        }
+    }
+
+    fun toggleSelect(entry: RecordHistoryEntry) {
+        selected = if (entry in selected) selected - entry else selected + entry
+    }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.screen_records_title)) }) },
+        topBar = {
+            if (selectionMode) {
+                TopAppBar(
+                    title = { Text(stringResource(R.string.batch_selected_count, selected.size)) },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            selectionMode = false
+                            selected = emptySet()
+                        }) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.action_close))
+                        }
+                    },
+                    actions = {
+                        TextButton(onClick = {
+                            selected = if (selected.size == filtered.size) emptySet() else filtered.toSet()
+                        }) {
+                            Text(
+                                if (selected.size == filtered.size) stringResource(R.string.action_deselect_all)
+                                else stringResource(R.string.action_select_all),
+                            )
+                        }
+                        IconButton(onClick = { pendingBatchDelete = true }, enabled = selected.isNotEmpty()) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = stringResource(R.string.desc_delete),
+                                tint = if (selected.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                                else MaterialTheme.colorScheme.error,
+                            )
+                        }
+                        IconButton(
+                            onClick = { shareBatch(context = LocalContext.current, entries = selected.toList()) },
+                            enabled = selected.isNotEmpty(),
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = stringResource(R.string.action_share))
+                        }
+                    },
+                )
+            } else {
+                TopAppBar(title = { Text(stringResource(R.string.screen_records_title)) })
+            }
+        },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->
         Column(
@@ -104,7 +168,28 @@ fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
                 .padding(padding),
         ) {
             StorageUsageBar(storageUsage)
+            // R21 Phase 1.1：搜索栏
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = viewModel::setSearchQuery,
+                placeholder = { Text(stringResource(R.string.records_search_hint)) },
+                singleLine = true,
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { viewModel.setSearchQuery("") }) {
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.desc_clear))
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp),
+            )
+            Spacer(Modifier.height(4.dp))
             FilterRow(filter, viewModel)
+            // R21 Phase 1.1：排序 chips
+            SortRow(sortMode, viewModel)
             StatsLine(stats.todayCount, stats.totalBytes)
             if (filtered.isEmpty()) {
                 EmptyRecords()
@@ -120,12 +205,39 @@ fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
                         RecordCard(
                             entry = entry,
                             modifier = Modifier.animateItem(),
-                            onDelete = { pendingDelete = entry },
+                            selectionMode = selectionMode,
+                            isSelected = entry in selected,
+                            onToggleSelect = { toggleSelect(entry) },
+                            onLongPress = {
+                                selectionMode = true
+                                selected = selected + entry
+                            },
+                            onDelete = { if (selectionMode) toggleSelect(entry) else pendingDelete = entry },
                         )
                     }
                 }
             }
         }
+    }
+
+    // R21 Phase 1.1：批量删除确认弹窗
+    if (pendingBatchDelete) {
+        AlertDialog(
+            onDismissRequest = { pendingBatchDelete = false },
+            title = { Text(stringResource(R.string.batch_delete_confirm_title, selected.size)) },
+            text = { Text(stringResource(R.string.batch_delete_confirm_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.batchDelete(selected.toList())
+                    selectionMode = false
+                    selected = emptySet()
+                    pendingBatchDelete = false
+                }) { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingBatchDelete = false }) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
     }
 
     pendingDelete?.let { entry ->
@@ -220,6 +332,30 @@ private fun StatsLine(todayCount: Int, totalBytes: Long) {
     )
 }
 
+/** R21 Phase 1.1：排序行（时间 / 大小 / 时长，单选语义）。 */
+@Composable
+private fun SortRow(sortMode: RecordsViewModel.SortMode, viewModel: RecordsViewModel) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        listOf(
+            RecordsViewModel.SortMode.TIME to stringResource(R.string.sort_time),
+            RecordsViewModel.SortMode.SIZE to stringResource(R.string.sort_size),
+            RecordsViewModel.SortMode.DURATION to stringResource(R.string.sort_duration),
+        ).forEach { (mode, label) ->
+            FilterChip(
+                selected = sortMode == mode,
+                onClick = { viewModel.setSortMode(mode) },
+                label = { Text(label) },
+            )
+        }
+    }
+}
+
 /** 空态（6f R23：图标 + 快捷入口）。 */
 @Composable
 private fun EmptyRecords() {
@@ -252,25 +388,52 @@ private fun EmptyRecords() {
     }
 }
 
-/** 单条记录卡片（QW2/3/5/6）：平台徽标 + 主播名 + 标题 + 时长大字 + 格式标签 + 操作。 */
+/** 单条记录卡片（QW2/3/5/6 / R21 Phase 1.1）：平台徽标 + 主播名 + 标题 + 时长大字 + 格式标签 + 操作，
+ * 支持批量选择（复选框 + 长按进入选择模式）与未完成红色标注。 */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun RecordCard(
     entry: RecordHistoryEntry,
     onDelete: (RecordHistoryEntry) -> Unit,
     modifier: Modifier = Modifier,
+    selectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onToggleSelect: () -> Unit = {},
+    onLongPress: () -> Unit = {},
 ) {
     val context = LocalContext.current
     var showSegments by remember { mutableStateOf(false) }
+    // R21 Phase 1.1：查看文件夹（应用内 BottomSheet，单文件显示其所在目录）
+    var folderSheetPath by remember { mutableStateOf<String?>(null) }
     val isDir = File(entry.savePath).isDirectory
     val formatBadge = remember(entry.savePath) { formatBadgeText(entry.savePath) }
 
     if (showSegments) {
         RecordSegmentsSheet(savePath = entry.savePath, onDismiss = { showSegments = false })
     }
+    folderSheetPath?.let { path ->
+        RecordSegmentsSheet(savePath = path, onDismiss = { folderSheetPath = null })
+    }
 
-    Card(modifier = modifier.fillMaxWidth()) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = { if (selectionMode) onToggleSelect() else Unit },
+                onLongClick = onLongPress,
+            ),
+        colors = if (isSelected) {
+            CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+        } else {
+            CardDefaults.cardColors()
+        },
+    ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                if (selectionMode) {
+                    Checkbox(checked = isSelected, onCheckedChange = { onToggleSelect() })
+                    Spacer(Modifier.width(4.dp))
+                }
                 PlatformBadge(platformKeyForUrl(entry.url))
                 Spacer(Modifier.width(8.dp))
                 Text(
@@ -281,6 +444,21 @@ private fun RecordCard(
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 Spacer(Modifier.width(4.dp))
+                // R21 Phase 1.1：completed=false 红色标注
+                if (!entry.completed) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        shape = MaterialTheme.shapes.extraSmall,
+                    ) {
+                        Text(
+                            stringResource(R.string.records_incomplete_tag),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp),
+                        )
+                    }
+                    Spacer(Modifier.width(4.dp))
+                }
                 // QW5：时长大字（醒目主色）
                 Text(
                     StatsFormat.duration(entry.durationMs),
@@ -387,6 +565,18 @@ private fun RecordCard(
                     Icon(Icons.Default.Share, contentDescription = stringResource(R.string.action_share), modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(stringResource(R.string.action_share))
+                }
+                // R21 Phase 1.1：查看文件夹（应用内 BottomSheet 列出所在目录全部文件）
+                IconButton(onClick = {
+                    val f = File(entry.savePath)
+                    folderSheetPath = if (f.isFile) f.parent else f.absolutePath
+                }) {
+                    Icon(
+                        Icons.Default.Folder,
+                        contentDescription = stringResource(R.string.desc_open_folder),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
                 }
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = { onDelete(entry) }) {
@@ -570,6 +760,30 @@ private fun shareFile(context: android.content.Context, file: File) {
                 Intent(Intent.ACTION_SEND).apply {
                     type = "video/*"
                     putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                },
+                context.getString(R.string.share_record_title),
+            )
+        )
+    }.onFailure {
+        Toast.makeText(context, context.getString(R.string.toast_share_failed, it.message), Toast.LENGTH_SHORT).show()
+    }
+}
+
+/** R21 Phase 1.1：批量分享（ACTION_SEND_MULTIPLE，FileProvider 授权）。 */
+private fun shareBatch(context: android.content.Context, entries: List<RecordHistoryEntry>) {
+    runCatching {
+        val uris = entries.mapNotNull { entry ->
+            playableFile(entry.savePath)?.let {
+                FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", it)
+            }
+        }
+        if (uris.isEmpty()) error(context.getString(R.string.record_file_missing))
+        context.startActivity(
+            Intent.createChooser(
+                Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                    type = "video/*"
+                    putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 },
                 context.getString(R.string.share_record_title),
