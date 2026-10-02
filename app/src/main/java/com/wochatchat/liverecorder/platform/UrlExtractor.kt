@@ -27,8 +27,9 @@ object UrlExtractor {
 
         val trimmed = text.trim()
 
-        // 1. 整个文本就是 URL（格式良好：以协议开头）
-        if (looksLikeUrl(trimmed) && PlatformRouter.isSupported(trimmed)) {
+        // 1. 整个文本就是单个 URL（无空白 + 以协议开头）。
+        //    含空白时跳过（isSupported 用 contains 子串匹配，多 URL 拼接段会误判）
+        if (!trimmed.contains(Regex("\\s")) && looksLikeUrl(trimmed) && PlatformRouter.isSupported(trimmed)) {
             return stripTrailingPunct(trimmed)
         }
 
