@@ -92,7 +92,8 @@ class UpdateCheckerTest {
 
     @Test
     fun `releaseNotes 超过 500 字符截断`() {
-        val longBody = "这是一行测试内容。\n".repeat(200)
+        // 单行 501 字符，join 后仍 501，take(500) 截到 500
+        val longBody = "这".repeat(501)
         val json = releaseJson(body = longBody)
         val release = parseReleaseJson(json)
         assertEquals(500, release.releaseNotes.length)
