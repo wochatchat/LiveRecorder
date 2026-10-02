@@ -94,6 +94,7 @@ fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
     val sortMode by viewModel.sortMode.collectAsState()
     // R20：存储占比进度条
     val storageUsage by viewModel.storageUsage.collectAsState()
+    val context = LocalContext.current
     val snackbar = remember { SnackbarHostState() }
     var pendingDelete by remember { mutableStateOf<RecordHistoryEntry?>(null) }
     // R21 Phase 1.1：批量选择模式（长按进入）
@@ -149,7 +150,7 @@ fun RecordsScreen(viewModel: RecordsViewModel = viewModel()) {
                             )
                         }
                         IconButton(
-                            onClick = { shareBatch(context = LocalContext.current, entries = selected.toList()) },
+                            onClick = { shareBatch(context = context, entries = selected.toList()) },
                             enabled = selected.isNotEmpty(),
                         ) {
                             Icon(Icons.Default.Share, contentDescription = stringResource(R.string.action_share))
