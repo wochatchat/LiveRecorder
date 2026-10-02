@@ -127,9 +127,9 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
 
-    // Media3 ExoPlayer（Phase 3：内置播放器 + 录制详情页）
-    implementation(libs.androidxMedia3Exoplayer)
-    implementation(libs.androidxMedia3Ui)
+    // Media3 ExoPlayer (Phase 3: in-app player + record detail)
+    implementation(libs.media3Exoplayer)
+    implementation(libs.media3Ui)
 
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
