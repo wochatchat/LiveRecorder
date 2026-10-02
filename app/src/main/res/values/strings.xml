@@ -90,6 +90,13 @@
     <string name="snackbar_removed">已移除</string>
     <string name="snackbar_added_one">已添加 %1$s</string>
     <string name="snackbar_added_many">已添加 %1$d 个直播</string>
+
+    <!-- Phase 2：悬浮确认卡片（分享/剪贴板入口） -->
+    <string name="floating_panel_title">发现直播链接</string>
+    <string name="floating_panel_already_added">已在监控中</string>
+    <string name="action_add_monitor">添加监控</string>
+    <string name="action_dismiss">忽略</string>
+    <string name="snackbar_added_from_panel">已添加到监控：%1$s</string>
     <string name="monitor_state_running">监控中</string>
     <string name="monitor_state_paused">已暂停</string>
     <string name="add_dialog_title">添加直播间</string>

@@ -68,9 +68,11 @@ import com.wochatchat.liverecorder.data.AppLog
 import com.wochatchat.liverecorder.platform.PlatformRouter
 import com.wochatchat.liverecorder.ui.MonitorViewModel
 import com.wochatchat.liverecorder.ui.components.MonitorCard
+import com.wochatchat.liverecorder.ui.components.FloatingOpPanel
 import com.wochatchat.liverecorder.ui.components.PlatformBadge
 import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
 import com.wochatchat.liverecorder.ui.navigation.FocusRouter
+import com.wochatchat.liverecorder.ui.navigation.ShareIntentRouter
 
 /** 监控主页 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -94,6 +96,19 @@ fun MonitorScreen(
     // 6f R22：通知点击直达——滚动定位 + 高亮当前条目
     var highlightedUrl by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
+
+    // Phase 2：分享/剪贴板队列——队首 URL 展示确认卡片，处理完后自动取下一条
+    var currentPendingUrl by remember { mutableStateOf<String?>(null) }
+    // 悬浮卡片中点「添加」后展示的 Snackbar 消息
+    var panelSnackbarMsg by remember { mutableStateOf<String?>(null) }
+
+    // 当 ShareIntentRouter 队列非空且当前无展示时，自动取出队首并展示
+    val pendingUrls by ShareIntentRouter.pendingUrls.collectAsState()
+    LaunchedEffect(pendingUrls) {
+        if (currentPendingUrl == null && pendingUrls.isNotEmpty()) {
+            currentPendingUrl = ShareIntentRouter.dequeue()
+        }
+    }
 
     // R11：操作反馈 Snackbar（添加/删除可撤销，4s 自动消失）
     val snackbarHostState = remember { SnackbarHostState() }
@@ -163,53 +178,84 @@ fun MonitorScreen(
             }
         }
     ) { padding ->
-        if (urls.isEmpty()) {
-            EmptyState(
-                padding,
-                onAdd = {
-                    addInitial = ""
-                    showAddDialog = true
-                },
-                onAddExample = {
-                    addInitial = ONBOARDING_EXAMPLE_LINKS.first().first
-                    showAddDialog = true
-                },
-            )
-        } else {
-            LazyColumn(
-                state = listState,
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(urls, key = { it }) { url ->
-                    val state = recordStates[url]
-                    MonitorCard(
-                        url = url,
-                        recordState = state,
-                        monitorState = monitorStates[url],
-                        disabled = url in disabledUrls,
-                        unhealthy = url in unhealthyUrls,
-                        roundInfo = roundInfo,
-                        // 6f-4：列表增删/位移动画（Foundation 1.7 animateItem）
-                        modifier = Modifier.animateItem().then(
-                            if (url == highlightedUrl) Modifier.border(
-                                2.dp,
-                                MaterialTheme.colorScheme.primary,
-                                RoundedCornerShape(12.dp),
-                            ) else Modifier
-                        ),
-                        onRemove = {
-                            viewModel.remove(url)
-                            notifyRemoved(url)
-                        },
-                        onEdit = { editUrl = url },
-                        onToggleEnabled = { viewModel.setEnabled(url, it) },
-                        onStart = { viewModel.startRecord(url) },
-                        onStop = { viewModel.stopRecord(url) },
-                    )
+        Box(
+            modifier = Modifier.fillMaxSize().padding(padding)
+        ) {
+            if (urls.isEmpty()) {
+                EmptyState(
+                    PaddingValues(0.dp),
+                    onAdd = {
+                        addInitial = ""
+                        showAddDialog = true
+                    },
+                    onAddExample = {
+                        addInitial = ONBOARDING_EXAMPLE_LINKS.first().first
+                        showAddDialog = true
+                    },
+                )
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(urls, key = { it }) { url ->
+                        val state = recordStates[url]
+                        MonitorCard(
+                            url = url,
+                            recordState = state,
+                            monitorState = monitorStates[url],
+                            disabled = url in disabledUrls,
+                            unhealthy = url in unhealthyUrls,
+                            roundInfo = roundInfo,
+                            // 6f-4：列表增删/位移动画（Foundation 1.7 animateItem）
+                            modifier = Modifier.animateItem().then(
+                                if (url == highlightedUrl) Modifier.border(
+                                    2.dp,
+                                    MaterialTheme.colorScheme.primary,
+                                    RoundedCornerShape(12.dp),
+                                ) else Modifier
+                            ),
+                            onRemove = {
+                                viewModel.remove(url)
+                                notifyRemoved(url)
+                            },
+                            onEdit = { editUrl = url },
+                            onToggleEnabled = { viewModel.setEnabled(url, it) },
+                            onStart = { viewModel.startRecord(url) },
+                            onStop = { viewModel.stopRecord(url) },
+                        )
+                    }
                 }
             }
+
+            // Phase 2：悬浮确认卡片（分享/剪贴板入口），FAB 上方
+            currentPendingUrl?.let { pendingUrl ->
+                FloatingOpPanel(
+                    url = pendingUrl,
+                    alreadyMonitored = pendingUrl in urls,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 80.dp),
+                    onAdd = {
+                        viewModel.add(pendingUrl)
+                        panelSnackbarMsg = context.getString(R.string.snackbar_added_from_panel, pendingUrl)
+                        currentPendingUrl = ShareIntentRouter.dequeue()
+                    },
+                    onDismiss = {
+                        currentPendingUrl = ShareIntentRouter.dequeue()
+                    },
+                )
+            }
+        }
+    }
+
+    // Phase 2：悬浮卡片添加成功后的 Snackbar 提示（放在 Scaffold 外避免重建）
+    LaunchedEffect(panelSnackbarMsg) {
+        panelSnackbarMsg?.let { msg ->
+            snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Short)
+            panelSnackbarMsg = null
         }
     }
 
