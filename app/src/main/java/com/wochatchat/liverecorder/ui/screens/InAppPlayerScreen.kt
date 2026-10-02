@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalMaterial3Api::class, UnstableApi::class)
+
 package com.wochatchat.liverecorder.ui.screens
 
 import android.content.ContentValues
@@ -8,7 +10,6 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.view.ViewGroup
 import android.widget.FrameLayout
-import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import androidx.annotation.OptIn
@@ -517,44 +518,7 @@ private fun readMediaMetadata(context: android.content.Context, file: File?): Me
     }.getOrDefault(MediaMetadata(sizeBytes = file.length()))
 }
 
-/** 截图：取 Player 当前帧，保存到 Pictures/LiveRecorder/Screenshots/。 */
-private suspend fun takeScreenshot(context: android.content.Context, exoPlayer: ExoPlayer): String {
-    return withContext(Dispatchers.Main) {
-        runCatching {
-            // 尝试从 ExoPlayer 抓当前帧（@UnstableApi；失败时返回 null）
-            @Suppress("invisible_reference", "InvisibleMemberAPI")
-            val bitmap: Bitmap? = try {
-                exoPlayer.currentBitmap(1920, 1080)
-            } catch (_: Throwable) { null }
-            if (bitmap == null) return@withContext context.getString(R.string.player_screenshot_failed)
-            val name = "LR_${SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())}.jpg"
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val contentValues = ContentValues().apply {
-                    put(MediaStore.Images.Media.DISPLAY_NAME, name)
-                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-                    put(MediaStore.Images.Media.RELATIVE_PATH, "${Environment.DIRECTORY_PICTURES}/LiveRecorder/Screenshots")
-                    put(MediaStore.Images.Media.IS_PENDING, 1)
-                }
-                val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-                    ?: return@withContext context.getString(R.string.player_screenshot_failed)
-                context.contentResolver.openOutputStream(uri)?.use { os ->
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, os)
-                }
-                contentValues.clear()
-                contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
-                context.contentResolver.update(uri, contentValues, null, null)
-            } else {
-                @Suppress("DEPRECATION")
-                val dir = File(
-                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES),
-                    "LiveRecorder/Screenshots",
-                )
-                dir.mkdirs()
-                FileOutputStream(File(dir, name)).use { os ->
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 90, os)
-                }
-            }
-            context.getString(R.string.player_screenshot_saved, name)
-        }.getOrDefault(context.getString(R.string.player_screenshot_failed))
-    }
+/** 截图（Phase 3+）：ExoPlayer.currentBitmap(需 ExoPlayer 1.5.1+)；暂返回不可用提示。 */
+private suspend fun takeScreenshot(context: android.content.Context, @Suppress("UNUSED_PARAMETER") exoPlayer: ExoPlayer): String {
+    return context.getString(R.string.player_screenshot_unavailable)
 }
