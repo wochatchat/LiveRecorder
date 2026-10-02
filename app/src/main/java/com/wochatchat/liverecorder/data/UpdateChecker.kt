@@ -113,7 +113,6 @@ object UpdateChecker {
         val releaseNotes = body
             .lineSequence()
             .filter { it.isNotBlank() && !it.startsWith("#") }
-         !it.startsWith("#") }
             .take(20)
             .joinToString("\n")
             .take(500)
