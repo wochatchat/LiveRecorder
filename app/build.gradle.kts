@@ -85,7 +85,14 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
+    kotlinOptions {
+        jvmTarget = "17"
+        // Material3 + Media3 opt-in for Phase 3 player screen
+        freeCompilerArgs += listOf(
+            "-opt-in=androidx.compose.material3.ExperimentalMaterial3Api",
+            "-opt-in=androidx.media3.common.util.UnstableApi",
+        )
+    }
     buildFeatures {
         compose = true
         buildConfig = true

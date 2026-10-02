@@ -279,6 +279,7 @@
     <string name="player_info_codec">编码</string>
     <string name="player_screenshot_saved">截图已保存：%1$s</string>
     <string name="player_screenshot_failed">截图失败</string>
+    <string name="player_screenshot_unavailable">截图功能开发中（Phase 3+）</string>
     <!-- Phase 3 5.2 录制详情页 -->
     <string name="detail_url_copied">URL 已复制</string>
     <string name="detail_segments_title">分段文件（%1$d 个）</string>
