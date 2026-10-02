@@ -26,6 +26,7 @@ class RecordControllerNamingTest {
             saveFile.parentFile?.mkdirs()
             saveFile.writeText("seg")
             lastFile = saveFile
+            onProgress(3) // "seg".length — 触发 segBytes 累计，保证 totalBytes > 0
             return true
         }
     }
@@ -36,7 +37,7 @@ class RecordControllerNamingTest {
     fun `naming options drive dir layout and file name`() = runTest {
         val base = tempDir()
         var resolves = 0
-        // OkHttp path (.flv)：明确 ffmpeg=null 以使用下载器路径，不依赖 useSegmented 默认值
+        // OkHttp path (.flv)：ffmpeg=null 确保不使用 ffmpeg，useSegmented=false + saveFormat="flv" 显式声明
         val controller = RecordController(
             baseDir = base,
             downloader = FakeDownloader(),
@@ -48,7 +49,10 @@ class RecordControllerNamingTest {
                         flvUrl = "http://flv/example.flv", recordUrl = "http://flv/example.flv",
                     )
                 } else {
-                    DouyinStreamInfo(anchorName = "测试主播", isLive = false)
+                    DouyinStreamInfo(
+                        anchorName = "测试主播", isLive = false,
+                        flvUrl = "http://flv/example.flv", recordUrl = "http://flv/example.flv",
+                    )
                 }
             },
             namingOptions = {
@@ -56,7 +60,9 @@ class RecordControllerNamingTest {
                     folderByTime = true, folderByTitle = true, filenameByTitle = true,
                 )
             },
-            ffmpeg = null,  // OkHttp 路径，确保 .flv 扩展名（NamingTest 断言依赖 .flv）
+            ffmpeg = null,          // 强制 OkHttp 路径，不用 ffmpeg
+            useSegmented = { false }, // 不用分段
+            saveFormat = { "flv" },  // OkHttp 路径默认 .flv（断言依赖 .flv）
             sleep = {},
         )
         controller.runRecord("u")
