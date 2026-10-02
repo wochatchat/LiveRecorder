@@ -84,7 +84,7 @@ object UpdateChecker {
     )
 
     /** 解析 GitHub Release JSON。 */
-    private fun parseRelease(json: String): GithubRelease {
+    internal fun parseRelease(json: String): GithubRelease {
         val obj = JSONObject(json)
         // tag_name 形如 "v0.2.3"，去掉前缀 v
         val tag = obj.optString("tag_name", "")
