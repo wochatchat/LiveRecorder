@@ -169,6 +169,7 @@
     <string name="records_storage_line">剩余 %1$s GB / 共 %2$s GB</string>
     <string name="filter_all">全部</string>
     <string name="filter_today">今日</string>
+    <string name="filter_this_week">本周</string>
     <string name="records_today_summary">今日录制 %1$d 条 · 合计 %2$s</string>
     <string name="records_unknown_anchor">未知主播</string>
     <string name="records_delete_done">已删除 %1$s</string>

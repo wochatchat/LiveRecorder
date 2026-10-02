@@ -36,11 +36,18 @@ class RecordsViewModelFilterTest {
     private fun applyFilter(
         list: List<RecordHistoryEntry>,
         query: String = "",
+        timeRange: RecordsViewModel.TimeRange = RecordsViewModel.TimeRange.ALL,
         todayStart: Long = 0L,
+        weekStart: Long = 0L,
         sort: RecordsViewModel.SortMode = RecordsViewModel.SortMode.TIME,
     ): List<RecordHistoryEntry> = list
         .filter { e ->
-            (todayStart == 0L || e.endTimeMs >= todayStart) &&
+            val rangeStart = when (timeRange) {
+                RecordsViewModel.TimeRange.ALL -> 0L
+                RecordsViewModel.TimeRange.TODAY -> todayStart
+                RecordsViewModel.TimeRange.THIS_WEEK -> weekStart
+            }
+            (rangeStart == 0L || e.endTimeMs >= rangeStart) &&
                 (query.isBlank() || (
                     e.anchorName.contains(query, ignoreCase = true) ||
                         e.title.contains(query, ignoreCase = true) ||
@@ -143,8 +150,30 @@ class RecordsViewModelFilterTest {
             entry("a", "t1", "https://x/1", 100, 1000, endTimeMs = 1000),
             entry("b", "t2", "https://x/2", 100, 1000, endTimeMs = 5000),
         )
-        val hit = applyFilter(list, todayStart = 2000)
+        val hit = applyFilter(list, timeRange = RecordsViewModel.TimeRange.TODAY, todayStart = 2000)
         assertEquals(listOf(5000L), hit.map { it.endTimeMs })
+    }
+
+    @Test
+    fun `week_filter_excludes_old_entries`() {
+        val list = listOf(
+            entry("a", "t1", "https://x/1", 100, 1000, endTimeMs = 1000),
+            entry("b", "t2", "https://x/2", 100, 1000, endTimeMs = 5000),
+        )
+        // weekStart=3000 → only entries with endTimeMs >= 3000 pass
+        val hit = applyFilter(list, timeRange = RecordsViewModel.TimeRange.THIS_WEEK, weekStart = 3000)
+        assertEquals(listOf(5000L), hit.map { it.endTimeMs })
+    }
+
+    @Test
+    fun `all_filter_matches_all_entries`() {
+        val list = listOf(
+            entry("a", "t1", "https://x/1", 100, 1000, 1000),
+            entry("b", "t2", "https://x/2", 100, 1000, 2000),
+        )
+        // ALL with no date restrictions: rangeStart=0 → no filtering
+        val hit = applyFilter(list, timeRange = RecordsViewModel.TimeRange.ALL)
+        assertEquals(2, hit.size)
     }
 
     @Test

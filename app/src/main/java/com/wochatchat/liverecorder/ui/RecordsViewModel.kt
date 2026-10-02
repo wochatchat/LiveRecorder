@@ -36,17 +36,20 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---- 筛选 ----
 
-    /** 筛选器：时间段（全部/今日）+ 平台（null=不限）。 */
+    /** 时间段筛选（R21 Phase 1.1：全部/今日/本周）。 */
+    enum class TimeRange { ALL, TODAY, THIS_WEEK }
+
+    /** 筛选器：时间段（全部/今日/本周）+ 平台（null=不限）。 */
     data class RecordFilter(
-        val todayOnly: Boolean = false,
+        val timeRange: TimeRange = TimeRange.ALL,
         val platformKey: String? = null,
     )
 
     private val _filter = MutableStateFlow(RecordFilter())
     val filter: StateFlow<RecordFilter> = _filter.asStateFlow()
 
-    fun setTodayOnly(todayOnly: Boolean) {
-        _filter.value = _filter.value.copy(todayOnly = todayOnly)
+    fun setTimeRange(timeRange: TimeRange) {
+        _filter.value = _filter.value.copy(timeRange = timeRange)
     }
 
     fun setPlatformKey(platformKey: String?) {
@@ -84,9 +87,13 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
 
     val filtered: StateFlow<List<RecordHistoryEntry>> =
         combine(allEntries, _filter, _searchQuery, _sortMode) { list, f, query, sort ->
-            val todayStart = if (f.todayOnly) startOfTodayMs() else 0L
+            val rangeStart = when (f.timeRange) {
+                TimeRange.ALL -> 0L
+                TimeRange.TODAY -> startOfTodayMs()
+                TimeRange.THIS_WEEK -> startOfThisWeekMs()
+            }
             val base = list.filter { e ->
-                (todayStart == 0L || e.endTimeMs >= todayStart) &&
+                (rangeStart == 0L || e.endTimeMs >= rangeStart) &&
                     (f.platformKey == null || platformKeyForUrl(e.url) == f.platformKey) &&
                     (query.isBlank() || (
                         e.anchorName.contains(query, ignoreCase = true) ||
@@ -174,6 +181,15 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun startOfTodayMs(): Long =
         Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+
+    private fun startOfThisWeekMs(): Long =
+        Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)

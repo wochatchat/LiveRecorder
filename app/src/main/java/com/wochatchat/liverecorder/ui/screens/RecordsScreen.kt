@@ -300,16 +300,17 @@ private fun FilterRow(filter: RecordsViewModel.RecordFilter, viewModel: RecordsV
             .padding(horizontal = 12.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        FilterChip(
-            selected = !filter.todayOnly,
-            onClick = { viewModel.setTodayOnly(false) },
-            label = { Text(stringResource(R.string.filter_all)) },
-        )
-        FilterChip(
-            selected = filter.todayOnly,
-            onClick = { viewModel.setTodayOnly(!filter.todayOnly) },
-            label = { Text(stringResource(R.string.filter_today)) },
-        )
+        listOf(
+            RecordsViewModel.TimeRange.ALL to stringResource(R.string.filter_all),
+            RecordsViewModel.TimeRange.TODAY to stringResource(R.string.filter_today),
+            RecordsViewModel.TimeRange.THIS_WEEK to stringResource(R.string.filter_this_week),
+        ).forEach { (range, label) ->
+            FilterChip(
+                selected = filter.timeRange == range,
+                onClick = { viewModel.setTimeRange(range) },
+                label = { Text(label) },
+            )
+        }
         allEntries.map { platformKeyForUrl(it.url) }.distinct().forEach { key ->
             FilterChip(
                 selected = filter.platformKey == key,
