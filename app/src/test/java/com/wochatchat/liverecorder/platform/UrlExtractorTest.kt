@@ -149,8 +149,8 @@ class UrlExtractorTest {
         assertNone("https://www.google.com/search?q=live")
 
     @Test
-    fun `不支持域名加真实 URL 返回 null（分词优先取第一个 URL）`() =
-        assertNone("链接 https://google.com https://www.douyu.com/8888")
+    fun `不支持域名加真实 URL 取平台 URL（分词优先取首个直播）`() =
+        assertExtract("链接 https://google.com https://www.douyu.com/8888", "https://www.douyu.com/8888")
 
     @Test
     fun `不支持域名后接真实平台 URL 取平台 URL（回退扫描）`() =

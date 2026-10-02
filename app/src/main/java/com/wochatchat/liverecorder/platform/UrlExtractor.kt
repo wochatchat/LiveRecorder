@@ -8,14 +8,16 @@ import java.util.regex.Pattern
  */
 object UrlExtractor {
 
-    /** 匹配 https:// 或 http:// 开头的 URL（贪婪到空白或常见标点截止）。 */
-    private val URL_RE = Pattern.compile("https?://\\S+")
+    /** 匹配形如 "xxx.example.com/path" 的域名+路径片段（含协议或不带）。 */
+    private val DOMAIN_PATH_RE = Pattern.compile("[a-zA-Z0-9][a-zA-Z0-9\\-.]+/\\S*")
 
     /**
      * 从文本中提取第一个受支持的平台直播 URL。
-     * - 若整个文本（trimmed）本身就是一个格式良好的 URL 且被支持，返回它
-     * - 否则用空白分词，从分词后的 URL 片段中取第一个受支持的
-     * - 最后回落到扫描所有匹配正则的子串（处理无空格的嵌入 URL）
+     *
+     * 优先级：
+     * 1. 整个文本 trim 后就是格式良好的 URL 且被支持
+     * 2. 分词后各片段（以 https:// 开头）取第一个受支持的
+     * 3. 回退扫描：去掉已知中文前缀，匹配域名路径（含不带协议的 domain/path）
      *
      * @param text 分享文本或剪贴板内容，可能含标题、说明文字
      * @return 第一个受支持的平台 URL，或 null
@@ -38,11 +40,19 @@ object UrlExtractor {
             }
         }
 
-        // 3. 扫描文本中的 URL（处理无空格分隔的嵌入场景，如 "链接：https://...")
-        val matcher = URL_RE.matcher(text)
+        // 3. 扫描 + 修复：处理微信分享等不带 https:// 前缀的场景
+        //    先去掉已知中文前缀（如「【直播】抖音直播间 」），再匹配域名路径
+        val preprocessed = stripLeadingChinesePrefix(text)
+        val matcher = DOMAIN_PATH_RE.matcher(preprocessed)
         while (matcher.find()) {
-            val candidate = stripTrailingPunct(matcher.group())
-            if (looksLikeUrl(candidate) && PlatformRouter.isSupported(candidate)) return candidate
+            val raw = stripTrailingPunct(matcher.group())
+            // 带协议的完整 URL
+            if (looksLikeUrl(raw) && PlatformRouter.isSupported(raw)) return raw
+            // 不带协议前缀的 domain/path（补上 https:// 后验证）
+            if (!looksLikeUrl(raw) && raw.contains('.')) {
+                val withProtocol = "https://$raw"
+                if (PlatformRouter.isSupported(withProtocol)) return withProtocol
+            }
         }
 
         return null
@@ -51,6 +61,22 @@ object UrlExtractor {
     /** 字符串是否形似完整 URL（以 https:// 或 http:// 开头）。 */
     private fun looksLikeUrl(s: String): Boolean =
         s.startsWith("https://") || s.startsWith("http://")
+
+    /**
+     * 去掉文本开头的常见中文标签前缀（微信/微博分享场景）。
+     * 例如「【直播】抖音直播间 live.douyin.com/123456」→「live.douyin.com/123456 快来！」
+     * （第一个非 ASCII、非数字字符前的部分为 URL 起点；返回原文供 DOMAIN_PATH_RE 扫描）
+     */
+    private fun stripLeadingChinesePrefix(text: String): String {
+        var result = text.trimStart()
+        while (result.isNotEmpty() &&
+            result[0] !in 'a'..'z' && result[0] !in 'A'..'Z' &&
+            result[0] !in '0'..'9'
+        ) {
+            result = result.drop(1).trimStart()
+        }
+        return result
+    }
 
     /**
      * 去掉 URL 尾部常见标点符号（分享文本中常见）。
