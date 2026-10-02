@@ -8,7 +8,7 @@ plugins {
 
 android {
     namespace = "com.wochatchat.liverecorder"
-    compileSdk = 34
+    compileSdk = 35
 
     // Auto-increment version: read from version.properties (maintained by build script)
     val versionPropsFile = rootProject.file("version.properties")
