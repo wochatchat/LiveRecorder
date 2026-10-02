@@ -56,6 +56,20 @@ data class AppSettings(
     val filenameByTitle: Boolean = false,
     /** 是否去除名称中的表情符号（上游默认是）。 */
     val cleanEmoji: Boolean = true,
+
+    // ---- Phase 4-4.2: 定时监控 ----
+    /** 定时监控开关（开启后仅在设定时段内执行轮询/自动录制）。 */
+    val scheduleMonitorEnabled: Boolean = false,
+    /** 定时监控开始时间（每日分钟数 0-1439，如 1200=20:00）。 */
+    val scheduleStartMinute: Int = 0,
+    /** 定时监控结束时间（每日分钟数，支持跨天，如 1380=23:00，30=00:30）。 */
+    val scheduleEndMinute: Int = 1440,
+
+    // ---- Phase 4-4.4: 省电模式 ----
+    /** 省电模式：WiFi 下录制（无 WiFi 时暂停轮询与录制）。 */
+    val wifiOnly: Boolean = false,
+    /** 省电模式：熄屏时暂停轮询（后台服务降频，录制中不停止）。 */
+    val screenOffPause: Boolean = false,
 )
 
 /** Phase 5a：全局录制设置持久化（独立 "settings" DataStore，不动既有 MonitorStore 键）。 */
@@ -81,6 +95,15 @@ class AppSettingsStore(private val context: android.content.Context) {
     private val onboardingCompletedKey = booleanPreferencesKey("onboarding_completed")
     /** Phase 3：用户忽略的版本号（忽略后不再提示，直到有新版本）。 */
     private val ignoredVersionKey = stringPreferencesKey("ignored_version")
+
+    // Phase 4-4.2：定时监控
+    private val scheduleMonitorEnabledKey = booleanPreferencesKey("schedule_monitor_enabled")
+    private val scheduleStartMinuteKey = intPreferencesKey("schedule_start_minute")
+    private val scheduleEndMinuteKey = intPreferencesKey("schedule_end_minute")
+
+    // Phase 4-4.4：省电模式
+    private val wifiOnlyKey = booleanPreferencesKey("wifi_only")
+    private val screenOffPauseKey = booleanPreferencesKey("screen_off_pause")
 
     /** 6f R21：首启引导是否已完成。 */
     val onboardingCompleted: Flow<Boolean> = context.settingsDataStore.data
@@ -121,6 +144,11 @@ class AppSettingsStore(private val context: android.content.Context) {
             folderByTitle = prefs[folderByTitleKey] ?: false,
             filenameByTitle = prefs[filenameByTitleKey] ?: false,
             cleanEmoji = prefs[cleanEmojiKey] ?: true,
+            scheduleMonitorEnabled = prefs[scheduleMonitorEnabledKey] ?: false,
+            scheduleStartMinute = prefs[scheduleStartMinuteKey] ?: 0,
+            scheduleEndMinute = prefs[scheduleEndMinuteKey] ?: 1440,
+            wifiOnly = prefs[wifiOnlyKey] ?: false,
+            screenOffPause = prefs[screenOffPauseKey] ?: false,
         )
     }
 
@@ -143,6 +171,24 @@ class AppSettingsStore(private val context: android.content.Context) {
             prefs[folderByTitleKey] = settings.folderByTitle
             prefs[filenameByTitleKey] = settings.filenameByTitle
             prefs[cleanEmojiKey] = settings.cleanEmoji
+            prefs[scheduleMonitorEnabledKey] = settings.scheduleMonitorEnabled
+            prefs[scheduleStartMinuteKey] = settings.scheduleStartMinute.coerceIn(0, 1439)
+            prefs[scheduleEndMinuteKey] = settings.scheduleEndMinute.coerceIn(0, 1440)
+            prefs[wifiOnlyKey] = settings.wifiOnly
+            prefs[screenOffPauseKey] = settings.screenOffPause
         }
+    }
+
+    /**
+     * Phase 4-4.2：当前分钟数是否处于定时监控时段内。
+     * start==end → 全天；跨天窗口（如 22:00~06:00）按区间并集判定。
+     */
+    fun isWithinSchedule(settings: AppSettings, minuteOfDay: Int): Boolean {
+        if (!settings.scheduleMonitorEnabled) return true
+        val s = settings.scheduleStartMinute.coerceIn(0, 1440)
+        val e = settings.scheduleEndMinute.coerceIn(0, 1440)
+        if (s == e) return true
+        return if (s < e) minuteOfDay in s until e
+        else minuteOfDay >= s || minuteOfDay < e
     }
 }

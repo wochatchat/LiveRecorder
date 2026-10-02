@@ -154,6 +154,50 @@ class MonitorStore(private val context: Context) {
         }
     }
 
+    // ---- Phase 4-4.1: 单条录制参数覆盖 ----
+
+    /** Phase 4-4.1：URL → PerUrlSettings JSON map。null/empty=无覆盖。 */
+    val perUrlOverrides: Flow<Map<String, PerUrlSettings>> = context.dataStore.data.map { prefs ->
+        val json = prefs[perUrlOverridesKey] ?: "{}"
+        try {
+            val obj = org.json.JSONObject(json)
+            val result = mutableMapOf<String, PerUrlSettings>()
+            obj.keys().forEach { url ->
+                result[url] = PerUrlSettings.fromJson(obj.getJSONObject(url))
+            }
+            result
+        } catch (e: Exception) {
+            emptyMap()
+        }
+    }
+
+    /** Phase 4-4.1：获取指定 URL 的覆盖参数（无覆盖返回 null）。 */
+    suspend fun getPerUrlSettings(url: String): PerUrlSettings? {
+        var result: PerUrlSettings? = null
+        context.dataStore.edit { prefs ->
+            val json = prefs[perUrlOverridesKey] ?: "{}"
+            result = try {
+                val obj = org.json.JSONObject(json)
+                if (obj.has(url)) PerUrlSettings.fromJson(obj.getJSONObject(url)) else null
+            } catch (e: Exception) { null }
+        }
+        return result
+    }
+
+    /** Phase 4-4.1：保存或清除指定 URL 的覆盖参数（settings=null → 清除该条目）。 */
+    suspend fun setPerUrlSettings(url: String, settings: PerUrlSettings?) {
+        context.dataStore.edit { prefs ->
+            val json = prefs[perUrlOverridesKey] ?: "{}"
+            val obj = try { org.json.JSONObject(json) } catch (e: Exception) { org.json.JSONObject() }
+            if (settings == null || settings.isEmpty) {
+                obj.remove(url)
+            } else {
+                obj.put(url, settings.toJson())
+            }
+            prefs[perUrlOverridesKey] = obj.toString()
+        }
+    }
+
     val pushConfig: Flow<PushConfig> = context.dataStore.data.map { prefs ->
         PushConfig(
             enabled = prefs[pushEnabledKey] ?: false,

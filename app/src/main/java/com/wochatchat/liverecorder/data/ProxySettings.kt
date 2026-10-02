@@ -31,6 +31,13 @@ data class ProxySettings(
     /** 平台关键词序列化为逗号分隔串（持久化 / UI 编辑用）。 */
     fun platformsCsv(): String = platforms.joinToString(",")
 
+    /** Phase 4-4.3：配置导出 JSON 映射。 */
+    fun toJson(): org.json.JSONObject = org.json.JSONObject().apply {
+        put("enabled", enabled)
+        put("addr", addr)
+        put("platforms", org.json.JSONArray(platforms))
+    }
+
     companion object {
         /** 上游 config.ini「使用代理录制的平台」默认值（原样保留，含 youtu 前缀覆盖 youtube）。 */
         val DEFAULT_PLATFORMS = listOf(
@@ -45,5 +52,14 @@ data class ProxySettings(
                 .map { it.trim() }
                 .filter { it.isNotBlank() }
                 .ifEmpty { fallback }
+
+        /** Phase 4-4.3：配置导入（字段缺省回落默认值）。 */
+        fun fromJson(o: org.json.JSONObject): ProxySettings = ProxySettings(
+            enabled = o.optBoolean("enabled", false),
+            addr = o.optString("addr", ""),
+            platforms = o.optJSONArray("platforms")?.let { arr ->
+                (0 until arr.length()).mapNotNull { arr.optString(it).takeIf(String::isNotBlank) }
+            } ?: DEFAULT_PLATFORMS,
+        )
     }
 }

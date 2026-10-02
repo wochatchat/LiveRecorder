@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -108,9 +109,12 @@ fun MonitorCard(
     modifier: Modifier = Modifier,
     onRemove: () -> Unit,
     onEdit: () -> Unit,
+    onSettings: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
+    /** Phase 4-4.1：是否有单条参数覆盖（用于指示徽标，无覆盖可传 false）。 */
+    hasOverride: Boolean = false,
 ) {
     val recording = recordState is RecordController.RecordState.Resolving ||
         recordState is RecordController.RecordState.Recording ||
@@ -208,6 +212,15 @@ fun MonitorCard(
                     Icon(
                         Icons.Default.Edit, contentDescription = stringResource(R.string.desc_edit),
                         tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                // Phase 4-4.1：单条录制参数设置
+                IconButton(onClick = onSettings, enabled = !disabled) {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = stringResource(R.string.desc_settings),
+                        tint = if (hasOverride) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.outline,
                     )
                 }
                 IconButton(onClick = { showConfirmDelete = true }) {

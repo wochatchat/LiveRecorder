@@ -1,6 +1,10 @@
 package com.wochatchat.liverecorder
 
 import android.app.Application
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.PowerManager
 import com.wochatchat.liverecorder.data.AppLog
 import com.wochatchat.liverecorder.monitor.MonitorLoop
 import com.wochatchat.liverecorder.platform.PlatformRouter
@@ -25,6 +29,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
@@ -46,6 +51,19 @@ class RecorderApp : Application() {
 
     /** App 级后台任务域（推送等 fire-and-forget 工作）。 */
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    /** Phase 4-4.4：当前是否连接 WiFi（省电 wifiOnly 模式判定）。 */
+    private fun isOnWifi(): Boolean {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val active = cm.activeNetwork ?: return false
+        return cm.getNetworkCapabilities(active)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+    }
+
+    /** Phase 4-4.4：屏幕是否亮起。 */
+    private fun isScreenOn(): Boolean {
+        val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+        return pm.isInteractive
+    }
 
     private val store by lazy { MonitorStore(this) }
 
@@ -80,9 +98,12 @@ class RecorderApp : Application() {
             baseDir = File(filesDir, "downloads"),
             fetchInfo = { url, proxyAddr ->
                 val settings = appSettings.settings.first()
+                // Phase 4-4.1：单条画质覆盖（无覆盖回落全局画质）
+                val quality = runCatching { store.getPerUrlSettings(url) }
+                    .getOrNull()?.quality ?: settings.quality
                 router.fetchStreamInfo(
                     url,
-                    quality = RecordSource.getQualityCode(settings.quality),
+                    quality = RecordSource.getQualityCode(quality),
                     proxyAddr = proxyAddr,
                     cookies = authStore.cookies.first(),
                 )
@@ -126,14 +147,21 @@ class RecorderApp : Application() {
                     )
                 )
             },
+            // Phase 4-4.1：单条录制参数覆盖（fetchInfo 里已处理 quality，此处处理分段/格式）
+            perUrlSettings = { url ->
+                runCatching { store.getPerUrlSettings(url) }.getOrNull()
+            },
         )
         monitorLoop = MonitorLoop(
             check = { url ->
                 // 轮询探测与录制同源走同一代理判定（上游 check/record 共用 proxy_address）
                 val settings = appSettings.settings.first()
+                // Phase 4-4.1：单条画质覆盖（探测也用该条目的画质，确保录制/探测一致）
+                val quality = runCatching { store.getPerUrlSettings(url) }
+                    .getOrNull()?.quality ?: settings.quality
                 router.fetchStreamInfo(
                     url,
-                    quality = RecordSource.getQualityCode(settings.quality),
+                    quality = RecordSource.getQualityCode(quality),
                     proxyAddr = store.proxySettings.first().resolveProxy(url),
                     cookies = authStore.cookies.first(),
                 )
@@ -183,6 +211,24 @@ class RecorderApp : Application() {
                 }
             },
             onStorageResumed = { notifier.notifyStorageResumed() },
+            // Phase 4-4.2：定时监控（appSettings.scheduleMonitorEnabled + 当前分钟数）
+            scheduleOk = {
+                val s = appSettings.settings.first()
+                appSettings.isWithinSchedule(s,
+                    Calendar.getInstance().get(Calendar.HOUR_OF_DAY) * 60 +
+                        Calendar.getInstance().get(Calendar.MINUTE)
+                )
+            },
+            // Phase 4-4.4：WiFi-only 省电模式（wifiOnly 开启时非 WiFi 返回 false）
+            networkOk = {
+                val s = appSettings.settings.first()
+                !s.wifiOnly || isOnWifi()
+            },
+            // Phase 4-4.4：熄屏暂停（screenOffPause 开启时检测屏幕状态）
+            screenOnOk = {
+                val s = appSettings.settings.first()
+                !s.screenOffPause || isScreenOn()
+            },
         )
         this.pusher = pusher
         this.storage = StorageManager(File(filesDir, "downloads"))

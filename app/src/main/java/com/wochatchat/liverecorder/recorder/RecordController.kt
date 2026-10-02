@@ -89,6 +89,11 @@ class RecordController(
      * 仅在确有落盘文件（savePath 非空且 bytes>0）时触发；抛错只记日志不影响录制。
      */
     private val onFinished: suspend (String, RecordState.Finished) -> Unit = { _, _ -> },
+    /**
+     * Phase 4-4.1：单条录制参数覆盖（null=全程使用全局设置）。
+     * 在 [runRecord] 入口读取一次，结果贯穿本次录制会话。
+     */
+    private val perUrlSettings: suspend (String) -> com.wochatchat.liverecorder.data.PerUrlSettings? = { null },
 ) {
 
     sealed class RecordState {
@@ -165,6 +170,13 @@ class RecordController(
         var curAnchor = ""
         var curTitle = ""
         var curPlatform = ""
+
+        // Phase 4-4.1：单条参数覆盖（读取失败/null → 全局设置兜底）
+        val ov = try { perUrlSettings(url) } catch (e: CancellationException) { throw e } catch (e: Exception) { null }
+        suspend fun effSegmented(): Boolean = ov?.segmented ?: runCatching { useSegmented() }.getOrDefault(true)
+        suspend fun effSegmentTimeSec(): Int = ov?.segmentTimeSec ?: runCatching { segmentTimeSec() }.getOrNull() ?: 1800
+        suspend fun effSaveFormat(): String = (ov?.saveFormat ?: runCatching { saveFormat() }.getOrDefault("ts"))
+            .trim().lowercase().ifBlank { "ts" }
 
         try {
             while (true) {
@@ -255,13 +267,12 @@ class RecordController(
                 val baseName = RecordSource.buildBaseName(anchor, liveTitle, now, naming.filenameByTitle)
 
                 // 5a：分段开关（上游「分段录制是否开启」）；ffmpeg 可用但分段关闭 → OkHttp 直下
-                val effectiveFfmpeg = if (ffmpeg != null && runCatching { useSegmented() }.getOrDefault(true)) {
+                val effectiveFfmpeg = if (ffmpeg != null && runCatching { effSegmented() }.getOrDefault(true)) {
                     ffmpeg
                 } else null
                 if (effectiveFfmpeg != null) {
                     // 7c：保存格式（ts=分段 / mkv|mp4=直存单文件；查询失败按默认 ts）
-                    val fmt = runCatching { saveFormat() }.getOrDefault("ts")
-                        .trim().lowercase().ifBlank { "ts" }
+                    val fmt = effSaveFormat()
                     if (fmt == "mkv" || fmt == "mp4") {
                         // 直存单文件：不经 segment muxer，每轮重连新建时间戳文件（同上游语义）
                         segStartMs = nowMs()
@@ -296,7 +307,7 @@ class RecordController(
                         headers = headers,
                         anchorName = anchor,
                         fileNameBase = baseName,
-                        segmentSec = runCatching { segmentTimeSec() }
+                        segmentSec = runCatching { effSegmentTimeSec() }
                             .getOrNull()?.coerceAtLeast(1) ?: 1800,
                     ) { bytes ->
                         segBytes = bytes

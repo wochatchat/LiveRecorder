@@ -299,4 +299,46 @@
     <string name="detail_delete_file_failed">删除失败</string>
     <string name="action_back">返回</string>
     <string name="action_pause">暂停</string>
+
+    <!-- Phase 4-4.1：单条录制参数覆盖 -->
+    <string name="perurl_settings_title">单条录制参数</string>
+    <string name="perurl_reset_hint">所有项默认跟随全局设置，仅覆盖此处修改的项；「清除覆盖」恢复全局</string>
+    <string name="perurl_quality_label">画质覆盖</string>
+    <string name="perurl_saveformat_label">保存格式覆盖</string>
+    <string name="perurl_segmented_title">分段设置覆盖</string>
+    <string name="perurl_segmented_value">启用分段录制</string>
+    <string name="perurl_segment_time">分段时间(秒)</string>
+    <string name="perurl_loop_interval">循环时间(秒)</string>
+    <string name="perurl_global_current">全局: %1$s</string>
+    <string name="perurl_clear_all">清除覆盖</string>
+    <string name="perurl_saved">已保存单条参数</string>
+
+    <!-- Phase 4-4.2：定时监控 -->
+    <string name="settings_group_schedule">定时监控</string>
+    <string name="settings_schedule_enable">定时监控</string>
+    <string name="settings_schedule_enable_sub">仅在设定时段内执行轮询与自动录制</string>
+    <string name="settings_schedule_start">开始时间</string>
+    <string name="settings_schedule_end">结束时间</string>
+    <string name="settings_schedule_cross_day">支持跨天（如 22:00 至次日 06:00）</string>
+
+    <!-- Phase 4-4.4：省电模式 -->
+    <string name="settings_group_power">省电模式</string>
+    <string name="settings_power_wifi_only">仅 WiFi 下监控录制</string>
+    <string name="settings_power_wifi_only_sub">移动数据网络时暂停轮询，不影响手动录制</string>
+    <string name="settings_power_screen_off">熄屏时暂停轮询</string>
+    <string name="settings_power_screen_off_sub">屏幕熄灭后停止检查开播，录制中任务不受影响</string>
+
+    <!-- Phase 4-4.3：配置导出/导入 -->
+    <string name="settings_group_backup">配置备份</string>
+    <string name="settings_config_export">导出配置</string>
+    <string name="settings_config_export_sub">导出监控列表、录制/推送/代理等全部设置</string>
+    <string name="settings_config_import">导入配置</string>
+    <string name="settings_config_import_sub">从导出的 JSON 文件恢复配置</string>
+    <string name="settings_config_include_auth">包含 Cookie 与账密（明文，请妥善保管导出文件）</string>
+    <string name="config_export_done">配置已导出</string>
+    <string name="config_import_done">配置已导入（%1$d 条监控）</string>
+    <string name="config_op_failed">操作失败: %1$s</string>
+    <string name="config_import_confirm_title">导入确认</string>
+    <string name="config_import_confirm_text">将覆盖当前全部监控条目与设置，且文件含明文 Cookie/账密。确定导入？</string>
+    <string name="action_confirm">确定</string>
 </resources>

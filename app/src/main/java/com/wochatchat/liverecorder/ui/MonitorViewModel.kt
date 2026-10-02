@@ -7,6 +7,7 @@ import com.wochatchat.liverecorder.RecorderApp
 import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.MonitorStore
+import com.wochatchat.liverecorder.data.PerUrlSettings
 import com.wochatchat.liverecorder.data.ProxySettings
 import com.wochatchat.liverecorder.push.PushConfig
 import com.wochatchat.liverecorder.recorder.RecordController
@@ -142,6 +143,17 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     /** 单条启停（2g）：false=停用（上游 # 注释行），true=启用参与轮询。 */
     fun setEnabled(url: String, enabled: Boolean) = viewModelScope.launch {
         store.setEnabled(url, enabled)
+    }
+
+    // ---- Phase 4-4.1：单条录制参数覆盖 ----
+
+    /** url → 覆盖参数（无覆盖的条目不在 map 中）。 */
+    val perUrlOverrides: StateFlow<Map<String, PerUrlSettings>> = store.perUrlOverrides
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /** 保存/清除单条覆盖（settings 为 null 或 isEmpty → 清除）。 */
+    fun setPerUrlSettings(url: String, settings: PerUrlSettings?) = viewModelScope.launch {
+        store.setPerUrlSettings(url, settings)
     }
 
     fun startRecord(url: String) = controller.start(url)

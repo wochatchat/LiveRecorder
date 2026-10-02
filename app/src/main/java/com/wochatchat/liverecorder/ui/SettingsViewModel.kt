@@ -7,6 +7,7 @@ import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.RecorderApp
 import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.AuthStore
+import com.wochatchat.liverecorder.data.ConfigExporter
 import com.wochatchat.liverecorder.data.MonitorStore
 import com.wochatchat.liverecorder.data.ProxySettings
 import com.wochatchat.liverecorder.push.Event
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -139,5 +141,95 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun consumePushTestResult() {
         _pushTestResult.value = null
+    }
+
+    // ---- Phase 4-4.3：配置导出/导入 ----
+
+    private val _configOpResult = MutableStateFlow<String?>(null)
+
+    /** 配置导入/导出操作结果（一次性，UI 消费后清除）。 */
+    val configOpResult: StateFlow<String?> = _configOpResult.asStateFlow()
+
+    fun consumeConfigOpResult() {
+        _configOpResult.value = null
+    }
+
+    /** 导出全量配置到 [output]（调用方已打开 SAF URI 流；[includeAuth] false 则不含 cookie/账密）。 */
+    fun exportConfig(output: java.io.OutputStream, includeAuth: Boolean) {
+        viewModelScope.launch {
+            try {
+                val app = getApplication<Application>()
+                val json = ConfigExporter.exportAll(
+                    appSettings = (app as RecorderApp).appSettings.settings.first(),
+                    proxySettings = store.proxySettings.first(),
+                    pushConfig = store.pushConfig.first(),
+                    urls = store.urls.first(),
+                    disabledUrls = store.disabledUrls.first(),
+                    perUrlOverrides = store.perUrlOverrides.first(),
+                    authData = if (includeAuth) ConfigExporter.AuthData(
+                        cookies = authStore.cookies.first(),
+                        credentials = authStore.credentials.first(),
+                    ) else null,
+                )
+                output.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+                _configOpResult.value = app.getString(R.string.config_export_done)
+            } catch (e: Exception) {
+                _configOpResult.value = getApplication<Application>().getString(
+                    R.string.config_op_failed, e.message ?: e.javaClass.simpleName)
+            }
+        }
+    }
+
+    /** 从 [input]（SAF URI 流）导入配置。[passwordConfirmed] 表示用户已确认账密明文导入。 */
+    fun importConfig(input: java.io.InputStream, passwordConfirmed: Boolean = false) {
+        viewModelScope.launch {
+            try {
+                val app = getApplication<Application>()
+                val json = input.use { it.readBytes().toString(Charsets.UTF_8) }
+                when (val r = ConfigExporter.parseImport(json, passwordConfirmed)) {
+                    is ConfigExporter.ImportResult.Error ->
+                        _configOpResult.value = app.getString(R.string.config_op_failed, r.message)
+                    ConfigExporter.ImportResult.NeedsPasswordConfirmation ->
+                        _configOpResult.value = NEEDS_PASSWORD_CONFIRMATION
+                    is ConfigExporter.ImportResult.Success -> applyImport(r, app)
+                }
+            } catch (e: Exception) {
+                _configOpResult.value = getApplication<Application>().getString(
+                    R.string.config_op_failed, e.message ?: e.javaClass.simpleName)
+            }
+        }
+    }
+
+    private suspend fun applyImport(r: ConfigExporter.ImportResult.Success, app: Application) {
+        // 1) 监控条目：整体替换
+        store.urls.first().forEach { store.remove(it) }
+        r.urls.forEach { store.add(it) }
+        r.disabledUrls.forEach { store.setEnabled(it, false) }
+        // 2) 单条覆盖：先清除再写入
+        store.perUrlOverrides.first().keys.forEach { store.setPerUrlSettings(it, null) }
+        r.perUrlOverrides.forEach { (url, s) -> store.setPerUrlSettings(url, s) }
+        // 3) 代理/推送
+        store.setProxySettings(r.proxySettings)
+        store.setPushConfig(
+            enabled = r.pushConfig.enabled, type = r.pushConfig.type,
+            api = r.pushConfig.apis.joinToString(","),
+            title = r.pushConfig.title, liveMessage = r.pushConfig.liveMessage,
+            offlineMessage = r.pushConfig.offlineMessage, barkLevel = r.pushConfig.barkLevel,
+            barkSound = r.pushConfig.barkSound, ntfyTags = r.pushConfig.ntfyTags,
+            ntfyPriority = r.pushConfig.ntfyPriority,
+        )
+        // 4) 全局录制设置
+        (app as RecorderApp).appSettings.set(r.appSettings)
+        // 5) 认证数据（parseImport 已处理二次确认）
+        r.cookies.forEach { (platform, cookie) -> authStore.setCookie(platform, cookie) }
+        r.credentials.forEach { (platform, pair) ->
+            authStore.setCredential(platform, pair.first, pair.second)
+        }
+        _configOpResult.value = app.getString(R.string.config_import_done)
+    }
+
+    companion object {
+        /** 导入含敏感数据时的哨兵值（UI 据此弹二次确认对话框）。 */
+        const val NEEDS_PASSWORD_CONFIRMATION = "__NEEDS_PASSWORD_CONFIRMATION__"
     }
 }

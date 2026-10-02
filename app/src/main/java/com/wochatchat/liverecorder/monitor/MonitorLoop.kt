@@ -53,6 +53,12 @@ class MonitorLoop(
     private val onLowStorage: () -> Unit = {},
     /** 存储恢复后自动继续监控（同样仅切换时触发一次）。 */
     private val onStorageResumed: () -> Unit = {},
+    /** Phase 4-4.2：当前是否处于定时监控时段内（false=时段外，跳过本轮轮询；录制中不停止）。 */
+    private val scheduleOk: suspend () -> Boolean = { true },
+    /** Phase 4-4.4：当前网络是否满足录制条件（省电 wifiOnly 时非 WiFi 返回 false）。 */
+    private val networkOk: suspend () -> Boolean = { true },
+    /** Phase 4-4.4：屏幕亮起返回 true（熄屏暂停轮询；录制中不受影响）。 */
+    private val screenOnOk: suspend () -> Boolean = { true },
 ) {
 
     sealed class State {
@@ -180,17 +186,20 @@ class MonitorLoop(
         val recordJustEnded: Boolean,
     )
 
-    /** 低存储暂停态（2h）：存储低于阈值时为 true，恢复后自动清除。 */
-    @Volatile
     private var storagePaused = false
+    private var schedulePaused = false
+    private var networkPaused = false
+    private var screenOffPaused = false
 
-    /** 单轮完整流程：存储检查（2h）→ 轮询。存储不足返回 null（本轮跳过）。 */
+    /** 单轮完整流程：存储/定时/网络检查（2h/4.2/4.4）→ 轮询。存储不足返回 null（本轮跳过）。 */
     internal suspend fun runRound(urls: suspend () -> List<String>): RoundResult? {
-        val ok = try {
-            storageOk()
+        val ok: Boolean
+        val logPaused = StringBuilder()
+        try {
+            ok = storageOk()
         } catch (e: Exception) {
             AppLog.w(TAG, "存储检查失败，按充足处理: ${e.message}")
-            true
+            ok = true
         }
         if (!ok) {
             if (!storagePaused) {
@@ -205,6 +214,55 @@ class MonitorLoop(
             AppLog.i(TAG, "存储空间恢复，继续监控")
             onStorageResumed()
         }
+
+        try {
+            if (!scheduleOk()) {
+                if (!schedulePaused) {
+                    schedulePaused = true
+                    AppLog.i(TAG, "定时监控时段外，跳过本轮轮询")
+                }
+                return null
+            }
+            if (schedulePaused) {
+                schedulePaused = false
+                AppLog.i(TAG, "定时监控时段开始，继续轮询")
+            }
+        } catch (e: Exception) {
+            AppLog.w(TAG, "定时检查失败，按通过处理: ${e.message}")
+        }
+
+        try {
+            if (!networkOk()) {
+                if (!networkPaused) {
+                    networkPaused = true
+                    AppLog.i(TAG, "非 WiFi 网络（省电模式），暂停轮询")
+                }
+                return null
+            }
+            if (networkPaused) {
+                networkPaused = false
+                AppLog.i(TAG, "WiFi 恢复，继续轮询")
+            }
+        } catch (e: Exception) {
+            AppLog.w(TAG, "网络检查失败，按通过处理: ${e.message}")
+        }
+
+        try {
+            if (!screenOnOk()) {
+                if (!screenOffPaused) {
+                    screenOffPaused = true
+                    AppLog.i(TAG, "屏幕熄灭（省电模式），暂停轮询")
+                }
+                return null
+            }
+            if (screenOffPaused) {
+                screenOffPaused = false
+                AppLog.i(TAG, "屏幕亮起，继续轮询")
+            }
+        } catch (e: Exception) {
+            AppLog.w(TAG, "屏幕状态检查失败，按通过处理: ${e.message}")
+        }
+
         return pollOnce(urls)
     }
 

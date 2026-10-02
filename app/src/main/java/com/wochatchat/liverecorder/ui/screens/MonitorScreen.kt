@@ -93,6 +93,11 @@ fun MonitorScreen(
     var editUrl by remember { mutableStateOf<String?>(null) }
     // 6f R23：添加对话框预填（空态「示例链接」入口复用同一对话框）
     var addInitial by remember { mutableStateOf("") }
+    // Phase 4-4.1：单条参数覆盖 sheet 状态
+    var perUrlSettingsUrl by remember { mutableStateOf<String?>(null) }
+    val perUrlOverrides by viewModel.perUrlOverrides.collectAsState()
+    val appSettings by viewModel.appSettings.collectAsState()
+    val perUrlSheetState = androidx.compose.material3.rememberModalBottomSheetState()
     // 6f R22：通知点击直达——滚动定位 + 高亮当前条目
     var highlightedUrl by remember { mutableStateOf<String?>(null) }
     val listState = rememberLazyListState()
@@ -222,9 +227,11 @@ fun MonitorScreen(
                                 notifyRemoved(url)
                             },
                             onEdit = { editUrl = url },
+                            onSettings = { perUrlSettingsUrl = url },
                             onToggleEnabled = { viewModel.setEnabled(url, it) },
                             onStart = { viewModel.startRecord(url) },
                             onStop = { viewModel.stopRecord(url) },
+                            hasOverride = url in perUrlOverrides,
                         )
                     }
                 }
@@ -288,6 +295,21 @@ fun MonitorScreen(
                 viewModel.renameUrl(old, new)
                 editUrl = null
             }
+        )
+    }
+
+    // Phase 4-4.1：单条参数覆盖 sheet
+    perUrlSettingsUrl?.let { url ->
+        PerUrlSettingsSheet(
+            url = url,
+            current = perUrlOverrides[url],
+            globalSettings = appSettings,
+            sheetState = perUrlSheetState,
+            onSave = { settings ->
+                viewModel.setPerUrlSettings(url, settings)
+                perUrlSettingsUrl = null
+            },
+            onDismiss = { perUrlSettingsUrl = null },
         )
     }
 

@@ -1,5 +1,8 @@
 package com.wochatchat.liverecorder.ui.screens
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,6 +16,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
@@ -26,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -62,6 +69,8 @@ fun SettingsScreen(
     val settings by viewModel.appSettings.collectAsState()
     val cookies by viewModel.cookies.collectAsState()
     val credentials by viewModel.credentials.collectAsState()
+    // SAF 文件读写需 context
+    val context = androidx.compose.ui.platform.LocalContext.current
     // R20：存储用量 + 告警阈值
     val storageUsage by viewModel.storageUsage.collectAsState()
     val diskLimitGb by viewModel.diskLimitGb.collectAsState()
@@ -76,6 +85,24 @@ fun SettingsScreen(
         collapsedGroups = if (title in collapsedGroups) collapsedGroups - title else collapsedGroups + title
     }
 
+    // Phase 4-4.3：配置导出/导入 SAF 状态
+    var exportIncludeAuth by remember { mutableStateOf(false) }
+    var showImportConfirm by remember { mutableStateOf(false) }
+    val pendingImportUri = remember { mutableStateOf<Uri?>(null) }
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        uri?.let { viewModel.exportConfig(context.contentResolver.openOutputStream(it)!!, exportIncludeAuth) }
+    }
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        uri?.let {
+            pendingImportUri.value = it
+            viewModel.importConfig(context.contentResolver.openInputStream(it)!!)
+        }
+    }
+
     // R17：推送测试 Snackbar 反馈
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(viewModel) {
@@ -85,6 +112,36 @@ fun SettingsScreen(
                 viewModel.consumePushTestResult()
             }
         }
+    }
+    // Phase 4-4.3：配置导出/导入结果反馈
+    LaunchedEffect(viewModel) {
+        viewModel.configOpResult.collect { result ->
+            when (result) {
+                SettingsViewModel.NEEDS_PASSWORD_CONFIRMATION -> { showImportConfirm = true }
+                null -> {}
+                else -> {
+                    snackbarHostState.showSnackbar(result!!)
+                    viewModel.consumeConfigOpResult()
+                }
+            }
+        }
+    }
+
+    if (showImportConfirm) {
+        AlertDialog(
+            onDismissRequest = { showImportConfirm = false },
+            title = { Text(stringResource(R.string.config_import_confirm_title)) },
+            text = { Text(stringResource(R.string.config_import_confirm_text)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showImportConfirm = false
+                    pendingImportUri.value?.let { uri ->
+                        viewModel.importConfig(context.contentResolver.openInputStream(uri)!!, true)
+                    }
+                }) { Text(stringResource(R.string.action_confirm)) }
+            },
+            dismissButton = { TextButton(onClick = { showImportConfirm = false }) { Text(stringResource(R.string.action_cancel)) } },
+        )
     }
 
     Scaffold(
@@ -111,6 +168,10 @@ fun SettingsScreen(
             Spacer(Modifier.height(12.dp))
             RecordingGroup(settings, convertMp4, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
+            ScheduleGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
+            Spacer(Modifier.height(12.dp))
+            PowerGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
+            Spacer(Modifier.height(12.dp))
             StorageGroup(storageUsage, diskLimitGb, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
             PushGroup(
@@ -124,6 +185,14 @@ fun SettingsScreen(
             ProxyGroup(proxy, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
             AuthGroup(cookies.size + credentials.size, onOpenCookies, searchQuery, ::isGroupExpanded, ::toggleGroup)
+            Spacer(Modifier.height(12.dp))
+            BackupGroup(
+                includeAuth = exportIncludeAuth,
+                onSetIncludeAuth = { exportIncludeAuth = it },
+                onExport = { exportLauncher.launch("liverecorder-config.json") },
+                onImport = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
+                query = searchQuery, isGroupExpanded = ::isGroupExpanded, toggleGroup = ::toggleGroup,
+            )
             Spacer(Modifier.height(12.dp))
             MaintenanceGroup({ showLogDialog = true }, searchQuery, ::isGroupExpanded, ::toggleGroup)
         }
@@ -628,6 +697,62 @@ private fun AuthGroup(
 
 /** 维护：运行日志。 */
 @Composable
+/** Phase 4-4.3：配置导出/导入（SAF）。 */
+@Composable
+private fun BackupGroup(
+    viewModel: SettingsViewModel,
+    onExport: (includeAuth: Boolean) -> Unit,
+    onImport: () -> Unit,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
+) {
+    val title = stringResource(R.string.settings_group_backup)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
+        var includeAuth by remember { mutableStateOf(false) }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onExport(includeAuth) }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_config_export), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(R.string.settings_config_export_sub),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.outline)
+        }
+        SwitchSettingRow(
+            title = stringResource(R.string.settings_config_include_auth),
+            checked = includeAuth,
+            onChange = { includeAuth = it }
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onImport() }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_config_import), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(R.string.settings_config_import_sub),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.outline)
+        }
+    }
+}
+
 private fun MaintenanceGroup(
     onOpenLogs: () -> Unit,
     query: String = "",
@@ -649,6 +774,101 @@ private fun MaintenanceGroup(
         }
     }
 }
+
+/** Phase 4-4.2：定时监控（开关 + 开始/结束时间）。 */
+@Composable
+private fun ScheduleGroup(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
+) {
+    val title = stringResource(R.string.settings_group_schedule)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
+        SwitchSettingRow(
+            title = stringResource(R.string.settings_schedule_enable),
+            subtitle = stringResource(R.string.settings_schedule_enable_sub),
+            checked = settings.scheduleMonitorEnabled,
+            onChange = { viewModel.setAppSettings(settings.copy(scheduleMonitorEnabled = it)) }
+        )
+        if (settings.scheduleMonitorEnabled) {
+            Text(
+                stringResource(R.string.settings_schedule_cross_day),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+            )
+            val sH = (settings.scheduleStartMinute / 60).toInt()
+            val sM = (settings.scheduleStartMinute % 60).toInt()
+            val eH = (settings.scheduleEndMinute / 60).toInt()
+            val eM = (settings.scheduleEndMinute % 60).toInt()
+            TimeField(
+                label = stringResource(R.string.settings_schedule_start),
+                hour = sH, minute = sM,
+                onSave = { h, m -> viewModel.setAppSettings(settings.copy(scheduleStartMinute = h * 60 + m)) },
+            )
+            TimeField(
+                label = stringResource(R.string.settings_schedule_end),
+                hour = eH, minute = eM,
+                onSave = { h, m -> viewModel.setAppSettings(settings.copy(scheduleEndMinute = h * 60 + m)) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun TimeField(label: String, hour: Int, minute: Int, onSave: (Int, Int) -> Unit) {
+    var text by remember(hour, minute) {
+        mutableStateOf("${hour.toString().padStart(2,'0')}:${minute.toString().padStart(2,'0')}")
+    }
+    val parsed = text.split(":").mapNotNull { it.toIntOrNull() }
+    val valid = parsed.size == 2 && parsed[0] in 0..23 && parsed[1] in 0..59
+    val changed = valid && (parsed[0] != hour || parsed[1] != minute)
+    // saveOnFocusModifier 在失焦时按 enabled=true 保存（失焦前 text 已是最新值）
+    OutlinedTextField(
+        value = text,
+        onValueChange = { text = it },
+        label = { Text(label) },
+        isError = !valid && text.isNotBlank(),
+        supportingText = { Text("格式: HH:MM", style = MaterialTheme.typography.labelSmall) },
+        modifier = Modifier
+            .then(if (changed) Modifier.saveOnFocusModifier(true) { onSave(parsed[0], parsed[1]) } else Modifier)
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        singleLine = true,
+    )
+}
+
+
+/** Phase 4-4.4：省电模式（WiFi-only + 熄屏暂停）。 */
+@Composable
+private fun PowerGroup(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
+) {
+    val title = stringResource(R.string.settings_group_power)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
+        SwitchSettingRow(
+            title = stringResource(R.string.settings_power_wifi_only),
+            subtitle = stringResource(R.string.settings_power_wifi_only_sub),
+            checked = settings.wifiOnly,
+            onChange = { viewModel.setAppSettings(settings.copy(wifiOnly = it)) }
+        )
+        SwitchSettingRow(
+            title = stringResource(R.string.settings_power_screen_off),
+            subtitle = stringResource(R.string.settings_power_screen_off_sub),
+            checked = settings.screenOffPause,
+            onChange = { viewModel.setAppSettings(settings.copy(screenOffPause = it)) }
+        )
+    }
+}
+
 
 // ---- 文本输入（失焦保存） ----
 
