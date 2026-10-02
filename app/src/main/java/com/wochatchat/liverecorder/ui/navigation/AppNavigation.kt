@@ -17,11 +17,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -69,7 +70,7 @@ fun AppNavigation() {
     val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     // Phase 3：更新检查（引导完成后静默执行，有结果则弹 UpdateDialog）
-    var updateInfo by androidx.compose.runtime.remember { mutableStateOf<UpdateInfo?>(null) }
+    var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
     val ignoredVersion by appSettings.ignoredVersion.collectAsState(initial = null)
     LaunchedEffect(onboardingDone, ignoredVersion) {
         if (onboardingDone == true) {
