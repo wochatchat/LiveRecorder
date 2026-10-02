@@ -128,8 +128,8 @@ dependencies {
     implementation(libs.okhttp.logging)
 
     // Media3 ExoPlayer (Phase 3: in-app player + record detail)
-    implementation(libs.media3Exoplayer)
-    implementation(libs.media3Ui)
+    implementation("androidx.media3:media3-exoplayer:1.5.1")
+    implementation("androidx.media3:media3-ui:1.5.1")
 
     testImplementation(libs.junit)
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
