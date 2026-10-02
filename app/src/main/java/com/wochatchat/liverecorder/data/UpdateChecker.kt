@@ -75,7 +75,7 @@ object UpdateChecker {
         }
     }
 
-    private data class GithubRelease(
+    internal data class GithubRelease(
         val version: String,
         val prerelease: Boolean,
         val draft: Boolean,
@@ -113,6 +113,7 @@ object UpdateChecker {
         val releaseNotes = body
             .lineSequence()
             .filter { it.isNotBlank() && !it.startsWith("#") }
+         !it.startsWith("#") }
             .take(20)
             .joinToString("\n")
             .take(500)

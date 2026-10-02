@@ -14,7 +14,6 @@ package com.wochatchat.liverecorder.data
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.json.JSONObject
 
@@ -22,16 +21,8 @@ class UpdateCheckerTest {
 
     // ---- parseRelease 测试 ----
 
-    private fun parseReleaseJson(json: String): UpdateChecker.GithubRelease {
-        return UpdateChecker::class.java
-            .declaredMethods
-            .find { it.name == "parseRelease" }
-            .let { method ->
-                method!!.isAccessible = true
-                @Suppress("UNCHECKED_CAST")
-                method.invoke(null, json) as UpdateChecker.GithubRelease
-            }
-    }
+    private fun parseReleaseJson(json: String): UpdateChecker.GithubRelease =
+        UpdateChecker.parseRelease(json)
 
     @Test
     fun `tag_name 带 v 前缀 正确去掉`() {
@@ -55,10 +46,10 @@ class UpdateCheckerTest {
     }
 
     @Test
-    fun `draft 为 true 跳过`() {
+    fun `draft 字段正确解析`() {
         val json = releaseJson(draft = true)
         val release = parseReleaseJson(json)
-        assertFalse(release.draft)  // draft = false in this json, but we can test the field
+        assertTrue(release.draft)
     }
 
     @Test
