@@ -7,6 +7,7 @@ import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.RecorderApp
 import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.AuthStore
+import com.wochatchat.liverecorder.data.CheckResultEntry
 import com.wochatchat.liverecorder.data.ConfigExporter
 import com.wochatchat.liverecorder.data.MonitorStore
 import com.wochatchat.liverecorder.data.ProxySettings
@@ -47,6 +48,10 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     /** 3-3h：录制完成后自动转 MP4。 */
     val autoConvertMp4: StateFlow<Boolean> = store.autoConvertMp4
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    /** Phase 5-5.1：平台检查结果历史（平台健康仪表盘）。 */
+    val checkResultHistory: StateFlow<Map<String, List<CheckResultEntry>>> = store.checkResultHistory
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     // ---- R20：存储管理 ----
 

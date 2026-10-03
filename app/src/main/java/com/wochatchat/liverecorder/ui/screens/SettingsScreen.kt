@@ -62,6 +62,7 @@ import com.wochatchat.liverecorder.ui.SettingsViewModel
 fun SettingsScreen(
     viewModel: SettingsViewModel = viewModel(),
     onOpenCookies: () -> Unit = {},
+    onOpenPlatformHealth: () -> Unit = {},
 ) {
     val pushConfig by viewModel.pushConfig.collectAsState()
     val proxy by viewModel.proxySettings.collectAsState()
@@ -185,6 +186,8 @@ fun SettingsScreen(
             ProxyGroup(proxy, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
             AuthGroup(cookies.size + credentials.size, onOpenCookies, searchQuery, ::isGroupExpanded, ::toggleGroup)
+            Spacer(Modifier.height(12.dp))
+            PlatformHealthGroup(onOpenPlatformHealth, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
             BackupGroup(
                 viewModel = viewModel,
@@ -685,6 +688,37 @@ private fun AuthGroup(
                 Text(
                     if (configuredCount > 0) stringResource(R.string.settings_cookies_configured, configuredCount)
                     else stringResource(R.string.settings_cookies_none),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.outline)
+        }
+    }
+}
+
+/** Phase 5-5.1：平台健康仪表盘入口（平台状态页）。 */
+@Composable
+private fun PlatformHealthGroup(
+    onOpenPage: () -> Unit,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
+) {
+    val title = stringResource(R.string.settings_group_platform_health)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onOpenPage() }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_platform_health_row_title), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(R.string.settings_platform_health_row_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

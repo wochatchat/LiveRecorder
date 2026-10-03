@@ -59,6 +59,8 @@ class MonitorLoop(
     private val networkOk: suspend () -> Boolean = { true },
     /** Phase 4-4.4：屏幕亮起返回 true（熄屏暂停轮询；录制中不受影响）。 */
     private val screenOnOk: suspend () -> Boolean = { true },
+    /** Phase 5-5.1：每条 URL 检查完成后回调（ok=检查未抛异常），供平台健康仪表盘归集。 */
+    private val onCheckResult: suspend (url: String, ok: Boolean) -> Unit = { _, _ -> },
 ) {
 
     sealed class State {
@@ -313,6 +315,14 @@ class MonitorLoop(
                 if (n >= HEALTH_FAIL_THRESHOLD) _unhealthy.update { it + url }
             }
             _states.update { it + (url to next) }
+            // Phase 5-5.1：归集检查结果到平台健康仪表盘（检查异常=失败）
+            try {
+                onCheckResult(url, next !is State.Error)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                AppLog.w(TAG, "记录平台健康数据失败: ${e.message}")
+            }
         }
         return RoundResult(errors, recordJustEnded)
     }

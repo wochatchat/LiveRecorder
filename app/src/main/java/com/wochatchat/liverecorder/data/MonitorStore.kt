@@ -220,6 +220,25 @@ class MonitorStore(private val context: Context) {
         )
     }
 
+    // ---- Phase 5-5.1: 平台健康仪表盘（检查结果环形缓冲） ----
+
+    /** Phase 5-5.1：平台检查结果历史（JSON，环形缓冲 100 条/平台、7 天窗口）。 */
+    private val checkHistoryKey = stringPreferencesKey("check_result_history")
+
+    val checkResultHistory: Flow<Map<String, List<CheckResultEntry>>> = context.dataStore.data.map { prefs ->
+        CheckResultHistory.fromJson(prefs[checkHistoryKey] ?: "{}")
+    }
+
+    /** 记录一条平台检查结果（MonitorLoop 每轮每条 URL 调用一次）。 */
+    suspend fun recordCheckResult(platform: String, ok: Boolean, ts: Long = System.currentTimeMillis()) {
+        context.dataStore.edit { prefs ->
+            val history = CheckResultHistory.fromJson(prefs[checkHistoryKey] ?: "{}")
+            prefs[checkHistoryKey] = CheckResultHistory.toJson(
+                CheckResultHistory.append(history, platform, ts, ok)
+            )
+        }
+    }
+
     /** 明细参数带默认值，既有调用点（enabled/type/api 三参）不受影响。 */
     suspend fun setPushConfig(
         enabled: Boolean,

@@ -243,6 +243,15 @@
     <string name="settings_proxy_addr_hint">socks5://127.0.0.1:7890 或 http://127.0.0.1:7890</string>
     <string name="settings_proxy_platforms">走代理的平台（逗号分隔关键词）</string>
     <string name="settings_cookies_configured">已配置 %1$d 个平台</string>
+
+    <!-- Phase 5-5.1：平台健康仪表盘 -->
+    <string name="settings_group_platform_health">平台状态</string>
+    <string name="settings_platform_health_row_title">平台健康仪表盘</string>
+    <string name="settings_platform_health_row_subtitle">各平台近 7 天开播检查成功率</string>
+    <string name="platform_health_summary">近 7 天开播检查成功率（每平台保留最近 100 条检查记录）</string>
+    <string name="platform_health_empty">暂无检查数据：开启监控并轮询一轮后自动统计</string>
+    <string name="platform_health_rate_fmt">成功率 %1$d%%（%2$d/%3$d）</string>
+    <string name="platform_health_last_check">最近检查 %1$s</string>
     <string name="settings_cookies_none">尚未配置任何平台</string>
     <string name="validation_number">请输入数字</string>
     <string name="validation_empty">不能为空</string>

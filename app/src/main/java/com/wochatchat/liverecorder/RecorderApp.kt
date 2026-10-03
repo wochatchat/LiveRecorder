@@ -22,6 +22,7 @@ import com.wochatchat.liverecorder.recorder.RecordSource
 import com.wochatchat.liverecorder.push.HttpPusher
 import com.wochatchat.liverecorder.service.EventNotifier
 import com.wochatchat.liverecorder.storage.StorageManager
+import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -228,6 +229,10 @@ class RecorderApp : Application() {
             screenOnOk = {
                 val s = appSettings.settings.first()
                 !s.screenOffPause || isScreenOn()
+            },
+            // Phase 5-5.1：归集检查结果到平台健康仪表盘（环形缓冲 100 条/平台）
+            onCheckResult = { url, ok ->
+                store.recordCheckResult(platformKeyForUrl(url), ok)
             },
         )
         this.pusher = pusher

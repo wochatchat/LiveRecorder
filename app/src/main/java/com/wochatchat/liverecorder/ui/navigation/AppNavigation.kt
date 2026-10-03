@@ -39,6 +39,7 @@ import com.wochatchat.liverecorder.ui.screens.CookieManagementScreen
 import com.wochatchat.liverecorder.ui.screens.InAppPlayerScreen
 import com.wochatchat.liverecorder.ui.screens.MonitorScreen
 import com.wochatchat.liverecorder.ui.screens.OnboardingScreen
+import com.wochatchat.liverecorder.ui.screens.PlatformHealthScreen
 import com.wochatchat.liverecorder.ui.screens.RecordsScreen
 import com.wochatchat.liverecorder.ui.screens.RecordDetailScreen
 import com.wochatchat.liverecorder.ui.screens.SettingsScreen
@@ -55,6 +56,9 @@ sealed class Destination(val route: String, @StringRes val labelRes: Int, val ic
 
 /** 设置子页路由（6d R16）。 */
 const val ROUTE_COOKIES = "settings/cookies"
+
+/** Phase 5-5.1：平台健康仪表盘路由。 */
+const val ROUTE_PLATFORM_HEALTH = "settings/platform_health"
 
 /** Phase 3：录制详情页路由（path = URLEncoder.encode(savePath, "UTF-8")）。 */
 const val ROUTE_RECORD_DETAIL = "record_detail/{path}"
@@ -173,11 +177,15 @@ private fun MainScaffold() {
             }
             composable(Destination.Settings.route) {
                 SettingsScreen(
-                    onOpenCookies = { navController.navigate(ROUTE_COOKIES) }
+                    onOpenCookies = { navController.navigate(ROUTE_COOKIES) },
+                    onOpenPlatformHealth = { navController.navigate(ROUTE_PLATFORM_HEALTH) },
                 )
             }
             composable(ROUTE_COOKIES) {
                 CookieManagementScreen(onBack = { navController.popBackStack() })
+            }
+            composable(ROUTE_PLATFORM_HEALTH) {
+                PlatformHealthScreen(onBack = { navController.popBackStack() })
             }
             composable(ROUTE_RECORD_DETAIL) { backStackEntry ->
                 val encodedPath = backStackEntry.arguments?.getString("path") ?: ""
