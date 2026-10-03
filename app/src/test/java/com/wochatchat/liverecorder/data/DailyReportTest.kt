@@ -62,8 +62,11 @@ class DailyReportTest {
 
     @Test
     fun `窗口对齐边界含起不含止`() {
-        // 恰好等于次日 00:00 计入次日（新窗口），不计入当天
-        val bytes = DailyReport.dailyBytes(listOf(entry(day0 + DailyReport.DAY_MS, 500)), day0, days = 2)
+        // "今天"取次日：窗口 [day0, day0+DAY) 为昨天（0），[day0+DAY, …) 为今天（500）
+        val bytes = DailyReport.dailyBytes(
+            listOf(entry(day0 + DailyReport.DAY_MS, 500)),
+            todayStartMs = day0 + DailyReport.DAY_MS, days = 2,
+        )
         org.junit.Assert.assertEquals(listOf(0L, 500L), bytes)
     }
 

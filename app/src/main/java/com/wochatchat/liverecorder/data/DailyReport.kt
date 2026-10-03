@@ -59,9 +59,9 @@ object DailyReport {
                 .sumOf { it.bytes }
         }
 
-    /** 平均码率 Mbps（8.3）：bytes*8/durationMs；时长无效返回 0。 */
+    /** 平均码率 Mbps（8.3）：bytes*8 / (durationMs/1000s) / 1e6；时长无效返回 0。 */
     fun bitrateMbps(bytes: Long, durationMs: Long): Double =
-        if (durationMs <= 0) 0.0 else bytes * 8.0 / durationMs / 1_000_000.0
+        if (durationMs <= 0) 0.0 else bytes * 8.0 / durationMs / 1_000.0
 
     /** 日均流量（8.3）：近 [days] 天总字节 / days；不足一天按整窗估算。 */
     fun dailyAvgBytes(entries: List<RecordHistoryEntry>, todayStartMs: Long, days: Int): Long {
