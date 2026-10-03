@@ -81,12 +81,12 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     /** 5a：全局录制设置（画质/循环时间/分段/命名等）。 */
     val appSettings: StateFlow<AppSettings> = (app as RecorderApp).appSettings.settings
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettings())
 
     /** Phase 11-11.1：云同步设置。 */
     val cloudSync: StateFlow<CloudSyncSettings> =
         (app as RecorderApp).cloudSyncStore.settings
             .stateIn(viewModelScope, SharingStarted.Eagerly, CloudSyncSettings())
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettings())
 
     /** 4b：平台 cookie（平台键 → cookie 串）。 */
     val cookies: StateFlow<Map<String, String>> = authStore.cookies
