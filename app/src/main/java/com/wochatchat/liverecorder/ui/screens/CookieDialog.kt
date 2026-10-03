@@ -25,10 +25,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.wochatchat.liverecorder.data.AuthStore
+import com.wochatchat.liverecorder.data.webLoginUrlFor
 import com.wochatchat.liverecorder.R
 
 /**
  * 平台 Cookie / 账密对话框（4b，R15 由设置页「平台认证」入口打开；R16 升级为管理页）。
+ * V3-5 R1：支持网页登录的平台显示「网页登录获取」按钮，登录抓取结果经 [prefillCookie] 预填。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +41,10 @@ fun CookieDialog(
     onDismiss: () -> Unit,
     onSaveCookie: (platform: String, cookie: String) -> Unit,
     onSaveCredential: (platform: String, username: String, password: String) -> Unit,
+    /** V3-5 R1：预填 cookie（网页登录返回时非空），一次性填入输入框。 */
+    prefillCookie: String = "",
+    /** V3-5 R1：发起网页登录（null = 入口不可用，不显示按钮）。参数为当前平台键。 */
+    onWebLogin: ((platform: String) -> Unit)? = null,
 ) {
     // R16：下拉含账密登录平台（原仅 COOKIE_PLATFORMS，登录平台不可达）
     val platforms = (AuthStore.ALL_PLATFORMS + AuthStore.LOGIN_PLATFORMS).distinctBy { it.key }
@@ -56,7 +62,14 @@ fun CookieDialog(
         password = cred?.second.orEmpty()
     }
 
+    // V3-5 R1：网页登录返回的预填 cookie（一次性填入，随后清空触发源由调用方管理）
+    LaunchedEffect(prefillCookie) {
+        if (prefillCookie.isNotBlank()) cookie = prefillCookie
+    }
+
     val isLoginPlatform = selectedKey in AuthStore.LOGIN_PLATFORMS.map { it.key }
+    // V3-5 R1：当前平台是否支持网页登录取 cookie
+    val webLoginAvailable = onWebLogin != null && webLoginUrlFor(selectedKey) != null
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -111,6 +124,15 @@ fun CookieDialog(
                         minLines = 3,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    // V3-5 R1：网页登录取 cookie（仅支持的平台显示）
+                    if (webLoginAvailable) {
+                        OutlinedButton(
+                            onClick = { onWebLogin?.invoke(selectedKey) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Text(stringResource(R.string.web_login_button))
+                        }
+                    }
                 }
                 Text(
                     stringResource(R.string.cookie_clear_hint),

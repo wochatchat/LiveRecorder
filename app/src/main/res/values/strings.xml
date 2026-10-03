@@ -137,6 +137,12 @@
     <string name="monitor_toggle_group">按平台分组</string>
     <string name="monitor_group_pinned">置顶</string>
     <string name="monitor_pinned_desc">已置顶（长按卡片可取消）</string>
+    <!-- V3-5 R1: 网页登录取 cookie -->
+    <string name="web_login_button">网页登录获取</string>
+    <string name="web_login_title">网页登录 · %1$s</string>
+    <string name="web_login_grab">抓取并返回</string>
+    <string name="web_login_hint">在页面中登录你的账号，完成后点右上角「抓取并返回」，将自动填入 Cookie 供确认保存</string>
+    <string name="web_login_unsupported">该平台暂不支持网页登录取 Cookie，请手动粘贴</string>
     <string name="settings_status_default">默认</string>
     <string name="settings_status_recording_color">录制中状态色</string>
     <string name="settings_status_error_color">异常状态色</string>

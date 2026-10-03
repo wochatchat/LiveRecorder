@@ -62,6 +62,9 @@ fun CookieManagementScreen(
     // Phase 5-5.2：账号健康状态（✅/❌/⏳）
     val accountHealth by viewModel.accountHealth.collectAsState()
     var editing by remember { mutableStateOf<String?>(null) }
+    // V3-5 R1：网页登录取 cookie——页内全屏覆盖（不走导航，保住对话框 remember 状态）
+    var webLoginPlatform by remember { mutableStateOf<String?>(null) }
+    var prefillCookie by remember { mutableStateOf("") }
     var selecting by remember { mutableStateOf(false) }
     val selection = remember { mutableStateListOf<String>() }
 
@@ -207,20 +210,36 @@ fun CookieManagementScreen(
         }
     }
 
-    editing?.let { key ->
+    // V3-5 R1：登录覆盖层存在时不渲染对话框（AlertDialog 是独立窗口，会浮在 WebView 之上）
+    if (editing != null && webLoginPlatform == null) editing?.let { key ->
         CookieDialog(
             cookies = cookies,
             credentials = credentials,
             initialPlatform = key,
-            onDismiss = { editing = null },
+            onDismiss = { editing = null; prefillCookie = "" },
             onSaveCookie = { platform, cookie ->
                 viewModel.setCookie(platform, cookie)
-                editing = null
+                editing = null; prefillCookie = ""
             },
             onSaveCredential = { platform, user, pass ->
                 viewModel.setCredential(platform, user, pass)
                 editing = null
-            }
+            },
+            prefillCookie = prefillCookie,
+            // V3-5 R1：支持网页登录的平台打开页内全屏 WebView
+            onWebLogin = { platform -> webLoginPlatform = platform },
+        )
+    }
+
+    // V3-5 R1：网页登录取 cookie 全屏覆盖（对话框状态保留在组合外不受影响）
+    webLoginPlatform?.let { platform ->
+        WebLoginScreen(
+            platformKey = platform,
+            onDone = { cookie ->
+                prefillCookie = cookie
+                webLoginPlatform = null
+            },
+            onCancel = { webLoginPlatform = null },
         )
     }
 
