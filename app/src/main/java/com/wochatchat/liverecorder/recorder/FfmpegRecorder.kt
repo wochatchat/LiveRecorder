@@ -142,7 +142,7 @@ open class FfmpegRecorder(
             }?.sortedBy { it.name } ?: emptyList()
 
             val totalBytes = segments.sumOf { it.length() }.coerceAtLeast(estimatedBytes)
-            RecordResult(segments, totalBytes)
+            return RecordResult(segments, totalBytes)
         } finally {
             progressJob.cancel()
             if (process.isAlive) process.destroyForcibly()

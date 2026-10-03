@@ -17,6 +17,7 @@ import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.AccountHealth
 import com.wochatchat.liverecorder.data.AdaptiveQuality
 import com.wochatchat.liverecorder.data.AppSettings
+import com.wochatchat.liverecorder.data.NetType
 import com.wochatchat.liverecorder.data.AppSettingsStore
 import com.wochatchat.liverecorder.data.MonitorStore
 import com.wochatchat.liverecorder.data.RecordHistoryEntry
