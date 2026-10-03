@@ -264,6 +264,16 @@
     <string name="cookies_state_cred">账密已配置（%1$s / ****）</string>
     <string name="cookies_state_none">未配置</string>
     <string name="cookies_cred_note">账密登录平台，录制时自动登录</string>
+    <!-- Phase 11-11.2 多账号 -->
+    <string name="accounts_manage">多账号</string>
+    <string name="accounts_dialog_title">%1$s · 多账号管理</string>
+    <string name="accounts_empty">暂无额外账号；默认账号在「编辑」里维护</string>
+    <string name="accounts_nickname_label">账号昵称（可留空）</string>
+    <string name="accounts_cookie_label">账号 Cookie</string>
+    <string name="accounts_action_add">添加账号</string>
+    <string name="accounts_extra_count">+%1$d 个账号</string>
+    <string name="accounts_pick_title">录制账号</string>
+    <string name="accounts_bound_badge">👤%1$s</string>
     <!-- 6f-3 记录页 -->
     <string name="delete_record_title">删除录制文件？</string>
     <string name="delete_record_text">删除后无法恢复（含分段目录内全部文件）。</string>

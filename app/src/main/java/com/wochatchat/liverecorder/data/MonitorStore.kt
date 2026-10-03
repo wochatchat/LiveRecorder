@@ -239,6 +239,44 @@ class MonitorStore(private val context: Context) {
         }
     }
 
+    // ---- Phase 11-11.2: 条目绑定账号 ----
+
+    /** URL → 账号 id（JSON map；空/缺失/默认 = 用默认账号）。 */
+    private val accountBindingsKey = stringPreferencesKey("account_bindings")
+
+    val accountBindings: Flow<Map<String, String>> = context.dataStore.data.map { prefs ->
+        val json = prefs[accountBindingsKey] ?: "{}"
+        try {
+            val obj = org.json.JSONObject(json)
+            val result = mutableMapOf<String, String>()
+            obj.keys().forEach { url -> result[url] = obj.optString(url) }
+            result.filterValues { it.isNotBlank() }
+        } catch (e: Exception) {
+            emptyMap()
+        }
+    }
+
+    suspend fun getAccountBinding(url: String): String {
+        var result = ""
+        context.dataStore.edit { prefs ->
+            result = runCatching {
+                org.json.JSONObject(prefs[accountBindingsKey] ?: "{}").optString(url)
+            }.getOrDefault("")
+        }
+        return result
+    }
+
+    /** 绑定/解绑（accountId 空 = 恢复默认账号，等价移除该条目）。 */
+    suspend fun setAccountBinding(url: String, accountId: String) {
+        context.dataStore.edit { prefs ->
+            val obj = runCatching {
+                org.json.JSONObject(prefs[accountBindingsKey] ?: "{}")
+            }.getOrDefault(org.json.JSONObject())
+            if (accountId.isBlank()) obj.remove(url) else obj.put(url, accountId)
+            prefs[accountBindingsKey] = obj.toString()
+        }
+    }
+
     /** 明细参数带默认值，既有调用点（enabled/type/api 三参）不受影响。 */
     suspend fun setPushConfig(
         enabled: Boolean,

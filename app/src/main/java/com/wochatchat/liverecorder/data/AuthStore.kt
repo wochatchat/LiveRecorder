@@ -60,6 +60,37 @@ class AuthStore(private val context: Context) {
         }
     }
 
+    // ---- Phase 11-11.2: 多账号 ----
+
+    /** 额外账号（平台 → 账号列表，JSON 持久化；默认账号仍走既有 cookies 键）。 */
+    private val accountsKey = stringPreferencesKey("accounts_json")
+
+    /** 平台 → 额外账号列表（不含默认账号，见 [Accounts.withDefault]）。 */
+    val accounts: Flow<Map<String, List<Account>>> = context.authDataStore.data.map { prefs ->
+        Accounts.fromJson(prefs[accountsKey] ?: "{}")
+    }
+
+    /** 新增账号（nickname 空时自动「账号 N」）。 */
+    suspend fun addAccount(platform: String, nickname: String, cookie: String) {
+        context.authDataStore.edit { prefs ->
+            val map = Accounts.fromJson(prefs[accountsKey] ?: "{}").toMutableMap()
+            val list = map[platform].orEmpty()
+            val name = nickname.trim().ifBlank { "账号${list.size + 1}" }
+            map[platform] = list + Account(Accounts.newId(), name, cookie.trim())
+            prefs[accountsKey] = Accounts.toJson(map)
+        }
+    }
+
+    /** 删除账号（id 不存在时静默）。 */
+    suspend fun removeAccount(platform: String, accountId: String) {
+        context.authDataStore.edit { prefs ->
+            val map = Accounts.fromJson(prefs[accountsKey] ?: "{}").toMutableMap()
+            map[platform] = map[platform].orEmpty().filterNot { it.id == accountId }
+            if (map[platform].isEmpty()) map.remove(platform)
+            prefs[accountsKey] = Accounts.toJson(map)
+        }
+    }
+
     // ---- Phase 5-5.2: 账号健康度 ----
 
     /** 账号健康状态（JSON：{"platform":["ok"|"expired",ts], ...}）。 */

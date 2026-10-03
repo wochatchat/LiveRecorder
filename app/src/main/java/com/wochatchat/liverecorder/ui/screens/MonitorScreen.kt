@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -65,6 +66,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.data.AppLog
+import com.wochatchat.liverecorder.data.Account
+import com.wochatchat.liverecorder.data.Accounts
 import com.wochatchat.liverecorder.platform.PlatformRouter
 import com.wochatchat.liverecorder.ui.MonitorViewModel
 import com.wochatchat.liverecorder.ui.components.MonitorCard
@@ -96,6 +99,10 @@ fun MonitorScreen(
     // Phase 4-4.1：单条参数覆盖 sheet 状态
     var perUrlSettingsUrl by remember { mutableStateOf<String?>(null) }
     val perUrlOverrides by viewModel.perUrlOverrides.collectAsState()
+    // Phase 11-11.2：多账号列表 + 待绑定账号 id（AddUrlDialog 确认时落到该条 URL）
+    val accounts by viewModel.accounts.collectAsState()
+    val accountBindings by viewModel.accountBindings.collectAsState()
+    var pendingAccountId by remember { mutableStateOf(Accounts.DEFAULT_ID) }
     val appSettings by viewModel.appSettings.collectAsState()
     val perUrlSheetState = androidx.compose.material3.rememberModalBottomSheetState()
     // 6f R22：通知点击直达——滚动定位 + 高亮当前条目
@@ -232,6 +239,11 @@ fun MonitorScreen(
                             onStart = { viewModel.startRecord(url) },
                             onStop = { viewModel.stopRecord(url) },
                             hasOverride = url in perUrlOverrides,
+                            // Phase 11-11.2：绑定账号昵称徽标（默认账号不显示）
+                            boundAccount = accounts[
+                                Accounts.cookieKeyForPlatform(platformKeyForUrl(url))
+                            ]?.firstOrNull { it.id == (accountBindings[url] ?: "") }
+                                ?.takeIf { it.id != Accounts.DEFAULT_ID }?.nickname,
                         )
                     }
                 }
@@ -269,9 +281,16 @@ fun MonitorScreen(
     if (showAddDialog) {
         AddUrlDialog(
             initial = addInitial,
-            onDismiss = { showAddDialog = false; addInitial = "" },
+            accounts = accounts,
+            onAccountSelected = { pendingAccountId = it },
+            onDismiss = { showAddDialog = false; addInitial = ""; pendingAccountId = Accounts.DEFAULT_ID },
             onConfirm = { urls ->
                 urls.forEach { viewModel.add(it) }
+                // Phase 11-11.2：单条添加且选了非默认账号 → 绑定到该条目
+                if (urls.size == 1 && pendingAccountId != Accounts.DEFAULT_ID) {
+                    viewModel.setAccountBinding(urls[0], pendingAccountId)
+                }
+                pendingAccountId = Accounts.DEFAULT_ID
                 showAddDialog = false
                 addInitial = ""
                 scope.launch {
@@ -300,11 +319,18 @@ fun MonitorScreen(
 
     // Phase 4-4.1：单条参数覆盖 sheet
     perUrlSettingsUrl?.let { url ->
+        // Phase 11-11.2：该平台账号列表（含默认账号；无账号不渲染切换组）
+        val platformAccounts = accounts[
+            Accounts.cookieKeyForPlatform(platformKeyForUrl(url))
+        ].orEmpty()
         PerUrlSettingsSheet(
             url = url,
             current = perUrlOverrides[url],
             globalSettings = appSettings,
             sheetState = perUrlSheetState,
+            accounts = platformAccounts,
+            boundAccountId = accountBindings[url] ?: Accounts.DEFAULT_ID,
+            onSelectAccount = { accId -> viewModel.setAccountBinding(url, accId) },
             onSave = { settings ->
                 viewModel.setPerUrlSettings(url, settings)
                 perUrlSettingsUrl = null
@@ -466,8 +492,26 @@ fun ConfirmDeleteDialog(
 
 
 @Composable
-fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (List<String>) -> Unit, initial: String = "") {
+fun AddUrlDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (List<String>) -> Unit,
+    initial: String = "",
+    // Phase 11-11.2：单条添加时可绑定录制账号（多 URL 添加不展示，保持原语义）
+    accounts: Map<String, List<Account>> = emptyMap(),
+    onAccountSelected: ((String) -> Unit)? = null,
+) {
     var text by remember { mutableStateOf(initial) }
+    // 11.2：单条受支持 URL 时展示该平台账号选择（默认 + 额外账号），随确认一并绑定；
+    // 换链接时重置回默认账号
+    var selectedAccountId by remember(text) { mutableStateOf(Accounts.DEFAULT_ID) }
+    val trimmedUrl = text.trim()
+    val singlePlatform = if (
+        trimmedUrl.isNotEmpty() && !trimmedUrl.contains(Regex("\\s")) &&
+        PlatformRouter.isSupported(trimmedUrl)
+    ) platformKeyForUrl(trimmedUrl) else null
+    val platformAccounts = singlePlatform?.let {
+        accounts[Accounts.cookieKeyForPlatform(it)].orEmpty()
+    }.orEmpty()
     // R14/U10：多行/空格/逗号分隔均可，批量添加
     val urls = text.lines()
         .flatMap { it.split(',', '，', ' ', '\t') }
@@ -521,11 +565,41 @@ fun AddUrlDialog(onDismiss: () -> Unit, onConfirm: (List<String>) -> Unit, initi
                         color = MaterialTheme.colorScheme.tertiary
                     )
                 }
+                // Phase 11-11.2：多账号平台展示「录制账号」选择行（默认 + 额外账号）
+                if (onAccountSelected != null && platformAccounts.size > 1) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        stringResource(R.string.accounts_pick_title),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        platformAccounts.take(4).forEach { acc ->
+                            FilterChip(
+                                selected = selectedAccountId == acc.id,
+                                onClick = { selectedAccountId = acc.id },
+                                label = { Text(acc.nickname, maxLines = 1) },
+                            )
+                        }
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(
-                onClick = { if (urls.isNotEmpty()) onConfirm(urls) },
+                onClick = {
+                    if (urls.isNotEmpty()) {
+                        // 11.2：仅单条添加时绑定账号；多 URL 批量添加不绑定（保持默认）
+                        if (urls.size == 1 && platformAccounts.any { it.id == selectedAccountId }) {
+                            onAccountSelected?.invoke(selectedAccountId)
+                        }
+                        onConfirm(urls)
+                    }
+                },
                 enabled = urls.isNotEmpty()
             ) { Text(stringResource(R.string.action_add)) }
         },

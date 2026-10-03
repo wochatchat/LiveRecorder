@@ -8,6 +8,8 @@ import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.MonitorStore
 import com.wochatchat.liverecorder.data.PerUrlSettings
+import com.wochatchat.liverecorder.data.Account
+import com.wochatchat.liverecorder.data.Accounts
 import com.wochatchat.liverecorder.data.ProxySettings
 import com.wochatchat.liverecorder.push.PushConfig
 import com.wochatchat.liverecorder.recorder.RecordController
@@ -58,6 +60,16 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
 
     /** 4b：登录平台账密（平台键 → 用户名/密码）。 */
     val credentials: StateFlow<Map<String, Pair<String, String>>> = authStore.credentials
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /** Phase 11-11.2：多账号（平台键 → 含默认账号的完整列表）。 */
+    val accounts: StateFlow<Map<String, List<Account>>> =
+        combine(authStore.accounts, authStore.cookies) { extra, legacy ->
+            Accounts.withDefault(extra, legacy)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    /** Phase 11-11.2：条目绑定账号（URL → 账号 id）。 */
+    val accountBindings: StateFlow<Map<String, String>> = store.accountBindings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     init {
@@ -154,6 +166,22 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     /** 保存/清除单条覆盖（settings 为 null 或 isEmpty → 清除）。 */
     fun setPerUrlSettings(url: String, settings: PerUrlSettings?) = viewModelScope.launch {
         store.setPerUrlSettings(url, settings)
+    }
+
+    // ---- Phase 11-11.2：多账号 ----
+
+    /** 条目绑定账号（accountId 空 = 恢复默认账号）。 */
+    fun setAccountBinding(url: String, accountId: String) = viewModelScope.launch {
+        store.setAccountBinding(url, accountId)
+    }
+
+    /** 新增/删除额外账号（Cookie 管理页复用同一 AuthStore，数据互通）。 */
+    fun addAccount(platform: String, nickname: String, cookie: String) = viewModelScope.launch {
+        AuthStore(getApplication()).addAccount(platform, nickname, cookie)
+    }
+
+    fun removeAccount(platform: String, accountId: String) = viewModelScope.launch {
+        AuthStore(getApplication()).removeAccount(platform, accountId)
     }
 
     fun startRecord(url: String) = controller.start(url)

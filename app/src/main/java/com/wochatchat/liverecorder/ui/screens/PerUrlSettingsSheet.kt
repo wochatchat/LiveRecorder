@@ -33,6 +33,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.wochatchat.liverecorder.R
+import com.wochatchat.liverecorder.data.Account
+import com.wochatchat.liverecorder.data.Accounts
 import com.wochatchat.liverecorder.data.PerUrlSettings
 
 /**
@@ -49,6 +51,10 @@ fun PerUrlSettingsSheet(
     sheetState: SheetState,
     onSave: (PerUrlSettings?) -> Unit,
     onDismiss: () -> Unit,
+    // Phase 11-11.2：录制账号切换（默认账号 + 额外账号；无账号列表时不渲染该组）
+    accounts: List<Account> = emptyList(),
+    boundAccountId: String = Accounts.DEFAULT_ID,
+    onSelectAccount: (String) -> Unit = {},
 ) {
     var quality by remember(current) { mutableStateOf(current?.quality ?: "") }
     var saveFormat by remember(current) { mutableStateOf(current?.saveFormat ?: "") }
@@ -86,6 +92,22 @@ fun PerUrlSettingsSheet(
                 color = MaterialTheme.colorScheme.outline,
             )
             Spacer(Modifier.height(12.dp))
+
+            // ---- Phase 11-11.2：录制账号（即时保存，不参与参数覆盖的清除逻辑） ----
+            if (accounts.size > 1) {
+                Text(stringResource(R.string.accounts_pick_title), style = MaterialTheme.typography.bodyLarge)
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    accounts.take(5).forEach { acc ->
+                        FilterChip(
+                            selected = boundAccountId == acc.id,
+                            onClick = { onSelectAccount(acc.id) },
+                            label = { Text(acc.nickname, style = MaterialTheme.typography.labelMedium) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+            }
 
             // ---- 画质覆盖 ----
             Text(stringResource(R.string.perurl_quality_label), style = MaterialTheme.typography.bodyLarge)

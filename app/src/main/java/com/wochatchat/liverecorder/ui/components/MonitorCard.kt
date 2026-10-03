@@ -115,6 +115,8 @@ fun MonitorCard(
     onStop: () -> Unit,
     /** Phase 4-4.1：是否有单条参数覆盖（用于指示徽标，无覆盖可传 false）。 */
     hasOverride: Boolean = false,
+    /** Phase 11-11.2：绑定的录制账号昵称（未绑定/默认账号传 null，不显示徽标）。 */
+    boundAccount: String? = null,
 ) {
     val recording = recordState is RecordController.RecordState.Resolving ||
         recordState is RecordController.RecordState.Recording ||
@@ -146,6 +148,21 @@ fun MonitorCard(
             ) {
                 PlatformBadge(platformKeyForUrl(url))
                 StatusBadge(recordState, monitorState, disabled, unhealthy)
+                // Phase 11-11.2：绑定账号徽标（默认账号不显示）
+                if (!boundAccount.isNullOrBlank()) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                    ) {
+                        Text(
+                            stringResource(R.string.accounts_bound_badge, boundAccount),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
                 Spacer(Modifier.weight(1f))
                 // 单条启停（2g）：停用后不参与轮询与自动录制（上游 # 注释行语义）
                 // 6f-4：无障碍——Switch 必须有 contentDescription

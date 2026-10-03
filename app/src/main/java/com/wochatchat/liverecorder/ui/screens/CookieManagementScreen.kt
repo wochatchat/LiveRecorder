@@ -14,6 +14,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -38,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.AccountHealth
+import com.wochatchat.liverecorder.data.Accounts
 import com.wochatchat.liverecorder.ui.SettingsViewModel
 import com.wochatchat.liverecorder.ui.components.PlatformBadge
 import com.wochatchat.liverecorder.R
@@ -54,6 +56,9 @@ fun CookieManagementScreen(
 ) {
     val cookies by viewModel.cookies.collectAsState()
     val credentials by viewModel.credentials.collectAsState()
+    // Phase 11-11.2：多账号（含默认账号的完整列表）+ 管理对话框状态
+    val accounts by viewModel.accounts.collectAsState()
+    var managingAccounts by remember { mutableStateOf<String?>(null) }
     // Phase 5-5.2：账号健康状态（✅/❌/⏳）
     val accountHealth by viewModel.accountHealth.collectAsState()
     var editing by remember { mutableStateOf<String?>(null) }
@@ -164,6 +169,22 @@ fun CookieManagementScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
+                            // Phase 11-11.2：额外账号数量提示（默认账号已在主行显示）
+                            val extraCount = accounts[p.key]?.count { it.id != Accounts.DEFAULT_ID } ?: 0
+                            if (extraCount > 0) {
+                                Text(
+                                    stringResource(R.string.accounts_extra_count, extraCount),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        // Phase 11-11.2：多账号管理入口
+                        IconButton(onClick = { managingAccounts = p.key }, enabled = !selecting) {
+                            Icon(
+                                Icons.Default.Group,
+                                contentDescription = stringResource(R.string.accounts_manage)
+                            )
                         }
                         IconButton(onClick = { editing = p.key }, enabled = !selecting) {
                             Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.desc_edit))
@@ -200,6 +221,17 @@ fun CookieManagementScreen(
                 viewModel.setCredential(platform, user, pass)
                 editing = null
             }
+        )
+    }
+
+    // Phase 11-11.2：多账号管理（额外账号增删；默认账号在 CookieDialog）
+    managingAccounts?.let { key ->
+        AccountsDialog(
+            platformKey = key,
+            accounts = accounts[key].orEmpty().filter { it.id != Accounts.DEFAULT_ID },
+            onAdd = { nick, cookie -> viewModel.addAccount(key, nick, cookie) },
+            onDelete = { accId -> viewModel.removeAccount(key, accId) },
+            onDismiss = { managingAccounts = null },
         )
     }
 }

@@ -9,6 +9,8 @@ import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.AccountHealth
 import com.wochatchat.liverecorder.data.AccountHealthEntry
+import com.wochatchat.liverecorder.data.Account
+import com.wochatchat.liverecorder.data.Accounts
 import com.wochatchat.liverecorder.data.CheckResultEntry
 import com.wochatchat.liverecorder.data.CloudSyncSettings
 import com.wochatchat.liverecorder.data.ConfigExporter
@@ -23,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
@@ -96,6 +99,12 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     val credentials: StateFlow<Map<String, Pair<String, String>>> = authStore.credentials
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
+    /** Phase 11-11.2：多账号（平台键 → 含默认账号的完整列表）。 */
+    val accounts: StateFlow<Map<String, List<Account>>> =
+        combine(authStore.accounts, authStore.cookies) { extra, legacy ->
+            Accounts.withDefault(extra, legacy)
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
     /** 明细参数带默认值：既有 3 参调用点（开关/类型/地址）不受影响。 */
     fun setPushConfig(
         enabled: Boolean,
@@ -135,6 +144,15 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setCredential(platform: String, username: String, password: String) = viewModelScope.launch {
         authStore.setCredential(platform, username, password)
+    }
+
+    /** Phase 11-11.2：新增/删除额外账号。 */
+    fun addAccount(platform: String, nickname: String, cookie: String) = viewModelScope.launch {
+        authStore.addAccount(platform, nickname, cookie)
+    }
+
+    fun removeAccount(platform: String, accountId: String) = viewModelScope.launch {
+        authStore.removeAccount(platform, accountId)
     }
 
     // ---- R17：推送测试 ----

@@ -21,6 +21,7 @@ import com.wochatchat.liverecorder.data.CloudSyncStore
 import com.wochatchat.liverecorder.data.NetType
 import com.wochatchat.liverecorder.data.AppSettingsStore
 import com.wochatchat.liverecorder.data.MonitorStore
+import com.wochatchat.liverecorder.data.Accounts
 import com.wochatchat.liverecorder.data.RecordHistoryEntry
 import com.wochatchat.liverecorder.data.RecordHistoryStore
 import com.wochatchat.liverecorder.recorder.RecordSource
@@ -100,6 +101,19 @@ class RecorderApp : Application() {
     }
 
     /**
+     * Phase 11-11.2：探测/录制共用的实际 cookie 集（条目绑定账号优先，未绑定/账号已删
+     * 回落默认账号 = 既有单 cookie）。
+     */
+    suspend fun effectiveCookies(url: String): Map<String, String> {
+        val legacy = authStore.cookies.first()
+        val binding = runCatching { store.getAccountBinding(url) }.getOrDefault("")
+        if (binding.isBlank() || binding == Accounts.DEFAULT_ID) return legacy
+        val platform = Accounts.cookieKeyForPlatform(platformKeyForUrl(url))
+        val cookie = Accounts.resolveCookie(platform, binding, authStore.accounts.first(), legacy)
+        return if (cookie != null) legacy + (platform to cookie) else legacy
+    }
+
+    /**
      * Phase 10-10.2：探测/录制共用的实际画质（单条画质覆盖优先，其次自适应，最后全局）。
      */
     private suspend fun effectiveQuality(url: String): String {
@@ -165,7 +179,7 @@ class RecorderApp : Application() {
                     url,
                     quality = RecordSource.getQualityCode(quality),
                     proxyAddr = proxyAddr,
-                    cookies = authStore.cookies.first(),
+                    cookies = effectiveCookies(url),
                 )
             },
             ffmpeg = ffmpegRecorder,
@@ -223,7 +237,7 @@ class RecorderApp : Application() {
                     url,
                     quality = RecordSource.getQualityCode(quality),
                     proxyAddr = store.proxySettings.first().resolveProxy(url),
-                    cookies = authStore.cookies.first(),
+                    cookies = effectiveCookies(url),
                 )
             },
             isRecording = { url -> recordController.isActive(url) },
