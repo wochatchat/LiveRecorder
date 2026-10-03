@@ -429,6 +429,13 @@ private fun RecordingGroup(
             checked = settings.onlyNotify,
             onChange = { viewModel.setAppSettings(settings.copy(onlyNotify = it)) }
         )
+        // Phase 6-6.1：通知静音时段（23:00-07:00 不发开播/关播提醒，录制不受影响）
+        SwitchSettingRow(
+            title = stringResource(R.string.settings_quiet_notify_title),
+            subtitle = stringResource(R.string.settings_quiet_notify_subtitle),
+            checked = settings.quietNotifyEnabled,
+            onChange = { viewModel.setAppSettings(settings.copy(quietNotifyEnabled = it)) }
+        )
     }
 }
 

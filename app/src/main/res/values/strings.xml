@@ -48,6 +48,20 @@
     <string name="empty_records_hint2">到「监控」页添加直播间，主播开播后自动录制</string>
     <string name="notif_action_pause">暂停监控</string>
     <string name="notif_action_resume">恢复监控</string>
+
+    <!-- Phase 6-6.1/6.2/6.3：通知体系重构 -->
+    <string name="notif_channel_recording">录制进度</string>
+    <string name="notif_channel_recording_desc">每条录制一个实时进度通知（时长/大小/画质），附停止操作</string>
+    <string name="notif_recording_title">● 正在录制 %1$s</string>
+    <string name="notif_recording_text">「%1$s」 %2$s · %3$s</string>
+    <string name="notif_recording_big_text">「%1$s」&#10;平台 %2$s · 画质 %3$s&#10;时长 %4$s · 大小 %5$s</string>
+    <string name="notif_recording_resolving_title">正在解析直播源…</string>
+    <string name="notif_recording_reconnect_title">断流重连中…</string>
+    <string name="notif_recording_reconnect_text">第 %1$d 次重连（%2$s）</string>
+    <string name="notif_action_stop_record">停止录制</string>
+    <string name="notif_action_stop_all">停止全部录制</string>
+    <string name="settings_quiet_notify_title">通知静音时段</string>
+    <string name="settings_quiet_notify_subtitle">23:00–07:00 不发开播/关播提醒，录制不受影响</string>
     <string name="onboarding_welcome_title">欢迎使用直播录制</string>
     <string name="onboarding_welcome_body">自动监控主播开播并录制\n支持抖音 / 快手 / 虎牙 / 斗鱼 / B站 / YY / Bigo</string>
     <string name="onboarding_perm_title">权限设置</string>

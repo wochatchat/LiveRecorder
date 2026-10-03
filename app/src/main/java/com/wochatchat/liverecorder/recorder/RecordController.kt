@@ -103,13 +103,17 @@ class RecordController(
         /**
          * 录制中。[savePath] 落盘路径（OkHttp 单文件模式为具体文件；
          * ffmpeg 分段模式为目录路径）；[bytes] 累计字节数；[quality] 画质；
-         * [durationMs] 累计录制时长（剔除解析/重连等待，5c 统计面板）。
+         * [durationMs] 累计录制时长（剔除解析/重连等待，5c 统计面板）；
+         * [anchorName]/[title]/[platform] 为 6-6.3 常驻进度通知补充字段。
          */
         data class Recording(
             val savePath: String,
             val bytes: Long,
             val quality: String,
             val durationMs: Long = 0,
+            val anchorName: String = "",
+            val title: String = "",
+            val platform: String = "",
         ) : RecordState()
 
         /** 断流重连中：第 [attempt] 次重试前等待 [nextDelaySec] 秒。[message] 为中断原因。 */
@@ -279,7 +283,7 @@ class RecordController(
                         segActive = true
                         segBytes = 0
                         val saveFile = File(dir, "$baseName.$fmt")
-                        setState(url, RecordState.Recording(saveFile.absolutePath, 0, info.quality, durationMs = accMs))
+                        setState(url, RecordState.Recording(saveFile.absolutePath, 0, info.quality, durationMs = accMs, anchorName = curAnchor, title = curTitle, platform = curPlatform))
                         val res = effectiveFfmpeg.recordDirect(sourceUrl, saveFile, headers) { bytes ->
                             segBytes = bytes
                             scope.launch {
@@ -288,6 +292,7 @@ class RecordController(
                                     RecordState.Recording(
                                         saveFile.absolutePath, totalBytes + bytes, info.quality,
                                         durationMs = accMs + (nowMs() - segStartMs),
+                                        anchorName = curAnchor, title = curTitle, platform = curPlatform,
                                     ),
                                 )
                             }
@@ -318,6 +323,7 @@ class RecordController(
                                 RecordState.Recording(
                                     dir.absolutePath, totalBytes + bytes, info.quality,
                                     durationMs = accMs + (nowMs() - segStartMs),
+                                    anchorName = curAnchor, title = curTitle, platform = curPlatform,
                                 ),
                             )
                         }
@@ -338,7 +344,7 @@ class RecordController(
                         return
                     }
                     val saveFile = File(dir, "$baseName.flv")
-                    setState(url, RecordState.Recording(saveFile.absolutePath, 0, info.quality, durationMs = accMs))
+                    setState(url, RecordState.Recording(saveFile.absolutePath, 0, info.quality, durationMs = accMs, anchorName = curAnchor, title = curTitle, platform = curPlatform))
 
                     var lastUpdate = 0L
                     segStartMs = nowMs()
@@ -354,6 +360,7 @@ class RecordController(
                                 RecordState.Recording(
                                     saveFile.absolutePath, totalBytes + bytes, info.quality,
                                     durationMs = accMs + (t - segStartMs),
+                                    anchorName = curAnchor, title = curTitle, platform = curPlatform,
                                 ),
                             )
                         }

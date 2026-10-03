@@ -70,7 +70,27 @@ data class AppSettings(
     val wifiOnly: Boolean = false,
     /** 省电模式：熄屏时暂停轮询（后台服务降频，录制中不停止）。 */
     val screenOffPause: Boolean = false,
-)
+
+    // ---- Phase 6-6.1: 分级通知/静音时段 ----
+    /** 静音时段开关：开启后 23:00-07:00 不发开播/关播提醒（录制不受影响）。 */
+    val quietNotifyEnabled: Boolean = true,
+) {
+    companion object {
+        /** 静音时段起止（小时）：23:00 起，07:00 止。 */
+        const val QUIET_START_HOUR = 23
+        const val QUIET_END_HOUR = 7
+
+        /**
+         * Phase 6-6.1：当前小时是否处于静音时段（纯函数便于单测）。
+         * [quietNotifyEnabled] 关闭时永不为静音；跨午夜窗口（23→07）按区间并集判定。
+         */
+        fun isQuietHour(settings: AppSettings, hourOfDay: Int): Boolean {
+            if (!settings.quietNotifyEnabled) return false
+            val h = hourOfDay.coerceIn(0, 23)
+            return h >= QUIET_START_HOUR || h < QUIET_END_HOUR
+        }
+    }
+}
 
 /** Phase 5a：全局录制设置持久化（独立 "settings" DataStore，不动既有 MonitorStore 键）。 */
 class AppSettingsStore(private val context: android.content.Context) {
@@ -104,6 +124,9 @@ class AppSettingsStore(private val context: android.content.Context) {
     // Phase 4-4.4：省电模式
     private val wifiOnlyKey = booleanPreferencesKey("wifi_only")
     private val screenOffPauseKey = booleanPreferencesKey("screen_off_pause")
+
+    // Phase 6-6.1：静音时段
+    private val quietNotifyEnabledKey = booleanPreferencesKey("quiet_notify_enabled")
 
     /** 6f R21：首启引导是否已完成。 */
     val onboardingCompleted: Flow<Boolean> = context.settingsDataStore.data
@@ -149,6 +172,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             scheduleEndMinute = prefs[scheduleEndMinuteKey] ?: 1440,
             wifiOnly = prefs[wifiOnlyKey] ?: false,
             screenOffPause = prefs[screenOffPauseKey] ?: false,
+            quietNotifyEnabled = prefs[quietNotifyEnabledKey] ?: true,
         )
     }
 
@@ -176,6 +200,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             prefs[scheduleEndMinuteKey] = settings.scheduleEndMinute.coerceIn(0, 1440)
             prefs[wifiOnlyKey] = settings.wifiOnly
             prefs[screenOffPauseKey] = settings.screenOffPause
+            prefs[quietNotifyEnabledKey] = settings.quietNotifyEnabled
         }
     }
 

@@ -180,22 +180,35 @@ class RecorderApp : Application() {
                 }
             },
             onLiveEvent = { url, anchor, title ->
-                notifier.notifyLive(url, anchor, title)
-                // 2f：HTTP 推送（ntfy/bark），fire-and-forget，配置未启用则内部跳过
                 appScope.launch {
+                    val s = runCatching { appSettings.settings.first() }.getOrNull()
+                    // Phase 6-6.1：静音时段（23-07）不发开播提醒；HTTP 推送同属打扰一并跳过
+                    val quiet = s != null && AppSettings.isQuietHour(s, Calendar.getInstance().get(Calendar.HOUR_OF_DAY))
+                    if (quiet) {
+                        AppLog.i("RecorderApp", "静音时段：跳过开播通知 $url")
+                    } else {
+                        notifier.notifyLive(url, anchor, title)
+                    }
+                    // 2f：HTTP 推送（ntfy/bark），fire-and-forget，配置未启用则内部跳过
                     val cfg = store.pushConfig.first()
                     // 5a：开播推送开关（上游「开播推送开启」，默认是）
-                    if (cfg.isValid && runCatching { appSettings.settings.first().pushOnLive }.getOrDefault(true)) {
+                    if (!quiet && cfg.isValid && runCatching { appSettings.settings.first().pushOnLive }.getOrDefault(true)) {
                         pusher.pushLiveAsync(cfg, anchor, timeNow(), liveUrl = url)
                     }
                 }
             },
             onOfflineEvent = { url, anchor ->
-                notifier.notifyOffline(url, anchor)
                 appScope.launch {
+                    val s = runCatching { appSettings.settings.first() }.getOrNull()
+                    val quiet = s != null && AppSettings.isQuietHour(s, Calendar.getInstance().get(Calendar.HOUR_OF_DAY))
+                    if (quiet) {
+                        AppLog.i("RecorderApp", "静音时段：跳过关播通知 $url")
+                    } else {
+                        notifier.notifyOffline(url, anchor)
+                    }
                     val cfg = store.pushConfig.first()
                     // 5a：关播推送开关（上游「关播推送开启」，默认否）
-                    if (cfg.isValid && runCatching { appSettings.settings.first().pushOnOffline }.getOrDefault(false)) {
+                    if (!quiet && cfg.isValid && runCatching { appSettings.settings.first().pushOnOffline }.getOrDefault(false)) {
                         pusher.pushOfflineAsync(cfg, anchor, timeNow(), liveUrl = url)
                     }
                 }

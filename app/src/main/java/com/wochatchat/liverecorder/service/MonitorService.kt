@@ -44,8 +44,12 @@ class MonitorService : Service() {
     override fun onCreate() {
         super.onCreate()
         createChannel()
+        RecordingNotifier.createChannel(this)
+        val recordingNotifier = RecordingNotifier(this)
         scope.launch {
-            (application as RecorderApp).recordController.states.collect { _ ->
+            (application as RecorderApp).recordController.states.collect { states ->
+                // Phase 6-6.3：每条活动录制一个进度通知（结束后自动撤销）
+                recordingNotifier.update(states)
                 notifyCompat(buildNotification())
             }
         }
@@ -64,6 +68,19 @@ class MonitorService : Service() {
                 stopMonitoring()
                 stopSelf()
                 return START_NOT_STICKY
+            }
+            // Phase 6-6.3：通知栏「停止录制」Action（单条 url）
+            ACTION_STOP_RECORDING -> {
+                val url = intent.getStringExtra(EXTRA_RECORD_URL)
+                if (!url.isNullOrBlank()) {
+                    (application as RecorderApp).recordController.stop(url)
+                    notifyCompat(buildNotification())
+                }
+            }
+            // Phase 6-6.2：常驻通知「停止全部录制」快捷操作
+            ACTION_STOP_ALL_RECORDINGS -> {
+                (application as RecorderApp).recordController.stopAll()
+                notifyCompat(buildNotification())
             }
             ACTION_PAUSE_MONITOR -> {
                 // 通知栏暂停：停轮询 + 落库开关（UI 文字按钮同步显示「已暂停」）
@@ -177,6 +194,18 @@ class MonitorService : Service() {
                 getString(if (monitorEnabledNow) R.string.notif_action_pause else R.string.notif_action_resume),
                 pauseOrResumeIntent,
             )
+            .apply {
+                // Phase 6-6.2：有活动录制时提供「停止全部录制」快捷操作
+                if (active > 0) {
+                    val stopAllIntent = PendingIntent.getService(
+                        this@MonitorService, 0,
+                        Intent(this@MonitorService, MonitorService::class.java)
+                            .setAction(ACTION_STOP_ALL_RECORDINGS),
+                        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+                    )
+                    addAction(0, getString(R.string.notif_action_stop_all), stopAllIntent)
+                }
+            }
             .build()
     }
 
@@ -211,9 +240,28 @@ class MonitorService : Service() {
         /** 6f R22：通知栏 Action——恢复监控。 */
         const val ACTION_RESUME_MONITOR = "com.wochatchat.liverecorder.action.RESUME_MONITOR"
 
+        /** Phase 6-6.3：通知栏 Action——停止单条录制（[EXTRA_RECORD_URL] 指定）。 */
+        const val ACTION_STOP_RECORDING = "com.wochatchat.liverecorder.action.STOP_RECORDING"
+
+        /** Phase 6-6.2：通知栏 Action——停止全部录制。 */
+        const val ACTION_STOP_ALL_RECORDINGS = "com.wochatchat.liverecorder.action.STOP_ALL_RECORDINGS"
+
+        /** Phase 6-6.3：停止单条录制的 url extra。 */
+        const val EXTRA_RECORD_URL = "record_url"
+
         /** 拉起前台服务并启动监控轮询。 */
         fun startMonitor(context: Context) {
             val intent = Intent(context, MonitorService::class.java).apply { action = ACTION_RUN_MONITOR }
+            androidx.core.content.ContextCompat.startForegroundService(context, intent)
+        }
+
+        fun stop(context: Context) {
+            val intent = Intent(context, MonitorService::class.java).apply { action = ACTION_STOP }
+            context.startService(intent)
+        }
+    }
+}
+         val intent = Intent(context, MonitorService::class.java).apply { action = ACTION_RUN_MONITOR }
             androidx.core.content.ContextCompat.startForegroundService(context, intent)
         }
 
