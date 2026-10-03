@@ -60,6 +60,7 @@ fun PerUrlSettingsSheet(
     var loopIntervalText by remember(current) {
         mutableStateOf(current?.loopIntervalSec?.toString() ?: globalSettings.loopIntervalSec.toString())
     }
+    var audioOnly by remember(current) { mutableStateOf(current?.audioOnly == true) }
 
     ModalBottomSheet(sheetState = sheetState, onDismissRequest = onDismiss) {
         Column(
@@ -176,6 +177,23 @@ fun PerUrlSettingsSheet(
             }
             Spacer(Modifier.height(12.dp))
 
+            // ---- Phase 10-10.1：仅录制音频 m4a 覆盖 ----
+            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.perurl_audioonly_title), style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        stringResource(R.string.perurl_audioonly_subtitle),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Switch(
+                    checked = audioOnly,
+                    onCheckedChange = { audioOnly = it },
+                )
+            }
+            Spacer(Modifier.height(12.dp))
+
             // ---- 循环时间（监控间隔）覆盖 ----
             OutlinedTextField(
                 value = loopIntervalText,
@@ -217,6 +235,7 @@ fun PerUrlSettingsSheet(
                             segmented = if (hasSegmented) segmented else null,
                             segmentTimeSec = if (hasSegmented && segmented) segTime else null,
                             loopIntervalSec = loopInt,
+                            audioOnly = if (audioOnly) true else null,
                         )
                         if (built.validate() != null) return@Button
                         onSave(built)

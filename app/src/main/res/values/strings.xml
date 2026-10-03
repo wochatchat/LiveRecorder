@@ -130,6 +130,10 @@
     <string name="settings_status_recording_color">录制中状态色</string>
     <string name="settings_status_error_color">异常状态色</string>
     <string name="settings_status_offline_color">离线状态色</string>
+    <string name="settings_adaptive_quality_title">带宽自适应画质</string>
+    <string name="settings_adaptive_quality_subtitle">WiFi 下自动升一档画质，流量下自动降一档（单条画质覆盖优先）</string>
+    <string name="perurl_audioonly_title">仅录制音频（m4a）</string>
+    <string name="perurl_audioonly_subtitle">只保存音频流，大幅节省空间（需 ffmpeg）</string>
 
     <!-- Phase 7-7.2：设置页权限状态检查 -->
     <string name="settings_group_system_status">系统状态</string>

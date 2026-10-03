@@ -92,6 +92,10 @@ data class AppSettings(
     val statusErrorColor: String = "",
     /** 「离线」徽标色。 */
     val statusOfflineColor: String = "",
+
+    // ---- Phase 10-10.2: 带宽感知画质升降 ----
+    /** 自适应画质：WiFi 下升一档，流量下降一档（单条画质覆盖优先，不受影响）。 */
+    val adaptiveQuality: Boolean = false,
 ) {
     companion object {
         /** 静音时段起止（小时）：23:00 起，07:00 止。 */
@@ -166,6 +170,9 @@ class AppSettingsStore(private val context: android.content.Context) {
     private val statusErrorColorKey = stringPreferencesKey("status_error_color")
     private val statusOfflineColorKey = stringPreferencesKey("status_offline_color")
 
+    /** Phase 10-10.2：带宽感知画质升降开关。 */
+    private val adaptiveQualityKey = booleanPreferencesKey("adaptive_quality")
+
     /** 6f R21：首启引导是否已完成。 */
     val onboardingCompleted: Flow<Boolean> = context.settingsDataStore.data
         .map { prefs -> prefs[onboardingCompletedKey] ?: false }
@@ -239,6 +246,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             statusRecordingColor = prefs[statusRecordingColorKey] ?: "",
             statusErrorColor = prefs[statusErrorColorKey] ?: "",
             statusOfflineColor = prefs[statusOfflineColorKey] ?: "",
+            adaptiveQuality = prefs[adaptiveQualityKey] ?: false,
         )
     }
 
@@ -273,6 +281,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             prefs[statusRecordingColorKey] = settings.statusRecordingColor
             prefs[statusErrorColorKey] = settings.statusErrorColor
             prefs[statusOfflineColorKey] = settings.statusOfflineColor
+            prefs[adaptiveQualityKey] = settings.adaptiveQuality
         }
     }
 

@@ -3,6 +3,7 @@ package com.wochatchat.liverecorder
 import android.app.Application
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.PowerManager
 import com.wochatchat.liverecorder.data.AppLog
@@ -14,6 +15,7 @@ import com.wochatchat.liverecorder.recorder.FfmpegRecorder
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.AccountHealth
+import com.wochatchat.liverecorder.data.AdaptiveQuality
 import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.AppSettingsStore
 import com.wochatchat.liverecorder.data.MonitorStore
@@ -28,6 +30,7 @@ import com.wochatchat.liverecorder.data.DailyReport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.io.File
@@ -68,6 +71,43 @@ class RecorderApp : Application() {
         return pm.isInteractive
     }
 
+    /** Phase 10-10.2：当前网络类型流（自适应画质用），NetworkCallback 实时更新。 */
+    private val netType = MutableStateFlow(NetType.NONE)
+
+    /** Phase 10-10.2：注册默认网络回调，跟踪 WiFi/流量切换（失败只记日志）。 */
+    private fun registerNetworkCallback() {
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        try {
+            cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+                override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+                    netType.value = when {
+                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> NetType.WIFI
+                        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> NetType.CELLULAR
+                        else -> NetType.NONE
+                    }
+                }
+
+                override fun onLost(network: Network) {
+                    netType.value = NetType.NONE
+                }
+            })
+        } catch (e: Exception) {
+            AppLog.e("RecorderApp", "网络回调注册失败: ${e.message}")
+        }
+    }
+
+    /**
+     * Phase 10-10.2：探测/录制共用的实际画质（单条画质覆盖优先，其次自适应，最后全局）。
+     */
+    private suspend fun effectiveQuality(url: String): String {
+        val settings = appSettings.settings.first()
+        val base = runCatching { store.getPerUrlSettings(url) }.getOrNull()?.quality
+            ?: settings.quality
+        return if (settings.adaptiveQuality) {
+            AdaptiveQuality.adaptive(base, netType.value)
+        } else base
+    }
+
     private val store by lazy { MonitorStore(this) }
 
     /** 4b：平台 cookie / 账密（快手等平台爬虫按需取用）。 */
@@ -84,6 +124,8 @@ class RecorderApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Phase 10-10.2：注册网络回调（自适应画质感知 WiFi/流量切换）
+        registerNetworkCallback()
         // 5d：文件日志尽早初始化（logs/ 落 app 私有目录，日志页可查看/导出）
         AppLog.init(File(filesDir, "logs"))
         // 事件渠道尽早创建（2e：开播/关播通知）
@@ -100,10 +142,8 @@ class RecorderApp : Application() {
         recordController = RecordController(
             baseDir = File(filesDir, "downloads"),
             fetchInfo = { url, proxyAddr ->
-                val settings = appSettings.settings.first()
-                // Phase 4-4.1：单条画质覆盖（无覆盖回落全局画质）
-                val quality = runCatching { store.getPerUrlSettings(url) }
-                    .getOrNull()?.quality ?: settings.quality
+                // Phase 10-10.2：画质统一走 effectiveQuality（单条覆盖 → 自适应 → 全局）
+                val quality = effectiveQuality(url)
                 router.fetchStreamInfo(
                     url,
                     quality = RecordSource.getQualityCode(quality),
@@ -158,10 +198,8 @@ class RecorderApp : Application() {
         monitorLoop = MonitorLoop(
             check = { url ->
                 // 轮询探测与录制同源走同一代理判定（上游 check/record 共用 proxy_address）
-                val settings = appSettings.settings.first()
-                // Phase 4-4.1：单条画质覆盖（探测也用该条目的画质，确保录制/探测一致）
-                val quality = runCatching { store.getPerUrlSettings(url) }
-                    .getOrNull()?.quality ?: settings.quality
+                // Phase 10-10.2：画质统一走 effectiveQuality（单条覆盖 → 自适应 → 全局）
+                val quality = effectiveQuality(url)
                 router.fetchStreamInfo(
                     url,
                     quality = RecordSource.getQualityCode(quality),

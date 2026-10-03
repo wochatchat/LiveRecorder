@@ -385,6 +385,13 @@ private fun RecordingGroup(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
             )
         }
+        // Phase 10-10.2：带宽感知画质升降
+        SwitchSettingRow(
+            title = stringResource(R.string.settings_adaptive_quality_title),
+            subtitle = stringResource(R.string.settings_adaptive_quality_subtitle),
+            checked = settings.adaptiveQuality,
+            onChange = { viewModel.setAppSettings(settings.copy(adaptiveQuality = it)) }
+        )
         // 7c：保存格式（ts=分段默认 / mkv|mp4=直存单文件，对齐上游 save_type）
         val directSave = settings.saveFormat == "mkv" || settings.saveFormat == "mp4"
         ChipRow(

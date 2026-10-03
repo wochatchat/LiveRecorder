@@ -55,6 +55,7 @@ open class FfmpegRecorder(
      * @param fileNameBase 5b：调用方预拼好的文件名主干（含标题/时间戳），非空时优先
      * @param segmentSec  分段时长（秒），默认 [DEFAULT_SEGMENT_SEC]
      * @param onProgress  进度回调（估算字节数，外部据此更新 UI）
+     * @param audioOnly   Phase 10-10.1：仅录制音频（-vn，输出 m4a 分段）
      * @return 录制结果
      * @throws kotlinx.coroutines.CancellationException 协程被取消
      */
@@ -66,10 +67,19 @@ open class FfmpegRecorder(
         fileNameBase: String? = null,
         segmentSec: Int = DEFAULT_SEGMENT_SEC,
         onProgress: ProgressCallback = {},
+        audioOnly: Boolean = false,
     ): RecordResult = coroutineScope {
         val baseName = fileNameBase ?: "${RecordSource.cleanName(anchorName)}_${
             SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
         }"
+
+        if (audioOnly) {
+            // 音频模式：不分 ts/flv，统一 mp4 segment muxer（aac copy + adtstoasc），扩展名 m4a
+            val extraArgs = listOf("-vn", "-c:a", "copy", "-bsf:a", "aac_adtstoasc")
+            val outputPath = File(outputDir, "${baseName}_%03d.m4a").absolutePath
+            val cmd = buildCommand(sourceUrl, outputPath, headers, segmentSec, "mp4", extraArgs)
+            return@coroutineScope runRecordProcess(cmd, outputDir, baseName, "m4a", onProgress)
+        }
 
         val isM3u8 = sourceUrl.contains(".m3u8") || sourceUrl.contains(".ts")
         val extension = if (isM3u8) "ts" else "flv"
@@ -83,7 +93,17 @@ open class FfmpegRecorder(
 
         val outputPath = File(outputDir, "${baseName}_%03d.$extension").absolutePath
         val cmd = buildCommand(sourceUrl, outputPath, headers, segmentSec, segmentFormat, extraArgs)
+        runRecordProcess(cmd, outputDir, baseName, extension, onProgress)
+    }
 
+    /** record/recordDirect 共用：启动进程、解析进度、收集分片（open 便于子类注入假进程）。 */
+    private suspend fun runRecordProcess(
+        cmd: List<String>,
+        outputDir: File,
+        baseName: String,
+        extension: String,
+        onProgress: ProgressCallback,
+    ): RecordResult {
         var estimatedBytes = 0L
         val progressJob: Job
 
@@ -188,18 +208,22 @@ open class FfmpegRecorder(
      * 无 %03d 分片）。断流重连由调用方逐轮新建文件。
      * - mkv → `-f matroska -c copy`
      * - mp4 → `-f mp4 -c copy -bsf:a aac_adtstoasc`（TS/FLV 源的 AAC 均需 ADTS→ASC）
+     * - audioOnly → `-vn`，扩展名 m4a（10-10.1）
      */
     suspend open fun recordDirect(
         sourceUrl: String,
         outputFile: File,
         headers: Map<String, String> = emptyMap(),
         onProgress: ProgressCallback = {},
+        audioOnly: Boolean = false,
     ): RecordResult {
-        val format = if (outputFile.name.endsWith(".mp4")) "mp4" else "matroska"
-        val extraArgs = if (format == "mp4") {
-            listOf("-c:v", "copy", "-c:a", "copy", "-bsf:a", "aac_adtstoasc")
-        } else {
-            listOf("-c:v", "copy", "-c:a", "copy")
+        val format = if (outputFile.name.endsWith(".mp4") || outputFile.name.endsWith(".m4a")) {
+            "mp4"
+        } else "matroska"
+        val extraArgs = when {
+            audioOnly -> listOf("-vn", "-c:a", "copy", "-bsf:a", "aac_adtstoasc")
+            format == "mp4" -> listOf("-c:v", "copy", "-c:a", "copy", "-bsf:a", "aac_adtstoasc")
+            else -> listOf("-c:v", "copy", "-c:a", "copy")
         }
         val cmd = commonArgs(sourceUrl, headers) + extraArgs + listOf("-f", format, outputFile.absolutePath)
 

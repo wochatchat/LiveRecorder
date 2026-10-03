@@ -181,6 +181,8 @@ class RecordController(
         suspend fun effSegmentTimeSec(): Int = ov?.segmentTimeSec ?: runCatching { segmentTimeSec() }.getOrNull() ?: 1800
         suspend fun effSaveFormat(): String = (ov?.saveFormat ?: runCatching { saveFormat() }.getOrDefault("ts"))
             .trim().lowercase().ifBlank { "ts" }
+        // Phase 10-10.1：仅录制音频（单条覆盖开关，无全局项）
+        val audioOnly = ov?.audioOnly == true
 
         try {
             while (true) {
@@ -282,9 +284,10 @@ class RecordController(
                         segStartMs = nowMs()
                         segActive = true
                         segBytes = 0
-                        val saveFile = File(dir, "$baseName.$fmt")
+                        // audioOnly：直存也强制 m4a 单文件（mkv 直存不适用音频模式）
+                        val saveFile = if (audioOnly) File(dir, "$baseName.m4a") else File(dir, "$baseName.$fmt")
                         setState(url, RecordState.Recording(saveFile.absolutePath, 0, info.quality, durationMs = accMs, anchorName = curAnchor, title = curTitle, platform = curPlatform))
-                        val res = effectiveFfmpeg.recordDirect(sourceUrl, saveFile, headers) { bytes ->
+                        val res = effectiveFfmpeg.recordDirect(sourceUrl, saveFile, headers, audioOnly = audioOnly) { bytes ->
                             segBytes = bytes
                             scope.launch {
                                 setState(
@@ -314,6 +317,7 @@ class RecordController(
                         fileNameBase = baseName,
                         segmentSec = runCatching { effSegmentTimeSec() }
                             .getOrNull()?.coerceAtLeast(1) ?: 1800,
+                        audioOnly = audioOnly,
                     ) { bytes ->
                         segBytes = bytes
                         // setState 已 suspend（R18 onFinished 钩子），ffmpeg 进度回调为非挂起 lambda，转协程派发
@@ -339,6 +343,10 @@ class RecordController(
                     }
                 } else {
                     // OkHttp 直下（Phase 1/2 行为）
+                    if (audioOnly) {
+                        // 10-10.1：无 ffmpeg 无法抽音频流，回退常规录制（音视频都要），只记日志不打断
+                        AppLog.i(TAG, "音频模式需 ffmpeg 分段/直存，当前走 OkHttp 直下按常规录制: $url")
+                    }
                     if (sourceUrl.contains(".m3u8")) {
                         setState(url, RecordState.Failed("HLS(m3u8) 源需 ffmpeg 支持（Phase 3）"))
                         return
