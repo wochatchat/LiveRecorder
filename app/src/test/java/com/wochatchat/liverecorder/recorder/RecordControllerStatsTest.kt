@@ -44,6 +44,7 @@ class RecordControllerStatsTest {
                 anchorName: String,
                 fileNameBase: String?,
                 segmentSec: Int,
+                audioOnly: Boolean,
                 onProgress: ProgressCallback,
             ): RecordResult {
                 t += 10_000

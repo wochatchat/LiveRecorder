@@ -26,7 +26,7 @@ class RecordControllerSaveFormatTest {
         override suspend fun record(
             sourceUrl: String, outputDir: File, headers: Map<String, String>,
             anchorName: String, fileNameBase: String?, segmentSec: Int,
-            onProgress: ProgressCallback,
+            audioOnly: Boolean, onProgress: ProgressCallback,
         ): RecordResult {
             recordCalled = true
             val ts = File(outputDir, "anchor_000.ts").apply { writeText("ts") }
@@ -35,7 +35,7 @@ class RecordControllerSaveFormatTest {
 
         override suspend fun recordDirect(
             sourceUrl: String, outputFile: File,
-            headers: Map<String, String>, onProgress: ProgressCallback,
+            headers: Map<String, String>, audioOnly: Boolean, onProgress: ProgressCallback,
         ): RecordResult {
             recordDirectOutput = outputFile
             outputFile.writeBytes(ByteArray(2048))

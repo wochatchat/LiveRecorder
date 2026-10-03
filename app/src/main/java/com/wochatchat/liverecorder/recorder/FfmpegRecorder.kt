@@ -54,8 +54,8 @@ open class FfmpegRecorder(
      * @param anchorName  主播名（用于文件名；[fileNameBase] 缺省时经 cleanName 清洗）
      * @param fileNameBase 5b：调用方预拼好的文件名主干（含标题/时间戳），非空时优先
      * @param segmentSec  分段时长（秒），默认 [DEFAULT_SEGMENT_SEC]
-     * @param onProgress  进度回调（估算字节数，外部据此更新 UI）
      * @param audioOnly   Phase 10-10.1：仅录制音频（-vn，输出 m4a 分段）
+     * @param onProgress  进度回调（估算字节数，外部据此更新 UI）
      * @return 录制结果
      * @throws kotlinx.coroutines.CancellationException 协程被取消
      */
@@ -66,8 +66,8 @@ open class FfmpegRecorder(
         anchorName: String,
         fileNameBase: String? = null,
         segmentSec: Int = DEFAULT_SEGMENT_SEC,
-        onProgress: ProgressCallback = {},
         audioOnly: Boolean = false,
+        onProgress: ProgressCallback = {},
     ): RecordResult = coroutineScope {
         val baseName = fileNameBase ?: "${RecordSource.cleanName(anchorName)}_${
             SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
@@ -214,8 +214,8 @@ open class FfmpegRecorder(
         sourceUrl: String,
         outputFile: File,
         headers: Map<String, String> = emptyMap(),
-        onProgress: ProgressCallback = {},
         audioOnly: Boolean = false,
+        onProgress: ProgressCallback = {},
     ): RecordResult {
         val format = if (outputFile.name.endsWith(".mp4") || outputFile.name.endsWith(".m4a")) {
             "mp4"

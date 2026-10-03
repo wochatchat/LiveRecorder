@@ -26,7 +26,7 @@ class RecordHistoryWriteTest {
         override suspend fun record(
             sourceUrl: String, outputDir: File, headers: Map<String, String>,
             anchorName: String, fileNameBase: String?, segmentSec: Int,
-            onProgress: ProgressCallback,
+            audioOnly: Boolean, onProgress: ProgressCallback,
         ): RecordResult {
             outputDir.mkdirs()
             val seg = File(outputDir, "seg0.ts").apply { writeBytes(ByteArray(bytes.toInt().coerceAtMost(4096))) }
@@ -36,7 +36,7 @@ class RecordHistoryWriteTest {
 
         override suspend fun recordDirect(
             sourceUrl: String, outputFile: File,
-            headers: Map<String, String>, onProgress: ProgressCallback,
+            headers: Map<String, String>, audioOnly: Boolean, onProgress: ProgressCallback,
         ): RecordResult {
             outputFile.parentFile?.mkdirs()
             outputFile.writeBytes(ByteArray(bytes.toInt().coerceAtMost(4096)))
