@@ -6,6 +6,7 @@ import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.data.AuthStore
+import com.wochatchat.liverecorder.data.webLoginCookieLooksValid
 import com.wochatchat.liverecorder.data.webLoginUrlFor
 
 /**
@@ -79,9 +81,27 @@ fun WebLoginScreen(
                             val cookie = url?.let {
                                 CookieManager.getInstance().getCookie(it)
                             }
-                            if (!cookie.isNullOrBlank()) {
-                                grabbed = true
-                                onDone(cookie)
+                            when {
+                                // 抓取失败回落：未登录/无 cookie → 提示留在登录页
+                                cookie.isNullOrBlank() -> Toast.makeText(
+                                    context,
+                                    context.getString(R.string.web_login_toast_none),
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                // 有 cookie 但缺登录态键 → 提示后仍返回，由用户在对话框人工确认
+                                !webLoginCookieLooksValid(platformKey, cookie) -> {
+                                    Toast.makeText(
+                                        context,
+                                        context.getString(R.string.web_login_toast_nologin),
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                    grabbed = true
+                                    onDone(cookie)
+                                }
+                                else -> {
+                                    grabbed = true
+                                    onDone(cookie)
+                                }
                             }
                         },
                         enabled = view != null

@@ -143,6 +143,8 @@
     <string name="web_login_grab">抓取并返回</string>
     <string name="web_login_hint">在页面中登录你的账号，完成后点右上角「抓取并返回」，将自动填入 Cookie 供确认保存</string>
     <string name="web_login_unsupported">该平台暂不支持网页登录取 Cookie，请手动粘贴</string>
+    <string name="web_login_toast_none">未抓取到 Cookie，请先在页面完成登录后再点「抓取并返回」</string>
+    <string name="web_login_toast_nologin">未检测到登录态 Cookie（可能未登录成功），已填入请人工确认</string>
     <string name="settings_status_default">默认</string>
     <string name="settings_status_recording_color">录制中状态色</string>
     <string name="settings_status_error_color">异常状态色</string>
