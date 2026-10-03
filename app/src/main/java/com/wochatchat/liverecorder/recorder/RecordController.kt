@@ -338,6 +338,8 @@ class RecordController(
                         segBytes = 0
                         // audioOnly：直存也强制 m4a 单文件（mkv 直存不适用音频模式）
                         val saveFile = if (audioOnly) File(dir, "$baseName.m4a") else File(dir, "$baseName.$fmt")
+                        // V3-1 R2：落盘路径在开录前挂到 lastPath——录制中途异常/中断时 Failed 才能带上落盘文件落库
+                        lastPath = saveFile.absolutePath
                         setState(url, RecordState.Recording(saveFile.absolutePath, 0, info.quality, durationMs = accMs, anchorName = curAnchor, title = curTitle, platform = curPlatform))
                         val res = effectiveFfmpeg.recordDirect(sourceUrl, saveFile, headers, audioOnly = audioOnly) { bytes ->
                             segBytes = bytes
@@ -354,13 +356,14 @@ class RecordController(
                         }
                         accMs += nowMs() - segStartMs
                         segActive = false
-                        lastPath = saveFile.absolutePath
                         totalBytes += res.estimatedBytes
                         segBytes = 0
                         if (!backoffOrGiveUp(url, ++attempt, "直播流结束", diagOf(totalBytes, lastPath, true), sessionInfo())) return
                     } else {
                         // ffmpeg 分段录制（3-3g）：m3u8 必须走 ffmpeg；FLV 也走 ffmpeg
                         segStartMs = nowMs()
+                    // V3-1 R2：目录路径在开录前挂到 lastPath（异常/中断时 Failed 能带上落盘目录）
+                    lastPath = dir.absolutePath
                     val res = effectiveFfmpeg.record(
                         sourceUrl = sourceUrl,
                         outputDir = dir,
@@ -386,7 +389,6 @@ class RecordController(
                     }
                     accMs += nowMs() - segStartMs
                     segActive = false
-                    lastPath = dir.absolutePath
                     totalBytes += res.estimatedBytes
                     segBytes = 0
                     convertSegmentsAsync(res.segments)
@@ -404,6 +406,8 @@ class RecordController(
                         return
                     }
                     val saveFile = File(dir, "$baseName.flv")
+                    // V3-1 R2：落盘路径在下载前挂到 lastPath——中途断流/异常时 Failed 才能带上落盘文件落库
+                    lastPath = saveFile.absolutePath
                     setState(url, RecordState.Recording(saveFile.absolutePath, 0, info.quality, durationMs = accMs, anchorName = curAnchor, title = curTitle, platform = curPlatform))
 
                     var lastUpdate = 0L
@@ -425,7 +429,6 @@ class RecordController(
                             )
                         }
                     }
-                    lastPath = saveFile.absolutePath
                     totalBytes += segBytes
                     accMs += nowMs() - segStartMs
                     segActive = false
