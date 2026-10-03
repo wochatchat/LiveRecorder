@@ -6,6 +6,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import com.wochatchat.liverecorder.platform.UrlExtractor
 import com.wochatchat.liverecorder.platform.PlatformRouter
 import com.wochatchat.liverecorder.service.EventNotifier
@@ -27,7 +30,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         handleIntent(intent)
         setContent {
-            LiveRecorderTheme {
+            // Phase 9：主题设置在主题层读取（外观随改随生效）
+            val appSettings = remember {
+                (applicationContext as com.wochatchat.liverecorder.RecorderApp).appSettings
+            }
+            val settings by appSettings.settings.collectAsState(initial = com.wochatchat.liverecorder.data.AppSettings())
+            LiveRecorderTheme(
+                themeColor = settings.themeColor,
+                amoledBlack = settings.amoledBlack,
+            ) {
                 AppNavigation()
             }
         }

@@ -78,6 +78,12 @@ data class AppSettings(
     // ---- Phase 8-8.1: 录制日报 ----
     /** 录制日报推送开关：每天 09:00 后推送昨日录制统计（走 HTTP 推送）。 */
     val dailyReportEnabled: Boolean = false,
+
+    // ---- Phase 9: 主题定制 ----
+    /** 主题色（Phase 9-9.1）：system=跟随系统动态色 / red / blue / green / purple / orange。 */
+    val themeColor: String = "system",
+    /** AMOLED 纯黑模式（Phase 9-9.2）：深色下背景/表面用 #000000。 */
+    val amoledBlack: Boolean = false,
 ) {
     companion object {
         /** 静音时段起止（小时）：23:00 起，07:00 止。 */
@@ -140,6 +146,12 @@ class AppSettingsStore(private val context: android.content.Context) {
 
     /** Phase 8-8.1：上次已发日报的日期（yyyy-MM-dd，按"发送当天"记，防重复）。 */
     private val lastDailyReportDateKey = stringPreferencesKey("last_daily_report_date")
+
+    /** Phase 9-9.1：主题色（system/red/blue/green/purple/orange）。 */
+    private val themeColorKey = stringPreferencesKey("theme_color")
+
+    /** Phase 9-9.2：AMOLED 纯黑模式。 */
+    private val amoledBlackKey = booleanPreferencesKey("amoled_black")
 
     /** 6f R21：首启引导是否已完成。 */
     val onboardingCompleted: Flow<Boolean> = context.settingsDataStore.data
@@ -209,6 +221,8 @@ class AppSettingsStore(private val context: android.content.Context) {
             screenOffPause = prefs[screenOffPauseKey] ?: false,
             quietNotifyEnabled = prefs[quietNotifyEnabledKey] ?: true,
             dailyReportEnabled = prefs[dailyReportEnabledKey] ?: false,
+            themeColor = prefs[themeColorKey] ?: "system",
+            amoledBlack = prefs[amoledBlackKey] ?: false,
         )
     }
 
@@ -238,6 +252,8 @@ class AppSettingsStore(private val context: android.content.Context) {
             prefs[screenOffPauseKey] = settings.screenOffPause
             prefs[quietNotifyEnabledKey] = settings.quietNotifyEnabled
             prefs[dailyReportEnabledKey] = settings.dailyReportEnabled
+            prefs[themeColorKey] = settings.themeColor
+            prefs[amoledBlackKey] = settings.amoledBlack
         }
     }
 

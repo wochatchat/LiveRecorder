@@ -115,6 +115,18 @@
     <string name="daily_report_title">录制日报 %1$s</string>
     <string name="records_week_summary">近 7 天日均 %1$s · 平均码率 %2$s Mbps</string>
 
+    <!-- Phase 9：主题定制 -->
+    <string name="settings_group_appearance">外观</string>
+    <string name="settings_theme_color">主题色</string>
+    <string name="settings_theme_system">跟随系统</string>
+    <string name="settings_theme_red">红</string>
+    <string name="settings_theme_blue">蓝</string>
+    <string name="settings_theme_green">绿</string>
+    <string name="settings_theme_purple">紫</string>
+    <string name="settings_theme_orange">橙</string>
+    <string name="settings_amoled_title">AMOLED 纯黑模式</string>
+    <string name="settings_amoled_subtitle">深色模式下背景与卡片用纯黑，更省电</string>
+
     <!-- Phase 7-7.2：设置页权限状态检查 -->
     <string name="settings_group_system_status">系统状态</string>
     <string name="settings_permission_check_title">权限状态检查</string>

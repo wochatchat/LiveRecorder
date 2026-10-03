@@ -192,6 +192,9 @@ fun SettingsScreen(
             // Phase 7-7.2：系统权限状态检查入口
             SystemStatusGroup(searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
+            // Phase 9：主题定制（9.1 主题色 / 9.2 AMOLED 纯黑）
+            AppearanceGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
+            Spacer(Modifier.height(12.dp))
             BackupGroup(
                 viewModel = viewModel,
                 onExport = { includeAuth -> exportLauncher.launch("liverecorder-config.json") },
@@ -847,6 +850,57 @@ private fun PermissionStatusRow(label: String, granted: Boolean, onClick: () -> 
 /** 悬浮窗权限是否已授（Phase 7-7.2，悬浮球功能用）。 */
 internal fun canDrawOverlays(context: android.content.Context): Boolean =
     android.provider.Settings.canDrawOverlays(context)
+
+/** Phase 9：主题定制（9.1 主题色 ChipRow / 9.2 AMOLED 纯黑开关），即改即生效。 */
+@Composable
+private fun AppearanceGroup(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
+) {
+    val title = stringResource(R.string.settings_group_appearance)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
+        ChipRow(
+            label = stringResource(R.string.settings_theme_color),
+            options = listOf(
+                stringResource(R.string.settings_theme_system),
+                stringResource(R.string.settings_theme_red),
+                stringResource(R.string.settings_theme_blue),
+                stringResource(R.string.settings_theme_green),
+                stringResource(R.string.settings_theme_purple),
+                stringResource(R.string.settings_theme_orange),
+            ),
+            selected = when (settings.themeColor) {
+                "red" -> stringResource(R.string.settings_theme_red)
+                "blue" -> stringResource(R.string.settings_theme_blue)
+                "green" -> stringResource(R.string.settings_theme_green)
+                "purple" -> stringResource(R.string.settings_theme_purple)
+                "orange" -> stringResource(R.string.settings_theme_orange)
+                else -> stringResource(R.string.settings_theme_system)
+            },
+            onSelect = { label ->
+                val key = when (label) {
+                    stringResource(R.string.settings_theme_red) -> "red"
+                    stringResource(R.string.settings_theme_blue) -> "blue"
+                    stringResource(R.string.settings_theme_green) -> "green"
+                    stringResource(R.string.settings_theme_purple) -> "purple"
+                    stringResource(R.string.settings_theme_orange) -> "orange"
+                    else -> "system"
+                }
+                viewModel.setAppSettings(settings.copy(themeColor = key))
+            },
+        )
+        SwitchSettingRow(
+            title = stringResource(R.string.settings_amoled_title),
+            subtitle = stringResource(R.string.settings_amoled_subtitle),
+            checked = settings.amoledBlack,
+            onChange = { viewModel.setAppSettings(settings.copy(amoledBlack = it)) },
+        )
+    }
+}
 
 /** Phase 4-4.3：配置导出/导入（SAF）。 */
 @Composable
