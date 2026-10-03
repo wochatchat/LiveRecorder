@@ -97,7 +97,7 @@ class RecordFiltersTest {
             entry("u", title = "游戏[xiaohongshu]实况"),
             entry("u", anchor = "无关"),
         )
-        assertEquals(2, RecordFilters.apply(list, 0L, null, "abc").size)
+        assertEquals(1, RecordFilters.apply(list, 0L, null, "abc").size)
         assertEquals(1, RecordFilters.apply(list, 0L, null, "XIAOHONGSHU").size)
     }
 

@@ -8,10 +8,12 @@ import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
  */
 object RecordFilters {
 
-    /** 条目平台键：优先历史自带中文平台名反查 [PLATFORM_LABELS]（幽灵回收条目无 URL），回落 URL 域名推断。 */
+    /** 条目平台键：优先历史自带中文平台名反查 [PLATFORM_LABELS]（落库值带「直播」后缀，先剥除；
+     *  幽灵回收条目无 URL），回落 URL 域名推断。 */
     fun platformKeyOf(entry: RecordHistoryEntry): String {
-        if (entry.platform.isNotBlank()) {
-            PLATFORM_LABELS.entries.firstOrNull { it.value == entry.platform }?.let { return it.key }
+        val p = entry.platform.trim().removeSuffix("直播")
+        if (p.isNotBlank()) {
+            PLATFORM_LABELS.entries.firstOrNull { it.value == p }?.let { return it.key }
         }
         return if (entry.url.isBlank()) "" else platformKeyForUrl(entry.url)
     }
