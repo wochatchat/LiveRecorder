@@ -28,6 +28,7 @@ class RecordControllerConvertTest {
             anchorName: String,
             fileNameBase: String?,
             segmentSec: Int,
+            audioOnly: Boolean,
             onProgress: ProgressCallback,
         ): RecordResult {
             val ts = File(outputDir, "anchor_000.ts").apply { writeText("ts") }
