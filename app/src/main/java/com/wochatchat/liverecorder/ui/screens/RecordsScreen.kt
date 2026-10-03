@@ -3,6 +3,10 @@ package com.wochatchat.liverecorder.ui.screens
 import android.content.ClipData
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -70,6 +74,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.data.DailyReport
+import com.wochatchat.liverecorder.data.RecordFilters
 import com.wochatchat.liverecorder.data.RecordHistoryEntry
 import kotlinx.coroutines.flow.StateFlow
 import com.wochatchat.liverecorder.ui.RecordsViewModel
@@ -199,41 +204,50 @@ fun RecordsScreen(
             )
             Spacer(Modifier.height(4.dp))
             FilterRow(filter, viewModel)
+            // V3-2：平台筛选第二行（动态 chips + 持久化）
+            PlatformFilterRow(filter, viewModel)
             // R21 Phase 1.1：排序 chips
             SortRow(sortMode, viewModel)
             StatsLine(stats.todayCount, stats.totalBytes)
             // Phase 8-8.2：近 7 天存储用量迷你柱状图
             StorageTrendChart(viewModel.allEntries)
-            if (filtered.isEmpty()) {
-                EmptyRecords()
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(
-                        horizontal = 12.dp, vertical = 4.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    items(filtered, key = { it.savePath + it.endTimeMs }) { entry ->
-                        RecordCard(
-                            entry = entry,
-                            modifier = Modifier.animateItem(),
-                            selectionMode = selectionMode,
-                            isSelected = entry in selected,
-                            onToggleSelect = { toggleSelect(entry) },
-                            onLongPress = {
-                                selectionMode = true
-                                selected = selected + entry
-                            },
-                            onDelete = { if (selectionMode) toggleSelect(entry) else pendingDelete = entry },
-                            onOpenDetail = {
-                                if (!selectionMode) {
-                                    onNavigateToDetail(
-                                        java.net.URLEncoder.encode(entry.savePath, "UTF-8"),
-                                    )
-                                }
-                            },
-                        )
+            // V3-2：空态 ↔ 列表 Crossfade 过渡（列表项增删动画由 animateItem 承担）
+            Crossfade(
+                targetState = filtered.isEmpty(),
+                animationSpec = tween(250),
+                label = "records_list",
+            ) { isEmpty ->
+                if (isEmpty) {
+                    EmptyRecords()
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                            horizontal = 12.dp, vertical = 4.dp,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(filtered, key = { it.savePath + it.endTimeMs }) { entry ->
+                            RecordCard(
+                                entry = entry,
+                                modifier = Modifier.animateItem(),
+                                selectionMode = selectionMode,
+                                isSelected = entry in selected,
+                                onToggleSelect = { toggleSelect(entry) },
+                                onLongPress = {
+                                    selectionMode = true
+                                    selected = selected + entry
+                                },
+                                onDelete = { if (selectionMode) toggleSelect(entry) else pendingDelete = entry },
+                                onOpenDetail = {
+                                    if (!selectionMode) {
+                                        onNavigateToDetail(
+                                            java.net.URLEncoder.encode(entry.savePath, "UTF-8"),
+                                        )
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             }
@@ -307,11 +321,9 @@ private fun StorageUsageBar(usage: com.wochatchat.liverecorder.storage.StorageUs
     }
 }
 
-/** 筛选行：全部/今日 + 平台 chips（单选语义，可再点取消）。 */
+/** 筛选行（第一行）：全部/今日/本周 时间段 chips。 */
 @Composable
 private fun FilterRow(filter: RecordsViewModel.RecordFilter, viewModel: RecordsViewModel) {
-    // 平台 chips 来自当前全部记录（不随筛选收窄，避免选项跳变）
-    val allEntries by viewModel.allEntries.collectAsState()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -330,23 +342,54 @@ private fun FilterRow(filter: RecordsViewModel.RecordFilter, viewModel: RecordsV
                 label = { Text(label) },
             )
         }
-        allEntries.map { platformKeyForUrl(it.url) }.distinct().forEach { key ->
+    }
+}
+
+/**
+ * V3-2：平台筛选行（第二行）——全部 + 动态平台 chips（按已有记录生成，次数降序）。
+ * 持久化的平台键若当前无对应记录则追加展示，避免筛选「隐形生效」。
+ */
+@Composable
+private fun PlatformFilterRow(filter: RecordsViewModel.RecordFilter, viewModel: RecordsViewModel) {
+    val allEntries by viewModel.allEntries.collectAsState()
+    val keys = remember(allEntries) { RecordFilters.platformKeys(allEntries) }
+    val chips = remember(keys, filter.platformKey) {
+        if (filter.platformKey != null && filter.platformKey !in keys) keys + filter.platformKey else keys
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 12.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        FilterChip(
+            selected = filter.platformKey == null,
+            onClick = { viewModel.setPlatformKey(null) },
+            label = { Text(stringResource(R.string.filter_all)) },
+        )
+        chips.forEach { key ->
             FilterChip(
                 selected = filter.platformKey == key,
-                onClick = {
-                    viewModel.setPlatformKey(if (filter.platformKey == key) null else key)
-                },
+                onClick = { viewModel.setPlatformKey(key) },
                 label = { Text(PLATFORM_LABELS[key] ?: key) },
             )
         }
     }
 }
 
-/** 统计行：今日 X 条 · 合计 Y。 */
+/** 统计行：今日 X 条 · 合计 Y（V3-2：数字计数动效）。 */
 @Composable
 private fun StatsLine(todayCount: Int, totalBytes: Long) {
+    // animateIntAsState 计数动效；字节以 KB 为单位做 Float 插值（避免超 Int 溢出）
+    val animatedCount by animateIntAsState(targetValue = todayCount, label = "todayCount")
+    val animatedKb by animateFloatAsState(targetValue = totalBytes / 1024f, label = "totalKb")
     Text(
-        stringResource(R.string.records_today_summary, todayCount, StatsFormat.bytes(totalBytes)),
+        stringResource(
+            R.string.records_today_summary,
+            animatedCount,
+            StatsFormat.bytes((animatedKb * 1024).toLong()),
+        ),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),

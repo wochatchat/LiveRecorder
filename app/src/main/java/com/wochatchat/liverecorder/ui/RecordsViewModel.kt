@@ -1,10 +1,15 @@
 package com.wochatchat.liverecorder.ui
 
 import android.app.Application
+import android.content.Context
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.RecorderApp
+import com.wochatchat.liverecorder.data.RecordFilters
 import com.wochatchat.liverecorder.data.RecordHistoryEntry
 import com.wochatchat.liverecorder.storage.StorageUsage
 import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
@@ -13,6 +18,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.delay
@@ -20,6 +26,13 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Calendar
+
+/** V3-2：记录页筛选状态持久化（独立 DataStore，小体量不与 history 混用）。 */
+private val Context.recordsUiStore by preferencesDataStore(name = "records_ui")
+
+private val KEY_TIME_RANGE = stringPreferencesKey("time_range")
+private val KEY_PLATFORM_KEY = stringPreferencesKey("platform_key")
+private val KEY_SORT_MODE = stringPreferencesKey("sort_mode")
 
 /**
  * 录制记录页 ViewModel（6e R19 / R21 Phase 1.1）：
@@ -48,12 +61,43 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
     private val _filter = MutableStateFlow(RecordFilter())
     val filter: StateFlow<RecordFilter> = _filter.asStateFlow()
 
+    private val uiStore = getApplication<Application>().recordsUiStore
+
+    init {
+        // V3-2：恢复持久化的筛选/排序状态（非法值静默回落默认）
+        viewModelScope.launch {
+            val p = runCatching { uiStore.data.first() }.getOrNull() ?: return@launch
+            _filter.value = _filter.value.copy(
+                timeRange = runCatching { TimeRange.valueOf(p[KEY_TIME_RANGE] ?: "") }
+                    .getOrDefault(TimeRange.ALL),
+                platformKey = p[KEY_PLATFORM_KEY]?.takeIf { it.isNotBlank() },
+            )
+            _sortMode.value = runCatching { SortMode.valueOf(p[KEY_SORT_MODE] ?: "") }
+                .getOrDefault(SortMode.TIME)
+        }
+    }
+
     fun setTimeRange(timeRange: TimeRange) {
         _filter.value = _filter.value.copy(timeRange = timeRange)
+        persistFilter()
     }
 
     fun setPlatformKey(platformKey: String?) {
         _filter.value = _filter.value.copy(platformKey = platformKey)
+        persistFilter()
+    }
+
+    /** V3-2：筛选状态写盘（失败静默——持久化不阻塞交互）。 */
+    private fun persistFilter() {
+        val f = _filter.value
+        viewModelScope.launch {
+            runCatching {
+                uiStore.edit {
+                    it[KEY_TIME_RANGE] = f.timeRange.name
+                    it[KEY_PLATFORM_KEY] = f.platformKey ?: ""
+                }
+            }
+        }
     }
 
     // ---- 搜索（R21 Phase 1.1）----
@@ -74,6 +118,9 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setSortMode(mode: SortMode) {
         _sortMode.value = mode
+        viewModelScope.launch {
+            runCatching { uiStore.edit { it[KEY_SORT_MODE] = mode.name } }
+        }
     }
 
     /** V3-1：幽灵文件回收——进入记录页时扫描 downloads/ 未入库文件补写历史。 */
@@ -99,16 +146,8 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
                 TimeRange.TODAY -> startOfTodayMs()
                 TimeRange.THIS_WEEK -> startOfThisWeekMs()
             }
-            val base = list.filter { e ->
-                (rangeStart == 0L || e.endTimeMs >= rangeStart) &&
-                    (f.platformKey == null || platformKeyForUrl(e.url) == f.platformKey) &&
-                    (query.isBlank() || (
-                        e.anchorName.contains(query, ignoreCase = true) ||
-                            e.title.contains(query, ignoreCase = true) ||
-                            platformKeyForUrl(e.url).contains(query, ignoreCase = true)
-                        ))
-            }
-            sortEntries(base, sort)
+            // V3-2：筛选组合下沉 RecordFilters 纯函数（可单测）
+            sortEntries(RecordFilters.apply(list, rangeStart, f.platformKey, query), sort)
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // ---- 统计（R19 顶部统计行） ----
