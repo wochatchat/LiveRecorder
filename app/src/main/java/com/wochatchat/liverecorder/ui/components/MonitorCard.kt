@@ -1,11 +1,16 @@
 package com.wochatchat.liverecorder.ui.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -32,6 +37,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.wochatchat.liverecorder.R
@@ -119,6 +126,8 @@ fun MonitorCard(
     boundAccount: String? = null,
     /** V3-1：诊断 DBG 行显示开关（设置页控制，默认关）。 */
     showDiag: Boolean = false,
+    /** V3-3 R1：紧凑两行卡片（默认关，由设置页「紧凑模式」控制）。 */
+    compact: Boolean = false,
 ) {
     val recording = recordState is RecordController.RecordState.Resolving ||
         recordState is RecordController.RecordState.Recording ||
@@ -143,6 +152,27 @@ fun MonitorCard(
         shadowElevation = 1.dp,
         tonalElevation = 1.dp,
     ) {
+        if (compact) {
+            // V3-3 R1：紧凑两行卡片（平台色条 + 主播名主视觉 + 摘要/图标行，点击展开标题与 URL）
+            CompactCardInner(
+                url = url,
+                recordState = recordState,
+                monitorState = monitorState,
+                disabled = disabled,
+                unhealthy = unhealthy,
+                roundInfo = roundInfo,
+                recording = recording,
+                boundAccount = boundAccount,
+                showDiag = showDiag,
+                onEdit = onEdit,
+                onSettings = onSettings,
+                onToggleEnabled = onToggleEnabled,
+                onStart = onStart,
+                onStop = onStop,
+                hasOverride = hasOverride,
+                onDelete = { showConfirmDelete = true },
+            )
+        } else {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -250,6 +280,184 @@ fun MonitorCard(
                 }
             }
         }
+        } // else：完整卡片（旧布局，可从设置页切回）
+    }
+}
+
+/**
+ * V3-3 R1：紧凑两行监控卡片。
+ * 行 1：平台徽标 + 主播名（主视觉，加大）+ 账号徽标 + 状态徽标 + 启停开关；
+ * 行 2：状态/摘要（录制中 时长·大小 / 空闲 下次检查）+ 紧凑图标组（录制/参数/编辑/删除）。
+ * 标题与 URL 收进点击展开区；左侧平台色条辅助区分多条任务。
+ */
+@Composable
+private fun CompactCardInner(
+    url: String,
+    recordState: RecordController.RecordState?,
+    monitorState: MonitorLoop.State?,
+    disabled: Boolean,
+    unhealthy: Boolean,
+    roundInfo: MonitorRoundInfo,
+    recording: Boolean,
+    boundAccount: String?,
+    showDiag: Boolean,
+    onEdit: () -> Unit,
+    onSettings: () -> Unit,
+    onToggleEnabled: (Boolean) -> Unit,
+    onStart: () -> Unit,
+    onStop: () -> Unit,
+    hasOverride: Boolean,
+    onDelete: () -> Unit,
+) {
+    val pk = platformKeyForUrl(url)
+    val barColor = PLATFORM_COLORS[pk] ?: MaterialTheme.colorScheme.outline
+    var expanded by remember { mutableStateOf(false) }
+    val live = monitorState as? MonitorLoop.State.Live
+    // 组合期取好字符串，lambda 内只做纯切换
+    val switchLabel = if (!disabled) stringResource(R.string.monitor_switch_disable)
+    else stringResource(R.string.monitor_switch_enable)
+
+    Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+        // 平台色条（停用置灰）
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .fillMaxHeight()
+                .background(
+                    if (disabled) MaterialTheme.colorScheme.outline.copy(alpha = 0.3f) else barColor
+                )
+        )
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clickable { expanded = !expanded }
+                .padding(start = 10.dp, end = 4.dp, top = 8.dp, bottom = 8.dp)
+        ) {
+            // 行 1：徽标 + 主播名 + 状态 + 开关
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                PlatformBadge(pk)
+                Text(
+                    text = live?.anchorName?.takeIf { it.isNotBlank() }
+                        ?: (PLATFORM_LABELS[pk]?.let {
+                            stringResource(R.string.monitor_fallback_title, it)
+                        } ?: url),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = if (disabled) MaterialTheme.colorScheme.outline
+                    else MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f, fill = false)
+                )
+                if (!boundAccount.isNullOrBlank()) {
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer,
+                    ) {
+                        Text(
+                            stringResource(R.string.accounts_bound_badge, boundAccount),
+                            style = MaterialTheme.typography.labelSmall,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                StatusBadge(recordState, monitorState, disabled, unhealthy)
+                // 6f-4：无障碍——Switch 必须有 contentDescription
+                Switch(
+                    checked = !disabled,
+                    onCheckedChange = onToggleEnabled,
+                    modifier = Modifier.semantics { contentDescription = switchLabel }
+                )
+            }
+
+            // 行 2：摘要 + 紧凑图标组
+            Spacer(Modifier.height(2.dp))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Column(modifier = Modifier.weight(1f)) {
+                    if (recordState != null) {
+                        RecordStatusLine(recordState, showDiag = showDiag)
+                    } else {
+                        RoundSummaryCaption(roundInfo)
+                    }
+                    // 点击展开：直播标题 + URL（小字）
+                    if (expanded) {
+                        if (live != null && live.title.isNotBlank()) {
+                            Text(
+                                stringResource(R.string.live_title_quoted, live.title),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        Text(
+                            url,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (disabled) MaterialTheme.colorScheme.outline
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Row {
+                    CompactIconButton(
+                        icon = if (recording) Icons.Default.Stop else Icons.Default.PlayArrow,
+                        desc = if (recording) stringResource(R.string.desc_stop)
+                        else stringResource(R.string.desc_record),
+                        tint = if (recording) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.primary,
+                        enabled = !disabled,
+                        onClick = if (recording) onStop else onStart,
+                    )
+                    CompactIconButton(
+                        icon = Icons.Default.Edit,
+                        desc = stringResource(R.string.desc_edit),
+                        tint = MaterialTheme.colorScheme.primary,
+                        enabled = !disabled,
+                        onClick = onEdit,
+                    )
+                    CompactIconButton(
+                        icon = Icons.Default.Settings,
+                        desc = stringResource(R.string.desc_settings),
+                        tint = if (hasOverride) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.outline,
+                        enabled = !disabled,
+                        onClick = onSettings,
+                    )
+                    CompactIconButton(
+                        icon = Icons.Default.Close,
+                        desc = stringResource(R.string.desc_delete),
+                        tint = MaterialTheme.colorScheme.outline,
+                        enabled = true,
+                        onClick = onDelete,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** V3-3 R1：紧凑图标按钮（32dp 触控 + 18dp 图标，比默认 IconButton 省一半高度）。 */
+@Composable
+private fun CompactIconButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    desc: String,
+    tint: androidx.compose.ui.graphics.Color,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier.size(32.dp)
+    ) {
+        Icon(icon, contentDescription = desc, tint = tint, modifier = Modifier.size(18.dp))
     }
 }
 

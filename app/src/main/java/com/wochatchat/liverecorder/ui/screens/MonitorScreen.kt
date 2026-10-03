@@ -249,6 +249,8 @@ fun MonitorScreen(
                                 ?.takeIf { it.id != Accounts.DEFAULT_ID }?.nickname,
                             // V3-1：诊断 DBG 行（设置页开关，默认关）
                             showDiag = showDiag,
+                            // V3-3 R1：紧凑模式（设置页「外观」开关，默认开）
+                            compact = appSettingsState.compactMonitorCard,
                         )
                     }
                 }

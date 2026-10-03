@@ -930,6 +930,13 @@ private fun AppearanceGroup(
             checked = settings.amoledBlack,
             onChange = { viewModel.setAppSettings(settings.copy(amoledBlack = it)) },
         )
+        // V3-3 R1：监控卡片紧凑模式（两行化，默认开；关闭恢复完整卡片）
+        SwitchSettingRow(
+            title = stringResource(R.string.settings_compact_card_title),
+            subtitle = stringResource(R.string.settings_compact_card_subtitle),
+            checked = settings.compactMonitorCard,
+            onChange = { viewModel.setAppSettings(settings.copy(compactMonitorCard = it)) },
+        )
         // Phase 9-9.3：三个状态色 ChipRow（默认 + 5 预设色，写 ARGB hex）
         val labelDefault = stringResource(R.string.settings_status_default)
         StatusColorRow(

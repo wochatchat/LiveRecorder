@@ -102,6 +102,10 @@ data class AppSettings(
     // ---- Phase 10-10.2: 带宽感知画质升降 ----
     /** 自适应画质：WiFi 下升一档，流量下降一档（单条画质覆盖优先，不受影响）。 */
     val adaptiveQuality: Boolean = false,
+
+    // ---- V3-3 R1: 监控卡片紧凑模式 ----
+    /** 紧凑模式：监控卡片两行化（默认开），关闭后恢复旧完整卡片。 */
+    val compactMonitorCard: Boolean = true,
 ) {
     companion object {
         /** 静音时段起止（小时）：23:00 起，07:00 止。 */
@@ -185,6 +189,9 @@ class AppSettingsStore(private val context: android.content.Context) {
     /** Phase 10-10.2：带宽感知画质升降开关。 */
     private val adaptiveQualityKey = booleanPreferencesKey("adaptive_quality")
 
+    /** V3-3 R1：监控卡片紧凑模式（默认开）。 */
+    private val compactMonitorCardKey = booleanPreferencesKey("compact_monitor_card")
+
     /** 6f R21：首启引导是否已完成。 */
     val onboardingCompleted: Flow<Boolean> = context.settingsDataStore.data
         .map { prefs -> prefs[onboardingCompletedKey] ?: false }
@@ -261,6 +268,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             diagEnabled = prefs[diagEnabledKey] ?: false,
             recordFailureNotify = prefs[recordFailureNotifyKey] ?: true,
             adaptiveQuality = prefs[adaptiveQualityKey] ?: false,
+            compactMonitorCard = prefs[compactMonitorCardKey] ?: true,
         )
     }
 
@@ -298,6 +306,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             prefs[diagEnabledKey] = settings.diagEnabled
             prefs[recordFailureNotifyKey] = settings.recordFailureNotify
             prefs[adaptiveQualityKey] = settings.adaptiveQuality
+            prefs[compactMonitorCardKey] = settings.compactMonitorCard
         }
     }
 
