@@ -54,6 +54,8 @@ fun CookieManagementScreen(
 ) {
     val cookies by viewModel.cookies.collectAsState()
     val credentials by viewModel.credentials.collectAsState()
+    // Phase 5-5.2：账号健康状态（✅/❌/⏳）
+    val accountHealth by viewModel.accountHealth.collectAsState()
     var editing by remember { mutableStateOf<String?>(null) }
     var selecting by remember { mutableStateOf(false) }
     val selection = remember { mutableStateListOf<String>() }
