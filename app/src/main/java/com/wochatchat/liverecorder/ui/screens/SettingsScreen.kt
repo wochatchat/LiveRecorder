@@ -862,35 +862,23 @@ private fun AppearanceGroup(
 ) {
     val title = stringResource(R.string.settings_group_appearance)
     if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    // stringResource 是 @Composable 调用，必须先在组合期取值，lambda 内只做纯映射
+    val labelSystem = stringResource(R.string.settings_theme_system)
+    val labelRed = stringResource(R.string.settings_theme_red)
+    val labelBlue = stringResource(R.string.settings_theme_blue)
+    val labelGreen = stringResource(R.string.settings_theme_green)
+    val labelPurple = stringResource(R.string.settings_theme_purple)
+    val labelOrange = stringResource(R.string.settings_theme_orange)
+    val keyOf = mapOf(labelSystem to "system", labelRed to "red", labelBlue to "blue",
+        labelGreen to "green", labelPurple to "purple", labelOrange to "orange")
     SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
         ChipRow(
             label = stringResource(R.string.settings_theme_color),
-            options = listOf(
-                stringResource(R.string.settings_theme_system),
-                stringResource(R.string.settings_theme_red),
-                stringResource(R.string.settings_theme_blue),
-                stringResource(R.string.settings_theme_green),
-                stringResource(R.string.settings_theme_purple),
-                stringResource(R.string.settings_theme_orange),
-            ),
-            selected = when (settings.themeColor) {
-                "red" -> stringResource(R.string.settings_theme_red)
-                "blue" -> stringResource(R.string.settings_theme_blue)
-                "green" -> stringResource(R.string.settings_theme_green)
-                "purple" -> stringResource(R.string.settings_theme_purple)
-                "orange" -> stringResource(R.string.settings_theme_orange)
-                else -> stringResource(R.string.settings_theme_system)
-            },
+            options = keyOf.keys.toList(),
+            selected = keyOf.entries.firstOrNull { it.value == settings.themeColor }?.key
+                ?: labelSystem,
             onSelect = { label ->
-                val key = when (label) {
-                    stringResource(R.string.settings_theme_red) -> "red"
-                    stringResource(R.string.settings_theme_blue) -> "blue"
-                    stringResource(R.string.settings_theme_green) -> "green"
-                    stringResource(R.string.settings_theme_purple) -> "purple"
-                    stringResource(R.string.settings_theme_orange) -> "orange"
-                    else -> "system"
-                }
-                viewModel.setAppSettings(settings.copy(themeColor = key))
+                viewModel.setAppSettings(settings.copy(themeColor = keyOf[label] ?: "system"))
             },
         )
         SwitchSettingRow(

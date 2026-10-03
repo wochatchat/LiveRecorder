@@ -295,7 +295,7 @@ class RecorderApp : Application() {
                             AppLog.i("RecorderApp", "录制日报已发送")
                         }
                     }
-                }.onFailure { AppLog.w(TAG, "日报调度异常: ${it.message}") }
+                }.onFailure { AppLog.w("RecorderApp", "日报调度异常: ${it.message}") }
                 kotlinx.coroutines.delay(15 * 60_000L)
             }
         }

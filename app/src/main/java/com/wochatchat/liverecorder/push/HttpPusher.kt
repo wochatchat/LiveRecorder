@@ -85,7 +85,7 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
             for (api in config.apis) {
                 val body = when (config.type.lowercase()) {
                     TYPE_BARK -> barkBody(api, title, content, level = config.barkLevel, sound = config.barkSound)
-                    else -> ntfyBody(api, title, content, actionUrl = null,
+                    else -> ntfyBody(api, title, content, actionUrl = "",
                         tags = parseTags(config.ntfyTags), priority = coercePriority(config.ntfyPriority))
                 }
                 val ok = if (config.type.equals(TYPE_BARK, ignoreCase = true)) pushBark(api, body)
