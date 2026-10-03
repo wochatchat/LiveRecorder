@@ -7,6 +7,8 @@ import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.RecorderApp
 import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.AuthStore
+import com.wochatchat.liverecorder.data.AccountHealth
+import com.wochatchat.liverecorder.data.AccountHealthEntry
 import com.wochatchat.liverecorder.data.CheckResultEntry
 import com.wochatchat.liverecorder.data.ConfigExporter
 import com.wochatchat.liverecorder.data.MonitorStore
@@ -36,6 +38,10 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     private val store = MonitorStore(app)
     private val authStore = AuthStore(app)
+
+    /** Phase 5-5.2：账号健康状态（平台 → ok/expired 条目）。 */
+    val accountHealth: StateFlow<Map<String, AccountHealthEntry>> = authStore.accountHealth
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     /** HTTP 推送配置（2f）。 */
     val pushConfig: StateFlow<PushConfig> = store.pushConfig

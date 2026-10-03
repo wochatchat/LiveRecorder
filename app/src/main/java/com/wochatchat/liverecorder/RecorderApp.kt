@@ -13,6 +13,7 @@ import com.wochatchat.liverecorder.platform.douyu.DouyuSpider
 import com.wochatchat.liverecorder.recorder.FfmpegRecorder
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.data.AuthStore
+import com.wochatchat.liverecorder.data.AccountHealth
 import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.AppSettingsStore
 import com.wochatchat.liverecorder.data.MonitorStore
@@ -232,10 +233,35 @@ class RecorderApp : Application() {
             },
             // Phase 5-5.1：归集检查结果到平台健康仪表盘（环形缓冲 100 条/平台）
             onCheckResult = { url, ok ->
-                store.recordCheckResult(platformKeyForUrl(url), ok)
+                val platform = platformKeyForUrl(url)
+                // Phase 5-5.2：检查成功 → 账号健康恢复 ok（内部幂等，未变化不写盘）
+                if (ok) authStore.markAccountHealth(platform, AccountHealth.STATUS_OK)
+                store.recordCheckResult(platform, ok)
             },
         )
         this.pusher = pusher
         this.storage = StorageManager(File(filesDir, "downloads"))
+
+        // Phase 5-5.2：账号健康度——已配置 Cookie 的平台出现不健康条目（连续检查
+        // 失败 ≥3 轮）→ 标记 expired 并提醒续期；条目恢复健康 → 恢复 ok
+        appScope.launch {
+            var prevExpired = emptySet<String>()
+            monitorLoop.unhealthy.collect { urls ->
+                runCatching {
+                    val cookies = authStore.cookies.first()
+                    val expired = urls.map { platformKeyForUrl(it) }
+                        .filter { cookies[it]?.isNotBlank() == true }
+                        .toSet()
+                    (expired - prevExpired).forEach { p ->
+                        authStore.markAccountHealth(p, AccountHealth.STATUS_EXPIRED)
+                        notifier.notifyAccountExpired(AuthStore.labelOf(p))
+                    }
+                    (prevExpired - expired).forEach { p ->
+                        authStore.markAccountHealth(p, AccountHealth.STATUS_OK)
+                    }
+                    prevExpired = expired
+                }
+            }
+        }
     }
 }

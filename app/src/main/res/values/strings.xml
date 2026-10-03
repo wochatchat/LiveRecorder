@@ -252,6 +252,10 @@
     <string name="platform_health_empty">暂无检查数据：开启监控并轮询一轮后自动统计</string>
     <string name="platform_health_rate_fmt">成功率 %1$d%%（%2$d/%3$d）</string>
     <string name="platform_health_last_check">最近检查 %1$s</string>
+
+    <!-- Phase 5-5.2：账号健康度 -->
+    <string name="notif_account_expired_title">账号登录态疑似失效</string>
+    <string name="notif_account_expired_text">%1$s 的 Cookie 可能已过期，请到 设置 → 平台认证 更新</string>
     <string name="settings_cookies_none">尚未配置任何平台</string>
     <string name="validation_number">请输入数字</string>
     <string name="validation_empty">不能为空</string>

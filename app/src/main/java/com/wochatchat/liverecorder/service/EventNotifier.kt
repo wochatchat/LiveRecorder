@@ -72,6 +72,16 @@ class EventNotifier(private val context: Context) {
         )
     }
 
+    /** 账号失效提醒（Phase 5-5.2）：平台 Cookie 疑似失效，提醒续期。 */
+    fun notifyAccountExpired(platformLabel: String) {
+        notify(
+            id = ACCOUNT_EXPIRED_NOTIFICATION_ID,
+            title = context.getString(R.string.notif_account_expired_title),
+            text = context.getString(R.string.notif_account_expired_text, platformLabel),
+            icon = R.drawable.ic_notification,
+        )
+    }
+
     private fun notify(id: Int, title: String, text: String, icon: Int, url: String? = null) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS)
@@ -110,6 +120,9 @@ class EventNotifier(private val context: Context) {
 
         /** 存储事件通知固定 id（低于事件区间，2h）。 */
         private const val STORAGE_NOTIFICATION_ID = 9900
+
+        /** 账号失效提醒固定 id（Phase 5-5.2，与存储事件同区间）。 */
+        private const val ACCOUNT_EXPIRED_NOTIFICATION_ID = 9800
 
         /** 6f R22：点击直达 extra 键（与 MainActivity 约定）。 */
         const val EXTRA_FOCUS_URL = "focus_url"

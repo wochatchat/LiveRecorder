@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.authDataStore by preferencesDataStore(name = "auth")
@@ -56,6 +57,29 @@ class AuthStore(private val context: Context) {
         context.authDataStore.edit { prefs ->
             prefs[stringPreferencesKey("cred_${platform}_user")] = user
             prefs[stringPreferencesKey("cred_${platform}_pass")] = pass
+        }
+    }
+
+    // ---- Phase 5-5.2: 账号健康度 ----
+
+    /** 账号健康状态（JSON：{"platform":["ok"|"expired",ts], ...}）。 */
+    private val accountHealthKey = stringPreferencesKey("account_health")
+
+    /** 平台 → 健康条目（未标记的平台 UI 显示 ⏳）。 */
+    val accountHealth: Flow<Map<String, AccountHealthEntry>> = context.authDataStore.data.map { prefs ->
+        AccountHealth.fromJson(prefs[accountHealthKey] ?: "{}")
+    }
+
+    /**
+     * 标记平台账号健康状态（ok/expired）。状态未变化时跳过写入（避免轮询每轮写盘）。
+     * 判定来源见 [AccountHealth] 文件头注释。
+     */
+    suspend fun markAccountHealth(platform: String, status: String, ts: Long = System.currentTimeMillis()) {
+        val current = AccountHealth.statusOf(accountHealth.first(), platform)
+        if (current == status) return
+        context.authDataStore.edit { prefs ->
+            val map = AccountHealth.fromJson(prefs[accountHealthKey] ?: "{}")
+            prefs[accountHealthKey] = AccountHealth.toJson(AccountHealth.mark(map, platform, status, ts))
         }
     }
 

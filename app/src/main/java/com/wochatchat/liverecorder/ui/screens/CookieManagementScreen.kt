@@ -37,6 +37,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wochatchat.liverecorder.data.AuthStore
+import com.wochatchat.liverecorder.data.AccountHealth
 import com.wochatchat.liverecorder.ui.SettingsViewModel
 import com.wochatchat.liverecorder.ui.components.PlatformBadge
 import com.wochatchat.liverecorder.R
@@ -130,6 +131,18 @@ fun CookieManagementScreen(
                             )
                         }
                         PlatformBadge(p.key, text = p.label)
+                        // Phase 5-5.2：账号健康状态（仅已配置认证的平台显示）
+                        if (configured) {
+                            Text(
+                                when (AccountHealth.statusOf(accountHealth, p.key)) {
+                                    AccountHealth.STATUS_OK -> "✅"
+                                    AccountHealth.STATUS_EXPIRED -> "❌"
+                                    else -> "⏳"
+                                },
+                                modifier = Modifier.padding(start = 6.dp),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
                             Text(
