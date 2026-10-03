@@ -151,10 +151,13 @@ class EventNotifier(
 
     // ---- 通用工具 ----
 
-    private fun hasNotificationPermission(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.POST_NOTIFICATIONS)
-            == PackageManager.PERMISSION_GRANTED
+    private fun hasNotificationPermission(): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
+        val granted = ContextCompat.checkSelfPermission(
+            ctx, android.Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+        return granted
+    }
 
     /** 独立语义通知（存储/账号失效）：BigTextStyle，固定 id。 */
     private fun notifyFixed(id: Int, title: String, text: String) {
