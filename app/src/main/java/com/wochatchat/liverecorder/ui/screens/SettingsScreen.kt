@@ -457,6 +457,13 @@ private fun RecordingGroup(
             checked = settings.quietNotifyEnabled,
             onChange = { viewModel.setAppSettings(settings.copy(quietNotifyEnabled = it)) }
         )
+        // V3-1 R2：录制失败通知（开录后的失败不再静默）
+        SwitchSettingRow(
+            title = stringResource(R.string.settings_record_failure_notify_title),
+            subtitle = stringResource(R.string.settings_record_failure_notify_subtitle),
+            checked = settings.recordFailureNotify,
+            onChange = { viewModel.setAppSettings(settings.copy(recordFailureNotify = it)) }
+        )
     }
 }
 

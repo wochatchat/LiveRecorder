@@ -90,6 +90,11 @@ class RecordController(
      */
     private val onFinished: suspend (String, RecordState.Finished) -> Unit = { _, _ -> },
     /**
+     * V3-1 R2：录制失败通知回调——仅 notifyUser=true 的 Failed 触发（「未在直播」等
+     * 常态性状态不发）。RecorderApp 接 EventNotifier，开关 AppSettings.recordFailureNotify。
+     */
+    private val onFailed: suspend (String, RecordState.Failed) -> Unit = { _, _ -> },
+    /**
      * Phase 4-4.1：单条录制参数覆盖（null=全程使用全局设置）。
      * 在 [runRecord] 入口读取一次，结果贯穿本次录制会话。
      */
@@ -135,8 +140,21 @@ class RecordController(
             val diag: String = "",
         ) : RecordState()
 
-        /** 失败（未开播 / 无流 / 下载错误 / 重连次数耗尽）。[diag] V3-1 诊断串。 */
-        data class Failed(val message: String, val diag: String = "") : RecordState()
+        /** 失败（未开播 / 无流 / 下载错误 / 重连次数耗尽）。[diag] V3-1 诊断串。
+         *  V3-1 R2：[savePath]/[bytes] 等元信息在失败时确有落盘文件则填充——
+         *  落库层据此补写历史（completed=false），消除「录了一半白录」；
+         *  [notifyUser]=false 的常态性状态（如「未在直播」）不发失败通知。 */
+        data class Failed(
+            val message: String,
+            val diag: String = "",
+            val savePath: String = "",
+            val bytes: Long = 0,
+            val durationMs: Long = 0,
+            val anchorName: String = "",
+            val title: String = "",
+            val platform: String = "",
+            val notifyUser: Boolean = true,
+        ) : RecordState()
     }
 
     private val jobs = ConcurrentHashMap<String, Job>()
@@ -199,6 +217,9 @@ class RecordController(
             "bytes" to bytes, "path" to if (path.isNotBlank()) "yes" else "no", "hist" to hist,
         )
 
+        /** V3-1 R2：give-up 时随 Failed 携带的落盘元信息快照。 */
+        fun sessionInfo(): FinishInfo = FinishInfo(lastPath, totalBytes, accMs, curAnchor, curTitle, curPlatform)
+
         // Phase 4-4.1：单条参数覆盖（读取失败/null → 全局设置兜底）
         val ov = try { perUrlSettings(url) } catch (e: CancellationException) { throw e } catch (e: Exception) { null }
         suspend fun effSegmented(): Boolean = ov?.segmented ?: runCatching { useSegmented() }.getOrDefault(true)
@@ -229,7 +250,7 @@ class RecordController(
                         setState(url, RecordState.Failed("解析直播源失败: ${e.message}", diagOf(totalBytes, lastPath, false)))
                         return
                     }
-                    if (!backoffOrGiveUp(url, ++attempt, "解析失败: ${e.message}", diagOf(totalBytes, lastPath, false))) return
+                    if (!backoffOrGiveUp(url, ++attempt, "解析失败: ${e.message}", diagOf(totalBytes, lastPath, false), sessionInfo())) return
                     continue
                 }
 
@@ -250,7 +271,7 @@ class RecordController(
                             anchorName = curAnchor, title = curTitle, platform = curPlatform,
                             diag = diagOf(totalBytes, lastPath, true),
                         )
-                        else RecordState.Failed("未在直播", diagOf(totalBytes, lastPath, false)),
+                        else RecordState.Failed("未在直播", diagOf(totalBytes, lastPath, false), notifyUser = false),
                     )
                     return
                 }
@@ -336,7 +357,7 @@ class RecordController(
                         lastPath = saveFile.absolutePath
                         totalBytes += res.estimatedBytes
                         segBytes = 0
-                        if (!backoffOrGiveUp(url, ++attempt, "直播流结束", diagOf(totalBytes, lastPath, true))) return
+                        if (!backoffOrGiveUp(url, ++attempt, "直播流结束", diagOf(totalBytes, lastPath, true), sessionInfo())) return
                     } else {
                         // ffmpeg 分段录制（3-3g）：m3u8 必须走 ffmpeg；FLV 也走 ffmpeg
                         segStartMs = nowMs()
@@ -370,7 +391,7 @@ class RecordController(
                     segBytes = 0
                     convertSegmentsAsync(res.segments)
                     // ++attempt 留下 attempt=1：下轮探测已关播时按 Finished(completed) 收敛（同 OkHttp 分支语义）
-                    if (!backoffOrGiveUp(url, ++attempt, "直播流结束", diagOf(totalBytes, lastPath, true))) return
+                    if (!backoffOrGiveUp(url, ++attempt, "直播流结束", diagOf(totalBytes, lastPath, true), sessionInfo())) return
                     }
                 } else {
                     // OkHttp 直下（Phase 1/2 行为）
@@ -410,7 +431,7 @@ class RecordController(
                     segActive = false
                     val segMs = nowMs() - segStartMs
                     if (ok || segMs >= SEGMENT_RESET_MS) attempt = 0
-                    if (!backoffOrGiveUp(url, ++attempt, if (ok) "直播流结束" else "下载中断", diagOf(totalBytes, lastPath, totalBytes > 0 && lastPath.isNotBlank()))) return
+                    if (!backoffOrGiveUp(url, ++attempt, if (ok) "直播流结束" else "下载中断", diagOf(totalBytes, lastPath, totalBytes > 0 && lastPath.isNotBlank()), sessionInfo())) return
                 }
             }
         } catch (e: CancellationException) {
@@ -428,8 +449,18 @@ class RecordController(
             )
             throw e
         } catch (e: Exception) {
-            AppLog.e(TAG, "录制异常: ${e.message} ($url)")
-            setState(url, RecordState.Failed("录制异常: ${e.message}", diagOf(totalBytes, lastPath, false)))
+            // V3-1 R2：异常时并入进行中分段的字节/时长，确有落盘文件则随 Failed 落库
+            val finBytes = totalBytes + segBytes
+            val finMs = accMs + (if (segActive) nowMs() - segStartMs else 0)
+            AppLog.e(TAG, "录制异常: ${e.message} ($url) (已录 $finBytes 字节)")
+            setState(
+                url,
+                RecordState.Failed(
+                    "录制异常: ${e.message}", diagOf(finBytes, lastPath, finBytes > 0 && lastPath.isNotBlank()),
+                    savePath = lastPath, bytes = finBytes, durationMs = finMs,
+                    anchorName = curAnchor, title = curTitle, platform = curPlatform,
+                ),
+            )
         }
     }
 
@@ -455,15 +486,38 @@ class RecordController(
         }
     }
 
+    /**
+     * V3-1 R2：give-up 时随 Failed 附带的落盘文件元信息（补写历史/通知用）。
+     * 无已落盘文件时传 null。
+     */
+    private data class FinishInfo(
+        val savePath: String,
+        val bytes: Long,
+        val durationMs: Long,
+        val anchorName: String,
+        val title: String,
+        val platform: String,
+    )
+
     private suspend fun backoffOrGiveUp(
         url: String,
         attempt: Int,
         message: String,
         diag: String = "",
+        info: FinishInfo? = null,
     ): Boolean {
         if (attempt > MAX_RECONNECT_ATTEMPTS) {
             AppLog.e(TAG, "断流重连失败（已重试 $MAX_RECONNECT_ATTEMPTS 次），已保留已录文件: $url diag=$diag")
-            setState(url, RecordState.Failed("断流重连失败（已重试 $MAX_RECONNECT_ATTEMPTS 次），已保留已录文件", diag))
+            setState(
+                url,
+                RecordState.Failed(
+                    "断流重连失败（已重试 $MAX_RECONNECT_ATTEMPTS 次），已保留已录文件", diag,
+                    savePath = info?.savePath ?: "", bytes = info?.bytes ?: 0,
+                    durationMs = info?.durationMs ?: 0,
+                    anchorName = info?.anchorName ?: "", title = info?.title ?: "",
+                    platform = info?.platform ?: "",
+                ),
+            )
             return false
         }
         val delaySec = reconnectDelaySec(attempt)
@@ -493,9 +547,27 @@ class RecordController(
             runCatching { onFinished(url, state) }
                 .onFailure { AppLog.e(TAG, "录制记录写入失败: ${it.message}") }
                 .onSuccess { AppLog.i(TAG, "落库成功: $url bytes=${state.bytes} path=${state.savePath}") }
+        } else if (state is RecordState.Failed && state.savePath.isNotBlank() && state.bytes > 0) {
+            // V3-1 R2：Failed 但确有落盘文件 → 补写历史（completed=false），消除「录了一半白录」
+            runCatching {
+                onFinished(
+                    url,
+                    RecordState.Finished(
+                        state.savePath, state.bytes, completed = false, durationMs = state.durationMs,
+                        anchorName = state.anchorName, title = state.title, platform = state.platform,
+                        diag = state.diag,
+                    ),
+                )
+            }.onFailure { AppLog.e(TAG, "失败记录写入失败: ${it.message}") }
+                .onSuccess { AppLog.i(TAG, "失败落库(completed=false): $url bytes=${state.bytes} path=${state.savePath}") }
         } else if (state is RecordState.Finished) {
             // V3-1：Finished 但不满足落库条件——「录了却没记录」的关键断点，必须留痕
             AppLog.w(TAG, "落库跳过(无有效文件): $url bytes=${state.bytes} path=${state.savePath} diag=${state.diag}")
+        }
+        // V3-1 R2：失败通知（常态性状态 notifyUser=false 不发）
+        if (state is RecordState.Failed && state.notifyUser) {
+            runCatching { onFailed(url, state) }
+                .onFailure { AppLog.e(TAG, "失败通知回调异常: ${it.message}") }
         }
     }
 

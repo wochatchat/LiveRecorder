@@ -69,6 +69,11 @@
     <string name="notif_event_agg_more_line">还有 %1$d 条动态…</string>
     <string name="settings_quiet_notify_title">通知静音时段</string>
     <string name="settings_quiet_notify_subtitle">23:00–07:00 不发开播/关播提醒，录制不受影响</string>
+    <!-- V3-1 R2 -->
+    <string name="settings_record_failure_notify_title">录制失败通知</string>
+    <string name="settings_record_failure_notify_subtitle">开录后的失败/断流重试耗尽发系统通知，不再静默丢失</string>
+    <string name="notif_record_failed_title">录制失败</string>
+    <string name="notif_record_failed_text">%1$s\n%2$s</string>
     <string name="onboarding_welcome_title">欢迎使用直播录制</string>
     <string name="onboarding_welcome_body">自动监控主播开播并录制\n支持抖音 / 快手 / 虎牙 / 斗鱼 / B站 / YY / Bigo</string>
     <string name="onboarding_perm_title">权限设置</string>

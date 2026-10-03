@@ -254,6 +254,12 @@ class RecorderApp : Application() {
                 // Phase 11-11.1：录制完成立即触发一次云同步扫描
                 runCatching { cloudSyncManager.kickUpload() }
             },
+            // V3-1 R2：录制失败通知（开录后的失败不再静默；开关默认开）
+            onFailed = { url, fail ->
+                if (appSettings.settings.first().recordFailureNotify) {
+                    notifier.notifyRecordFailed(url, fail.message)
+                }
+            },
             // Phase 4-4.1：单条录制参数覆盖（fetchInfo 里已处理 quality，此处处理分段/格式）
             perUrlSettings = { url ->
                 runCatching { store.getPerUrlSettings(url) }.getOrNull()

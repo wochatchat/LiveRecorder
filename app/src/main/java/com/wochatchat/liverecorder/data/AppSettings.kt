@@ -78,6 +78,8 @@ data class AppSettings(
     // ---- V3-1: 仪器化诊断 ----
     /** 诊断信息显示：开启后监控卡片状态行渲染一行 DBG 诊断文本（可截图定位录制断点），默认关。 */
     val diagEnabled: Boolean = false,
+    /** V3-1 R2：录制失败通知（开录后的失败/断流耗尽发通知，不再静默），默认开。 */
+    val recordFailureNotify: Boolean = true,
 
     // ---- Phase 8-8.1: 录制日报 ----
     /** 录制日报推送开关：每天 09:00 后推送昨日录制统计（走 HTTP 推送）。 */
@@ -177,6 +179,9 @@ class AppSettingsStore(private val context: android.content.Context) {
     /** V3-1：诊断信息显示开关。 */
     private val diagEnabledKey = booleanPreferencesKey("diag_enabled")
 
+    /** V3-1 R2：录制失败通知开关（默认开）。 */
+    private val recordFailureNotifyKey = booleanPreferencesKey("record_failure_notify")
+
     /** Phase 10-10.2：带宽感知画质升降开关。 */
     private val adaptiveQualityKey = booleanPreferencesKey("adaptive_quality")
 
@@ -254,6 +259,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             statusErrorColor = prefs[statusErrorColorKey] ?: "",
             statusOfflineColor = prefs[statusOfflineColorKey] ?: "",
             diagEnabled = prefs[diagEnabledKey] ?: false,
+            recordFailureNotify = prefs[recordFailureNotifyKey] ?: true,
             adaptiveQuality = prefs[adaptiveQualityKey] ?: false,
         )
     }
@@ -290,6 +296,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             prefs[statusErrorColorKey] = settings.statusErrorColor
             prefs[statusOfflineColorKey] = settings.statusOfflineColor
             prefs[diagEnabledKey] = settings.diagEnabled
+            prefs[recordFailureNotifyKey] = settings.recordFailureNotify
             prefs[adaptiveQualityKey] = settings.adaptiveQuality
         }
     }

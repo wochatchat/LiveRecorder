@@ -98,6 +98,15 @@ class EventNotifier(
         )
     }
 
+    /** V3-1 R2：录制失败通知（固定 id，新一轮覆盖旧的，独立语义不走聚合）。 */
+    fun notifyRecordFailed(url: String, message: String) {
+        notifyFixed(
+            id = RECORD_FAILED_NOTIFICATION_ID,
+            title = ctx.getString(R.string.notif_record_failed_title),
+            text = ctx.getString(R.string.notif_record_failed_text, url, message),
+        )
+    }
+
     // ---- 聚合核心 ----
 
     /** 追加事件并发布/更新该平台的聚合通知。 */
@@ -193,6 +202,9 @@ class EventNotifier(
 
         /** 账号失效提醒固定 id（Phase 5-5.2，与存储事件同区间）。 */
         private const val ACCOUNT_EXPIRED_NOTIFICATION_ID = 9800
+
+        /** V3-1 R2：录制失败通知固定 id（同区间，新一轮覆盖旧的）。 */
+        private const val RECORD_FAILED_NOTIFICATION_ID = 9700
 
         /** 6f R22：点击直达 extra 键（与 MainActivity 约定）。 */
         const val EXTRA_FOCUS_URL = "focus_url"
