@@ -66,7 +66,9 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wochatchat.liverecorder.R
+import com.wochatchat.liverecorder.data.DailyReport
 import com.wochatchat.liverecorder.data.RecordHistoryEntry
+import kotlinx.coroutines.flow.StateFlow
 import com.wochatchat.liverecorder.ui.RecordsViewModel
 import com.wochatchat.liverecorder.ui.StatsFormat
 import com.wochatchat.liverecorder.ui.components.PlatformBadge
@@ -195,6 +197,8 @@ fun RecordsScreen(
             // R21 Phase 1.1：排序 chips
             SortRow(sortMode, viewModel)
             StatsLine(stats.todayCount, stats.totalBytes)
+            // Phase 8-8.2：近 7 天存储用量迷你柱状图
+            StorageTrendChart(viewModel.allEntries)
             if (filtered.isEmpty()) {
                 EmptyRecords()
             } else {
@@ -342,6 +346,67 @@ private fun StatsLine(todayCount: Int, totalBytes: Long) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
     )
+}
+
+/**
+ * Phase 8-8.2：近 7 天录制用量迷你柱状图（Canvas，零额外依赖）。
+ * 数据源 [entries]（全部记录），末位柱 = 今天并高亮；全零时整图隐藏。
+ * Phase 8-8.3：图下方一行带宽估算——近 7 天日均流量 + 近 7 天平均码率。
+ */
+@Composable
+private fun StorageTrendChart(entries: StateFlow<List<RecordHistoryEntry>>) {
+    val all by entries.collectAsState()
+    val todayStart = remember { DailyReport.dayStartOf(System.currentTimeMillis()) }
+    val daily = remember(all, todayStart) {
+        DailyReport.dailyBytes(all, todayStart, days = 7)
+    }
+    if (daily.all { it == 0L }) return
+
+    val avg = remember(daily) { daily.sum() / daily.size }
+    // 8.3：近 7 天平均码率（按有数据的条目加权）
+    val weekEntries = remember(all, todayStart) {
+        all.filter { it.endTimeMs >= todayStart - 6 * DailyReport.DAY_MS && it.durationMs > 0 }
+    }
+    val avgBitrate = if (weekEntries.isEmpty()) 0.0
+    else DailyReport.bitrateMbps(
+        weekEntries.sumOf { it.bytes },
+        weekEntries.sumOf { it.durationMs },
+    )
+
+    Column(Modifier.padding(horizontal = 16.dp, vertical = 2.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth().height(48.dp),
+            verticalAlignment = Alignment.Bottom,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            val maxBytes = daily.max().coerceAtLeast(1L)
+            daily.forEachIndexed { idx, bytes ->
+                val fraction = bytes.toFloat() / maxBytes
+                // 柱高按 log 缩放避免单日巨大值压扁其他天（log1p(0)=0 仍为零高度）
+                val logFraction = (kotlin.math.ln(fraction * 9f + 1f) / kotlin.math.ln(10f)).coerceIn(0f, 1f)
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height((12 + 36 * logFraction).dp)
+                        .background(
+                            color = if (idx == daily.lastIndex) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.secondaryContainer,
+                            shape = RoundedCornerShape(topStart = 3.dp, topEnd = 3.dp),
+                        ),
+                )
+            }
+        }
+        Spacer(Modifier.height(2.dp))
+        Text(
+            stringResource(
+                R.string.records_week_summary,
+                StatsFormat.bytes(avg),
+                if (avgBitrate > 0) "%.1f".format(avgBitrate) else "--",
+            ),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 /** R21 Phase 1.1：排序行（时间 / 大小 / 时长，单选语义）。 */

@@ -109,6 +109,12 @@
     <string name="detail_hint_body">点击 ▶ 播放或分享分段文件\n时间轴展示录制过程与分段占比\n顶部「合并导出」可输出完整视频\n此提示仅显示一次</string>
     <string name="detail_hint_dismiss">知道了</string>
 
+    <!-- Phase 8-8.1：录制日报 -->
+    <string name="settings_daily_report_title">录制日报推送</string>
+    <string name="settings_daily_report_subtitle">每天 09:00 后推送昨日统计：场次/时长/大小/成功率（需启用 HTTP 推送）</string>
+    <string name="daily_report_title">录制日报 %1$s</string>
+    <string name="records_week_summary">近 7 天日均 %1$s · 平均码率 %2$s Mbps</string>
+
     <!-- Phase 7-7.2：设置页权限状态检查 -->
     <string name="settings_group_system_status">系统状态</string>
     <string name="settings_permission_check_title">权限状态检查</string>

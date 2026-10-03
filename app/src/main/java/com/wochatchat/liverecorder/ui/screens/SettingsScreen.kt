@@ -572,6 +572,13 @@ private fun PushGroup(
                     }) }
                 )
             }
+            // Phase 8-8.1：录制日报推送开关（每天 09:00 后推昨日统计）
+            SwitchSettingRow(
+                title = stringResource(R.string.settings_daily_report_title),
+                subtitle = stringResource(R.string.settings_daily_report_subtitle),
+                checked = settings.dailyReportEnabled,
+                onChange = { viewModel.setAppSettings(settings.copy(dailyReportEnabled = it)) },
+            )
             OutlinedButton(
                 onClick = onTestPush,
                 modifier = Modifier

@@ -24,6 +24,7 @@ import com.wochatchat.liverecorder.push.HttpPusher
 import com.wochatchat.liverecorder.service.EventNotifier
 import com.wochatchat.liverecorder.storage.StorageManager
 import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
+import com.wochatchat.liverecorder.data.DailyReport
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -276,5 +277,45 @@ class RecorderApp : Application() {
                 }
             }
         }
+
+        // Phase 8-8.1：录制日报——每日 09:00 后推送昨日统计（走 HTTP 推送）。
+        // 依赖监控前台服务保活进程；每 15 分钟轮询检查一次，当天已发不重复。
+        appScope.launch {
+            while (true) {
+                runCatching {
+                    val s = appSettings.settings.first()
+                    if (s.dailyReportEnabled) {
+                        val today = DailyReport.dayStartOf(System.currentTimeMillis())
+                        val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                            .format(java.util.Date(today))
+                        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+                        if (appSettings.lastDailyReportDate.first() != todayStr && hour >= 9) { // 每日 09:00 后发昨日日报
+                            sendDailyReport(today - DailyReport.DAY_MS)
+                            appSettings.setLastDailyReportDate(todayStr)
+                            AppLog.i("RecorderApp", "录制日报已发送")
+                        }
+                    }
+                }.onFailure { AppLog.w(TAG, "日报调度异常: ${it.message}") }
+                kotlinx.coroutines.delay(15 * 60_000L)
+            }
+        }
+    }
+
+    /** Phase 8-8.1：发送 [dayStartMs] 当天（本地日）的录制日报文本推送。 */
+    private suspend fun sendDailyReport(dayStartMs: Long) {
+        val cfg = store.pushConfig.first()
+        if (!cfg.isValid) return
+        val stats = DailyReport.statsForDay(historyStore.entries.first(), dayStartMs)
+        val day = java.text.SimpleDateFormat("MM-dd", java.util.Locale.US).format(java.util.Date(dayStartMs))
+        val content = buildString {
+            append("场次 ${stats.sessions} · 成功率 ${(stats.successRate * 100).toInt()}%")
+            if (stats.sessions > 0) {
+                append("\n总时长 ")
+                append(com.wochatchat.liverecorder.ui.StatsFormat.duration(stats.totalDurationMs))
+                append(" · 总大小 ")
+                append(com.wochatchat.liverecorder.ui.StatsFormat.bytes(stats.totalBytes))
+            }
+        }
+        pusher.pushTextAsync(cfg, getString(com.wochatchat.liverecorder.R.string.daily_report_title, day), content)
     }
 }

@@ -74,6 +74,10 @@ data class AppSettings(
     // ---- Phase 6-6.1: 分级通知/静音时段 ----
     /** 静音时段开关：开启后 23:00-07:00 不发开播/关播提醒（录制不受影响）。 */
     val quietNotifyEnabled: Boolean = true,
+
+    // ---- Phase 8-8.1: 录制日报 ----
+    /** 录制日报推送开关：每天 09:00 后推送昨日录制统计（走 HTTP 推送）。 */
+    val dailyReportEnabled: Boolean = false,
 ) {
     companion object {
         /** 静音时段起止（小时）：23:00 起，07:00 止。 */
@@ -131,6 +135,12 @@ class AppSettingsStore(private val context: android.content.Context) {
     // Phase 6-6.1：静音时段
     private val quietNotifyEnabledKey = booleanPreferencesKey("quiet_notify_enabled")
 
+    /** Phase 8-8.1：录制日报推送开关。 */
+    private val dailyReportEnabledKey = booleanPreferencesKey("daily_report_enabled")
+
+    /** Phase 8-8.1：上次已发日报的日期（yyyy-MM-dd，按"发送当天"记，防重复）。 */
+    private val lastDailyReportDateKey = stringPreferencesKey("last_daily_report_date")
+
     /** 6f R21：首启引导是否已完成。 */
     val onboardingCompleted: Flow<Boolean> = context.settingsDataStore.data
         .map { prefs -> prefs[onboardingCompletedKey] ?: false }
@@ -154,6 +164,17 @@ class AppSettingsStore(private val context: android.content.Context) {
     suspend fun markDetailHintShown() {
         context.settingsDataStore.edit { prefs ->
             prefs[detailHintShownKey] = true
+        }
+    }
+
+    /** Phase 8-8.1：上次已发日报日期（空 = 从未发送）。 */
+    val lastDailyReportDate: Flow<String> = context.settingsDataStore.data
+        .map { prefs -> prefs[lastDailyReportDateKey] ?: "" }
+
+    /** Phase 8-8.1：记录日报已发送日期（防重复）。 */
+    suspend fun setLastDailyReportDate(date: String) {
+        context.settingsDataStore.edit { prefs ->
+            prefs[lastDailyReportDateKey] = date
         }
     }
 
@@ -187,6 +208,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             wifiOnly = prefs[wifiOnlyKey] ?: false,
             screenOffPause = prefs[screenOffPauseKey] ?: false,
             quietNotifyEnabled = prefs[quietNotifyEnabledKey] ?: true,
+            dailyReportEnabled = prefs[dailyReportEnabledKey] ?: false,
         )
     }
 
@@ -215,6 +237,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             prefs[wifiOnlyKey] = settings.wifiOnly
             prefs[screenOffPauseKey] = settings.screenOffPause
             prefs[quietNotifyEnabledKey] = settings.quietNotifyEnabled
+            prefs[dailyReportEnabledKey] = settings.dailyReportEnabled
         }
     }
 

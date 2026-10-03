@@ -75,6 +75,28 @@ class HttpPusher(private val client: LiveHttpClient = LiveHttpClient(timeoutSec 
     }
 
     /**
+     * Phase 8-8.1：通用文本推送（fire-and-forget，录制日报用）。
+     * 复用开播/关播同渠道（ntfy/bark），无 actionUrl、无模板占位符替换。
+     */
+    fun pushTextAsync(config: PushConfig, title: String, content: String) {
+        if (!config.isValid) return
+        scope.launch {
+            val failed = mutableListOf<String>()
+            for (api in config.apis) {
+                val body = when (config.type.lowercase()) {
+                    TYPE_BARK -> barkBody(api, title, content, level = config.barkLevel, sound = config.barkSound)
+                    else -> ntfyBody(api, title, content, actionUrl = null,
+                        tags = parseTags(config.ntfyTags), priority = coercePriority(config.ntfyPriority))
+                }
+                val ok = if (config.type.equals(TYPE_BARK, ignoreCase = true)) pushBark(api, body)
+                else pushNtfy(api, body)
+                if (!ok) failed.add(api)
+            }
+            if (failed.isNotEmpty()) AppLog.w(TAG, "文本推送失败: $failed")
+        }
+    }
+
+    /**
      * 单次推送（挂起）。返回失败地址列表（空 = 全部成功）。
      * 文案对齐上游 main.py push_message：开播「[名称] 正在直播中，时间：[时间]」、
      * 关播「[名称] 直播已结束！时间：[时间]」。
