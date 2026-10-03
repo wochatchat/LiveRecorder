@@ -37,8 +37,9 @@ class QuietHoursTest {
 
     @Test
     fun `越界小时钳位不崩溃`() {
-        org.junit.Assert.assertFalse(AppSettings.isQuietHour(enabled, -1))
-        org.junit.Assert.assertFalse(AppSettings.isQuietHour(enabled, 24))
+        // -1 钳位到 0（午夜）→ 静音；24 钳位到 23 → 静音
+        org.junit.Assert.assertTrue(AppSettings.isQuietHour(enabled, -1))
+        org.junit.Assert.assertTrue(AppSettings.isQuietHour(enabled, 24))
         org.junit.Assert.assertTrue(AppSettings.isQuietHour(enabled, Int.MAX_VALUE))
     }
 }
