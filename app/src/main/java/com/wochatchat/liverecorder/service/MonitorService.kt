@@ -261,13 +261,3 @@ class MonitorService : Service() {
         }
     }
 }
-         val intent = Intent(context, MonitorService::class.java).apply { action = ACTION_RUN_MONITOR }
-            androidx.core.content.ContextCompat.startForegroundService(context, intent)
-        }
-
-        fun stop(context: Context) {
-            val intent = Intent(context, MonitorService::class.java).apply { action = ACTION_STOP }
-            context.startService(intent)
-        }
-    }
-}
