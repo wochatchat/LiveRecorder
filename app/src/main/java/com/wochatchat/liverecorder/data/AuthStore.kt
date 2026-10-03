@@ -86,7 +86,7 @@ class AuthStore(private val context: Context) {
         context.authDataStore.edit { prefs ->
             val map = Accounts.fromJson(prefs[accountsKey] ?: "{}").toMutableMap()
             map[platform] = map[platform].orEmpty().filterNot { it.id == accountId }
-            if (map[platform].isEmpty()) map.remove(platform)
+            if (map[platform].isNullOrEmpty()) map.remove(platform)
             prefs[accountsKey] = Accounts.toJson(map)
         }
     }
