@@ -88,6 +88,27 @@
     <string name="onboarding_action_back">上一步</string>
     <string name="onboarding_action_skip">跳过</string>
     <string name="onboarding_action_start">开始使用</string>
+
+    <!-- Phase 7-7.1：引导页第4步——添加第一个监控项 -->
+    <string name="onboarding_add_title">添加第一个直播间</string>
+    <string name="onboarding_add_body">粘贴直播间链接，或直接点击下面的平台快捷链接添加，主播开播后自动录制。</string>
+    <string name="onboarding_add_placeholder">粘贴直播间链接</string>
+    <string name="onboarding_add_hint">支持多行/逗号分隔批量添加</string>
+    <string name="onboarding_add_btn">添加</string>
+    <string name="onboarding_add_success">已添加 %1$d 项，主播开播后自动录制</string>
+    <string name="onboarding_add_quick">快捷添加</string>
+    <string name="onboarding_add_platform_tip">点击上方链接可直接添加并开始监控</string>
+
+    <!-- Phase 7-7.2：设置页权限状态检查 -->
+    <string name="settings_group_system_status">系统状态</string>
+    <string name="settings_permission_check_title">权限状态检查</string>
+    <string name="settings_permission_check_subtitle">检查通知、电池白名单、悬浮窗等系统权限状态</string>
+    <string name="settings_permission_notif">通知权限</string>
+    <string name="settings_permission_battery">电池白名单</string>
+    <string name="settings_permission_overlay">悬浮窗权限</string>
+    <string name="settings_permission_granted">已授权</string>
+    <string name="settings_permission_denied">未授权</string>
+    <string name="settings_permission_denied_short">未授权，点击前往</string>
     <!-- 6f-3 通用动作 -->
     <string name="action_undo">撤销</string>
     <string name="action_add">添加</string>

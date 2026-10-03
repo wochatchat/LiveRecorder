@@ -28,6 +28,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Notifications
@@ -36,6 +37,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -56,12 +58,20 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.wochatchat.liverecorder.R
+import com.wochatchat.liverecorder.ui.components.PlatformBadge
+import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
 import kotlinx.coroutines.launch
 
+/** 引导总页数（Phase 7-7.1：欢迎 / 权限 / 添加监控项 / 开始使用）。 */
+private const val PAGE_COUNT = 4
+
 /**
- * 6f R21：首次使用引导（3 页：欢迎与平台 → 权限设置 → 开始使用）。
+ * 6f R21：首次使用引导（4 页：欢迎与平台 → 权限设置 → 添加第一个监控项 → 开始使用）。
  * 完成后由 AppNavigation 写入 DataStore `onboarding_completed`，之后不再出现。
  * 两项授权均可跳过——通知权限缺失服务仍可运行（2a），电池白名单可在系统设置补开。
+ *
+ * Phase 7-7.1：新增第 3 页「添加第一个直播间」——粘贴输入 + 快捷链接直接添加
+ * （经 [onAddMonitor] 回调写入 MonitorStore），不等用户进 App 再手动添加。
  */
 
 /** 示例链接（仅演示链接格式，点击复制；用户粘贴后替换为真实房间号）。 */
@@ -69,6 +79,15 @@ internal val ONBOARDING_EXAMPLE_LINKS = listOf(
     "https://live.douyin.com/123456789" to "抖音",
     "https://live.kuaishou.com/u/example" to "快手",
     "https://live.bilibili.com/12345" to "B站",
+)
+
+/** Phase 7-7.1：快捷添加平台（一键加入监控，示例房间号需用户换成真实房间）。 */
+internal val ONBOARDING_QUICK_LINKS = listOf(
+    "https://live.douyin.com/123456789" to "抖音",
+    "https://live.kuaishou.com/u/example" to "快手",
+    "https://live.bilibili.com/12345" to "B站",
+    "https://www.huya.com/123456" to "虎牙",
+    "https://www.douyu.com/123456" to "斗鱼",
 )
 
 /** 通知权限是否已授（Android 13 以下视为已授）。 */
@@ -84,9 +103,9 @@ internal fun batteryWhitelisted(context: Context): Boolean =
         .isIgnoringBatteryOptimizations(context.packageName)
 
 @Composable
-fun OnboardingScreen(onComplete: () -> Unit) {
+fun OnboardingScreen(onComplete: () -> Unit, onAddMonitor: ((String) -> Unit)? = null) {
     val context = LocalContext.current
-    val pagerState = rememberPagerState(pageCount = { 3 })
+    val pagerState = rememberPagerState(pageCount = { PAGE_COUNT })
 
     // 权限状态：进页 + 每次回到前台时重算（从系统设置返回后刷新）
     var notifOk by remember { mutableStateOf(notifPermissionGranted(context)) }
@@ -139,6 +158,7 @@ fun OnboardingScreen(onComplete: () -> Unit) {
                     },
                     onRequestBattery = ::requestBattery,
                 )
+                2 -> AddMonitorPage(onAddMonitor)
                 else -> StartPage()
             }
         }
@@ -154,7 +174,7 @@ private fun OnboardingFooter(pagerState: androidx.compose.foundation.pager.Pager
         modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
         horizontalArrangement = Arrangement.Center,
     ) {
-        repeat(3) { i ->
+        repeat(PAGE_COUNT) { i ->
             Box(
                 modifier = Modifier
                     .padding(horizontal = 4.dp)
@@ -179,7 +199,7 @@ private fun OnboardingFooter(pagerState: androidx.compose.foundation.pager.Pager
         } else {
             Spacer(Modifier.width(48.dp))
         }
-        if (pagerState.currentPage < 2) {
+        if (pagerState.currentPage < PAGE_COUNT - 1) {
             Row {
                 TextButton(onClick = { onComplete() }) {
                     Text(stringResource(R.string.onboarding_action_skip))
@@ -304,6 +324,90 @@ private fun StartPage() {
                 )
             }
         }
+    }
+}
+
+/**
+ * Phase 7-7.1 第 3 页：添加第一个监控项。
+ * 粘贴输入 + 快捷链接（点击经 [onAddMonitor] 直接入监控列表），实时平台徽标预览。
+ */
+@Composable
+private fun AddMonitorPage(onAddMonitor: ((String) -> Unit)?) {
+    val context = LocalContext.current
+    var input by remember { mutableStateOf("") }
+    var addedMsg by remember { mutableStateOf<String?>(null) }
+
+    fun addUrls(raw: String) {
+        // 复用监控页的批量分隔约定：多行/逗号分隔
+        val urls = raw.split('\n', ',', '，', ';', '；')
+            .map { it.trim() }
+            .filter { it.startsWith("http") }
+        if (urls.isEmpty()) return
+        val callback = onAddMonitor ?: return
+        urls.forEach { callback(it) }
+        addedMsg = context.getString(R.string.onboarding_add_success, urls.size)
+        input = ""
+    }
+
+    OnboardingScaffold(
+        icon = {
+            Icon(
+                Icons.Default.Add, contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(72.dp),
+            )
+        },
+        title = stringResource(R.string.onboarding_add_title),
+        body = stringResource(R.string.onboarding_add_body),
+    ) {
+        Spacer(Modifier.height(16.dp))
+        OutlinedTextField(
+            value = input,
+            onValueChange = { input = it },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text(stringResource(R.string.onboarding_add_placeholder)) },
+            supportingText = { Text(stringResource(R.string.onboarding_add_hint)) },
+            trailingIcon = {
+                TextButton(onClick = { addUrls(input) }, enabled = input.isNotBlank()) {
+                    Text(stringResource(R.string.onboarding_add_btn))
+                }
+            },
+            singleLine = false,
+            maxLines = 3,
+        )
+        addedMsg?.let {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                it, style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Spacer(Modifier.height(16.dp))
+        Text(
+            stringResource(R.string.onboarding_add_quick),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(8.dp))
+        ONBOARDING_QUICK_LINKS.forEach { (link, platform) ->
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { addUrls(link) }
+                    .padding(vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                PlatformBadge(platformKeyForUrl(link))
+                Spacer(Modifier.width(12.dp))
+                Text(link, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            stringResource(R.string.onboarding_add_platform_tip),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.outline,
+        )
     }
 }
 

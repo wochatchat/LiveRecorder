@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
@@ -44,6 +45,7 @@ import com.wochatchat.liverecorder.ui.screens.RecordsScreen
 import com.wochatchat.liverecorder.ui.screens.RecordDetailScreen
 import com.wochatchat.liverecorder.ui.screens.SettingsScreen
 import com.wochatchat.liverecorder.ui.screens.UpdateDialog
+import com.wochatchat.liverecorder.ui.MonitorViewModel
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
 
@@ -88,6 +90,8 @@ fun AppNavigation() {
     }
     val onboardingDone by appSettings.onboardingCompleted.collectAsState(initial = null)
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    // Phase 7-7.1：引导页快捷添加监控项（复用与 MonitorScreen 相同的默认工厂）
+    val monitorViewModel: MonitorViewModel = viewModel()
 
     // Phase 3：更新检查（引导完成后静默执行，有结果则弹 UpdateDialog）
     var updateInfo by remember { mutableStateOf<UpdateInfo?>(null) }
@@ -112,7 +116,9 @@ fun AppNavigation() {
         // DataStore 首帧未就绪：空白一帧，避免引导页闪现
         null -> Box(Modifier.fillMaxSize())
         false -> OnboardingScreen(
-            onComplete = { scope.launch { appSettings.completeOnboarding() } }
+            onComplete = { scope.launch { appSettings.completeOnboarding() } },
+            // Phase 7-7.1：引导第 3 页快捷添加，经 MonitorViewModel 写入监控列表
+            onAddMonitor = { url -> monitorViewModel.add(url) },
         )
         else -> MainScaffold()
     }

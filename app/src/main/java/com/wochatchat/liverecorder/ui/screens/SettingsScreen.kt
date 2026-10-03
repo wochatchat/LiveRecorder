@@ -189,6 +189,9 @@ fun SettingsScreen(
             Spacer(Modifier.height(12.dp))
             PlatformHealthGroup(onOpenPlatformHealth, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
+            // Phase 7-7.2：系统权限状态检查入口
+            SystemStatusGroup(searchQuery, ::isGroupExpanded, ::toggleGroup)
+            Spacer(Modifier.height(12.dp))
             BackupGroup(
                 viewModel = viewModel,
                 onExport = { includeAuth -> exportLauncher.launch("liverecorder-config.json") },
@@ -734,6 +737,109 @@ private fun PlatformHealthGroup(
         }
     }
 }
+
+/** Phase 7-7.2：系统权限状态检查（通知 / 电池白名单 / 悬浮窗），点击行跳转对应系统设置。 */
+@Composable
+private fun SystemStatusGroup(
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+
+    // 状态：进组 + 每次回到前台重算（从系统设置返回后刷新）
+    var notifOk by remember { mutableStateOf(notifPermissionGranted(context)) }
+    var batteryOk by remember { mutableStateOf(batteryWhitelisted(context)) }
+    var overlayOk by remember { mutableStateOf(canDrawOverlays(context)) }
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                notifOk = notifPermissionGranted(context)
+                batteryOk = batteryWhitelisted(context)
+                overlayOk = canDrawOverlays(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    fun openSystemSettings(action: String, withPackage: Boolean = false) {
+        runCatching {
+            val intent = android.content.Intent(action)
+            if (withPackage) {
+                intent.data = Uri.parse("package:${context.packageName}")
+                intent.putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName)
+            }
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        }
+    }
+
+    val title = stringResource(R.string.settings_group_system_status)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
+        PermissionStatusRow(
+            label = stringResource(R.string.settings_permission_notif),
+            granted = notifOk,
+            onClick = {
+                if (!notifOk) openSystemSettings(
+                    android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS, withPackage = true
+                )
+            },
+        )
+        PermissionStatusRow(
+            label = stringResource(R.string.settings_permission_battery),
+            granted = batteryOk,
+            onClick = {
+                if (!batteryOk) runCatching {
+                    context.startActivity(
+                        android.content.Intent(
+                            android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                            Uri.parse("package:${context.packageName}"),
+                        )
+                    )
+                }.onFailure {
+                    openSystemSettings(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                }
+            },
+        )
+        PermissionStatusRow(
+            label = stringResource(R.string.settings_permission_overlay),
+            granted = overlayOk,
+            onClick = {
+                if (!overlayOk) openSystemSettings(
+                    android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, withPackage = true
+                )
+            },
+        )
+    }
+}
+
+/** 权限状态行：名称 + 状态（已授权绿 / 未授权提示），未授权可点击跳系统设置。 */
+@Composable
+private fun PermissionStatusRow(label: String, granted: Boolean, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        Text(
+            stringResource(
+                if (granted) R.string.settings_permission_granted else R.string.settings_permission_denied_short
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = if (granted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+        )
+    }
+}
+
+/** 悬浮窗权限是否已授（Phase 7-7.2，悬浮球功能用）。 */
+internal fun canDrawOverlays(context: android.content.Context): Boolean =
+    android.provider.Settings.canDrawOverlays(context)
 
 /** Phase 4-4.3：配置导出/导入（SAF）。 */
 @Composable
