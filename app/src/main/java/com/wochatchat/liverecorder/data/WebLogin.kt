@@ -24,7 +24,8 @@ fun parseCookiePairs(cookieHeader: String): Map<String, String> =
     cookieHeader.split(';')
         .mapNotNull { part ->
             val i = part.indexOf('=')
-            if (i <= 0) null
-            else part.substring(0, i).trim() to part.substring(i + 1).trim()
+            if (i <= 0) return@mapNotNull null
+            val key = part.substring(0, i).trim()
+            if (key.isEmpty()) null else key to part.substring(i + 1).trim()
         }
         .toMap()
