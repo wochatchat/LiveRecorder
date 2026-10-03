@@ -131,10 +131,12 @@ class RecordController(
             val anchorName: String = "",
             val title: String = "",
             val platform: String = "",
+            /** V3-1：结构化诊断串（k=v 空格分隔），设置页开启后渲染在状态行，可截图定位断点。 */
+            val diag: String = "",
         ) : RecordState()
 
-        /** 失败（未开播 / 无流 / 下载错误 / 重连次数耗尽）。 */
-        data class Failed(val message: String) : RecordState()
+        /** 失败（未开播 / 无流 / 下载错误 / 重连次数耗尽）。[diag] V3-1 诊断串。 */
+        data class Failed(val message: String, val diag: String = "") : RecordState()
     }
 
     private val jobs = ConcurrentHashMap<String, Job>()
@@ -148,6 +150,16 @@ class RecordController(
 
     fun start(url: String) {
         if (isActive(url)) return
+        AppLog.i(TAG, "录制启动(source=manual): $url")
+        val job = scope.launch { runRecord(url) }
+        jobs[url] = job
+        job.invokeOnCompletion { jobs.remove(url) }
+    }
+
+    /** V3-1：监控循环触发的录制（区分来源，便于日志定位「根本没触发」类断点）。 */
+    fun startFromMonitor(url: String) {
+        if (isActive(url)) return
+        AppLog.i(TAG, "录制启动(source=monitor): $url")
         val job = scope.launch { runRecord(url) }
         jobs[url] = job
         job.invokeOnCompletion { jobs.remove(url) }
@@ -175,6 +187,18 @@ class RecordController(
         var curTitle = ""
         var curPlatform = ""
 
+        // V3-1：诊断上下文（各失败/结束分支拼 diag，随状态渲染可截图定位断点）
+        val ffmpegHas = ffmpeg != null
+        var diagFetch = "pending" // fetchInfo 结果：ok / err:<msg> / pending
+        var diagLive = "?"        // isLive 探测值
+        var diagSrc = "no"        // 直播流地址有无（no/empty/yes）
+
+        /** 拼 k=v 诊断串（bytes/path/hist 反映断点时刻现场）。 */
+        fun diagOf(bytes: Long, path: String, hist: Boolean): String = diagOf(
+            "fetch" to diagFetch, "live" to diagLive, "src" to diagSrc, "ffmpeg" to ffmpegHas,
+            "bytes" to bytes, "path" to if (path.isNotBlank()) "yes" else "no", "hist" to hist,
+        )
+
         // Phase 4-4.1：单条参数覆盖（读取失败/null → 全局设置兜底）
         val ov = try { perUrlSettings(url) } catch (e: CancellationException) { throw e } catch (e: Exception) { null }
         suspend fun effSegmented(): Boolean = ov?.segmented ?: runCatching { useSegmented() }.getOrDefault(true)
@@ -201,10 +225,11 @@ class RecordController(
                 } catch (e: Exception) {
                     if (attempt == 0) {
                         AppLog.e(TAG, "解析直播源失败: ${e.message} ($url)")
-                        setState(url, RecordState.Failed("解析直播源失败: ${e.message}"))
+                        diagFetch = "err:${e.message}"
+                        setState(url, RecordState.Failed("解析直播源失败: ${e.message}", diagOf(totalBytes, lastPath, false)))
                         return
                     }
-                    if (!backoffOrGiveUp(url, ++attempt, "解析失败: ${e.message}")) return
+                    if (!backoffOrGiveUp(url, ++attempt, "解析失败: ${e.message}", diagOf(totalBytes, lastPath, false))) return
                     continue
                 }
 
@@ -212,25 +237,31 @@ class RecordController(
                 curAnchor = info.anchorName
                 curTitle = info.title
                 curPlatform = platformName(url)
+                diagFetch = "ok"
+                diagLive = info.isLive.toString()
 
                 if (!info.isLive) {
                     // B1 修复：有任何已录文件字节即写 Finished（含首探已开录一轮后关播场景）
+                    val hasFile = lastPath.isNotBlank() && totalBytes > 0
                     setState(
                         url,
-                        if (lastPath.isNotBlank() && totalBytes > 0) RecordState.Finished(
+                        if (hasFile) RecordState.Finished(
                             lastPath, totalBytes, completed = true, durationMs = accMs,
                             anchorName = curAnchor, title = curTitle, platform = curPlatform,
+                            diag = diagOf(totalBytes, lastPath, true),
                         )
-                        else RecordState.Failed("未在直播"),
+                        else RecordState.Failed("未在直播", diagOf(totalBytes, lastPath, false)),
                     )
                     return
                 }
 
                 val sourceUrl0 = RecordSource.selectSourceUrl(url, info.flvUrl, info.recordUrl)
                 if (sourceUrl0.isNullOrEmpty()) {
-                    setState(url, RecordState.Failed("未获取到直播流地址"))
+                    diagSrc = "empty"
+                    setState(url, RecordState.Failed("未获取到直播流地址", diagOf(totalBytes, lastPath, false)))
                     return
                 }
+                diagSrc = "yes"
                 // 5a：强制 https 录制（上游 main.py:1150；shopee/migu 平台例外走 http）
                 val sourceUrl = try {
                     RecordSource.applyRecordingScheme(sourceUrl0, forceHttps(), platformName(url))
@@ -305,7 +336,7 @@ class RecordController(
                         lastPath = saveFile.absolutePath
                         totalBytes += res.estimatedBytes
                         segBytes = 0
-                        if (!backoffOrGiveUp(url, ++attempt, "直播流结束")) return
+                        if (!backoffOrGiveUp(url, ++attempt, "直播流结束", diagOf(totalBytes, lastPath, true))) return
                     } else {
                         // ffmpeg 分段录制（3-3g）：m3u8 必须走 ffmpeg；FLV 也走 ffmpeg
                         segStartMs = nowMs()
@@ -339,7 +370,7 @@ class RecordController(
                     segBytes = 0
                     convertSegmentsAsync(res.segments)
                     // ++attempt 留下 attempt=1：下轮探测已关播时按 Finished(completed) 收敛（同 OkHttp 分支语义）
-                    if (!backoffOrGiveUp(url, ++attempt, "直播流结束")) return
+                    if (!backoffOrGiveUp(url, ++attempt, "直播流结束", diagOf(totalBytes, lastPath, true))) return
                     }
                 } else {
                     // OkHttp 直下（Phase 1/2 行为）
@@ -348,7 +379,7 @@ class RecordController(
                         AppLog.i(TAG, "音频模式需 ffmpeg 分段/直存，当前走 OkHttp 直下按常规录制: $url")
                     }
                     if (sourceUrl.contains(".m3u8")) {
-                        setState(url, RecordState.Failed("HLS(m3u8) 源需 ffmpeg 支持（Phase 3）"))
+                        setState(url, RecordState.Failed("HLS(m3u8) 源需 ffmpeg 支持（Phase 3）", diagOf(totalBytes, lastPath, false)))
                         return
                     }
                     val saveFile = File(dir, "$baseName.flv")
@@ -379,24 +410,26 @@ class RecordController(
                     segActive = false
                     val segMs = nowMs() - segStartMs
                     if (ok || segMs >= SEGMENT_RESET_MS) attempt = 0
-                    if (!backoffOrGiveUp(url, ++attempt, if (ok) "直播流结束" else "下载中断")) return
+                    if (!backoffOrGiveUp(url, ++attempt, if (ok) "直播流结束" else "下载中断", diagOf(totalBytes, lastPath, totalBytes > 0 && lastPath.isNotBlank()))) return
                 }
             }
         } catch (e: CancellationException) {
             // 5c：取消时并入进行中分段的字节与时长（手动停止面板数据准确）
             val segDurMs = if (segActive) nowMs() - segStartMs else 0
-            AppLog.i(TAG, "录制手动停止: $url (已录 ${totalBytes + segBytes} 字节)")
+            val finBytes = totalBytes + segBytes
+            AppLog.i(TAG, "录制手动停止: $url (已录 $finBytes 字节)")
             setState(
                 url,
                 RecordState.Finished(
-                    lastPath, totalBytes + segBytes, completed = false, durationMs = accMs + segDurMs,
+                    lastPath, finBytes, completed = false, durationMs = accMs + segDurMs,
                     anchorName = curAnchor, title = curTitle, platform = curPlatform,
+                    diag = diagOf(finBytes, lastPath, finBytes > 0 && lastPath.isNotBlank()),
                 ),
             )
             throw e
         } catch (e: Exception) {
             AppLog.e(TAG, "录制异常: ${e.message} ($url)")
-            setState(url, RecordState.Failed("录制异常: ${e.message}"))
+            setState(url, RecordState.Failed("录制异常: ${e.message}", diagOf(totalBytes, lastPath, false)))
         }
     }
 
@@ -422,10 +455,15 @@ class RecordController(
         }
     }
 
-    private suspend fun backoffOrGiveUp(url: String, attempt: Int, message: String): Boolean {
+    private suspend fun backoffOrGiveUp(
+        url: String,
+        attempt: Int,
+        message: String,
+        diag: String = "",
+    ): Boolean {
         if (attempt > MAX_RECONNECT_ATTEMPTS) {
-            AppLog.e(TAG, "断流重连失败（已重试 $MAX_RECONNECT_ATTEMPTS 次），已保留已录文件: $url")
-            setState(url, RecordState.Failed("断流重连失败（已重试 $MAX_RECONNECT_ATTEMPTS 次），已保留已录文件"))
+            AppLog.e(TAG, "断流重连失败（已重试 $MAX_RECONNECT_ATTEMPTS 次），已保留已录文件: $url diag=$diag")
+            setState(url, RecordState.Failed("断流重连失败（已重试 $MAX_RECONNECT_ATTEMPTS 次），已保留已录文件", diag))
             return false
         }
         val delaySec = reconnectDelaySec(attempt)
@@ -454,6 +492,10 @@ class RecordController(
         if (state is RecordState.Finished && state.savePath.isNotBlank() && state.bytes > 0) {
             runCatching { onFinished(url, state) }
                 .onFailure { AppLog.e(TAG, "录制记录写入失败: ${it.message}") }
+                .onSuccess { AppLog.i(TAG, "落库成功: $url bytes=${state.bytes} path=${state.savePath}") }
+        } else if (state is RecordState.Finished) {
+            // V3-1：Finished 但不满足落库条件——「录了却没记录」的关键断点，必须留痕
+            AppLog.w(TAG, "落库跳过(无有效文件): $url bytes=${state.bytes} path=${state.savePath} diag=${state.diag}")
         }
     }
 
@@ -464,5 +506,12 @@ class RecordController(
         const val MAX_BACKOFF_SEC = 60L
         const val MAX_RECONNECT_ATTEMPTS = 5
         const val SEGMENT_RESET_MS = 60_000L
+
+        /** V3-1：诊断串构造（k=v 空格分隔；空值写 "-"，保证字段对齐可读）。 */
+        internal fun diagOf(vararg pairs: Pair<String, Any?>): String =
+            pairs.joinToString(" ") { (k, v) ->
+                val s = v?.toString().orEmpty()
+                "$k=${if (s.isBlank()) "-" else s}"
+            }
     }
 }

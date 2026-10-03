@@ -101,6 +101,9 @@ fun MonitorScreen(
     val perUrlOverrides by viewModel.perUrlOverrides.collectAsState()
     // Phase 11-11.2：多账号列表 + 待绑定账号 id（AddUrlDialog 确认时落到该条 URL）
     val accounts by viewModel.accounts.collectAsState()
+    // V3-1：诊断 DBG 行开关（设置页控制，默认关）
+    val appSettingsState by viewModel.appSettings.collectAsState()
+    val showDiag = appSettingsState.diagEnabled
     val accountBindings by viewModel.accountBindings.collectAsState()
     var pendingAccountId by remember { mutableStateOf(Accounts.DEFAULT_ID) }
     val appSettings by viewModel.appSettings.collectAsState()
@@ -244,6 +247,8 @@ fun MonitorScreen(
                                 Accounts.cookieKeyForPlatform(platformKeyForUrl(url))
                             ]?.firstOrNull { it.id == (accountBindings[url] ?: "") }
                                 ?.takeIf { it.id != Accounts.DEFAULT_ID }?.nickname,
+                            // V3-1：诊断 DBG 行（设置页开关，默认关）
+                            showDiag = showDiag,
                         )
                     }
                 }

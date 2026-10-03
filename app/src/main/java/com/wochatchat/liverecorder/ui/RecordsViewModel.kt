@@ -76,6 +76,13 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
         _sortMode.value = mode
     }
 
+    /** V3-1：幽灵文件回收——进入记录页时扫描 downloads/ 未入库文件补写历史。 */
+    fun recoverGhosts() {
+        viewModelScope.launch {
+            runCatching { (getApplication() as RecorderApp).recoverGhostFiles() }
+        }
+    }
+
     private fun sortEntries(list: List<RecordHistoryEntry>, mode: SortMode): List<RecordHistoryEntry> =
         when (mode) {
             SortMode.TIME -> list.sortedByDescending { it.endTimeMs }

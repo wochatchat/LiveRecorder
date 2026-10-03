@@ -24,6 +24,7 @@ import com.wochatchat.liverecorder.data.MonitorStore
 import com.wochatchat.liverecorder.data.Accounts
 import com.wochatchat.liverecorder.data.RecordHistoryEntry
 import com.wochatchat.liverecorder.data.RecordHistoryStore
+import com.wochatchat.liverecorder.data.GhostRecovery
 import com.wochatchat.liverecorder.recorder.RecordSource
 import com.wochatchat.liverecorder.push.HttpPusher
 import com.wochatchat.liverecorder.service.EventNotifier
@@ -148,6 +149,34 @@ class RecorderApp : Application() {
     /** Phase 11-11.1：云同步设置存储。 */
     val cloudSyncStore by lazy { CloudSyncStore(this) }
 
+    /**
+     * V3-1：幽灵文件回收——扫描 downloads/ 下未入库的完整视频文件，按目录聚合
+     * 补写历史（completed=false，时间取 mtime）。App 启动与记录页进入时调用。
+     */
+    suspend fun recoverGhostFiles(): Int {
+        val base = File(filesDir, "downloads")
+        val known = historyStore.entries.first().map { it.savePath }.toSet()
+        val ghosts = GhostRecovery.findGhosts(base, known, System.currentTimeMillis())
+        if (ghosts.isEmpty()) return 0
+        ghosts.forEach { g ->
+            historyStore.add(
+                RecordHistoryEntry(
+                    url = "",
+                    platform = "",
+                    anchorName = "",
+                    title = g.displayName,
+                    savePath = g.dirPath,
+                    endTimeMs = g.lastModifiedMs,
+                    durationMs = 0,
+                    bytes = g.bytes,
+                    completed = false,
+                )
+            )
+            AppLog.w("GhostRecovery", "回收未入库文件(补写历史): ${g.dirPath} bytes=${g.bytes} files=${g.files.size}")
+        }
+        return ghosts.size
+    }
+
     private fun timeNow(): String =
         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
@@ -157,6 +186,8 @@ class RecorderApp : Application() {
         registerNetworkCallback()
         // Phase 11-11.1：云同步常驻循环（开关关闭时 syncOnce 直接空转返回）
         appScope.launch { cloudSyncManager.runLoop() }
+        // V3-1：启动时幽灵文件回收——未入库的落盘视频补写历史（completed=false）
+        appScope.launch { runCatching { recoverGhostFiles() } }
         // 5d：文件日志尽早初始化（logs/ 落 app 私有目录，日志页可查看/导出）
         AppLog.init(File(filesDir, "logs"))
         // 事件渠道尽早创建（2e：开播/关播通知）
@@ -247,7 +278,7 @@ class RecorderApp : Application() {
                     if (runCatching { appSettings.settings.first().onlyNotify }.getOrDefault(false)) {
                         AppLog.i("RecorderApp", "只推送不录制: $url")
                     } else {
-                        recordController.start(url)
+                        recordController.startFromMonitor(url)
                     }
                 }
             },

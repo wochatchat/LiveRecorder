@@ -195,6 +195,9 @@ fun SettingsScreen(
             // Phase 7-7.2：系统权限状态检查入口
             SystemStatusGroup(searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
+            // V3-1：仪器化诊断开关
+            DiagGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
+            Spacer(Modifier.height(12.dp))
             // Phase 9：主题定制（9.1 主题色 / 9.2 AMOLED 纯黑）
             AppearanceGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
@@ -862,6 +865,27 @@ private fun PermissionStatusRow(label: String, granted: Boolean, onClick: () -> 
 /** 悬浮窗权限是否已授（Phase 7-7.2，悬浮球功能用）。 */
 internal fun canDrawOverlays(context: android.content.Context): Boolean =
     android.provider.Settings.canDrawOverlays(context)
+
+/** V3-1：仪器化诊断——开启后监控卡片状态行渲染 DBG 诊断文本（可截图回传定位断点）。 */
+@Composable
+private fun DiagGroup(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
+) {
+    val title = stringResource(R.string.settings_group_diag)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
+        SwitchSettingRow(
+            title = stringResource(R.string.settings_diag_show_title),
+            subtitle = stringResource(R.string.settings_diag_show_subtitle),
+            checked = settings.diagEnabled,
+            onChange = { viewModel.setAppSettings(settings.copy(diagEnabled = it)) }
+        )
+    }
+}
 
 /** Phase 9：主题定制（9.1 主题色 ChipRow / 9.2 AMOLED 纯黑开关），即改即生效。 */
 @Composable

@@ -117,6 +117,8 @@ fun MonitorCard(
     hasOverride: Boolean = false,
     /** Phase 11-11.2：绑定的录制账号昵称（未绑定/默认账号传 null，不显示徽标）。 */
     boundAccount: String? = null,
+    /** V3-1：诊断 DBG 行显示开关（设置页控制，默认关）。 */
+    showDiag: Boolean = false,
 ) {
     val recording = recordState is RecordController.RecordState.Resolving ||
         recordState is RecordController.RecordState.Recording ||
@@ -211,7 +213,7 @@ fun MonitorCard(
 
             Spacer(Modifier.height(6.dp))
             if (recordState != null) {
-                RecordStatusLine(recordState)
+                RecordStatusLine(recordState, showDiag = showDiag)
             } else {
                 RoundSummaryCaption(roundInfo)
             }

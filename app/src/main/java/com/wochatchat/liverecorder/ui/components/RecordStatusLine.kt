@@ -47,6 +47,8 @@ import com.wochatchat.liverecorder.R
 fun RecordStatusLine(
     state: RecordController.RecordState,
     modifier: Modifier = Modifier,
+    /** V3-1：显示结构化诊断串（设置页开关，默认关）——用户截图即可定位录制断点。 */
+    showDiag: Boolean = false,
 ) {
     when (state) {
         is RecordController.RecordState.Resolving -> Row(
@@ -90,7 +92,7 @@ fun RecordStatusLine(
             )
         }
 
-        is RecordController.RecordState.Finished -> FinishedLine(state, modifier)
+        is RecordController.RecordState.Finished -> FinishedLine(state, modifier, showDiag)
 
         is RecordController.RecordState.Failed -> Row(
             modifier = modifier,
@@ -110,6 +112,7 @@ fun RecordStatusLine(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis
             )
+            DiagLine(state.diag, showDiag, Modifier.weight(1f))
         }
     }
 }
@@ -159,6 +162,7 @@ private fun RecordingStatsLine(
 private fun FinishedLine(
     state: RecordController.RecordState.Finished,
     modifier: Modifier = Modifier,
+    showDiag: Boolean = false,
 ) {
     val context = LocalContext.current
     Column(modifier = modifier) {
@@ -198,7 +202,23 @@ private fun FinishedLine(
                 }
             )
         }
+        DiagLine(state.diag, showDiag, Modifier.fillMaxWidth())
     }
+}
+
+/** V3-1：诊断 DBG 行（小号 monospace，可截图回传定位录制断点）。 */
+@Composable
+private fun DiagLine(diag: String, show: Boolean, modifier: Modifier = Modifier) {
+    if (!show || diag.isBlank()) return
+    Text(
+        text = "DBG $diag",
+        style = MaterialTheme.typography.labelSmall,
+        fontFamily = FontFamily.Monospace,
+        color = MaterialTheme.colorScheme.outline,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+        modifier = modifier,
+    )
 }
 
 /** 调系统播放器播放录制文件（FileProvider 授权，无可播放器时 Toast 提示）。 */

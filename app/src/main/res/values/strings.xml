@@ -146,6 +146,11 @@
 
     <!-- Phase 7-7.2：设置页权限状态检查 -->
     <string name="settings_group_system_status">系统状态</string>
+
+    <!-- V3-1：仪器化诊断 -->
+    <string name="settings_group_diag">诊断</string>
+    <string name="settings_diag_show_title">显示录制诊断信息</string>
+    <string name="settings_diag_show_subtitle">监控卡片状态行显示 DBG 诊断文本（解析/直播状态/流地址/字节数/落库），录制无记录时截图此行可快速定位断点</string>
     <string name="settings_permission_check_title">权限状态检查</string>
     <string name="settings_permission_check_subtitle">检查通知、电池白名单、悬浮窗等系统权限状态</string>
     <string name="settings_permission_notif">通知权限</string>

@@ -110,6 +110,8 @@ fun RecordsScreen(
     var selected by remember { mutableStateOf(setOf<RecordHistoryEntry>()) }
     var pendingBatchDelete by remember { mutableStateOf(false) }
 
+    // V3-1：进入记录页时回收幽灵文件（未入库的落盘视频补写历史）
+    LaunchedEffect(Unit) { viewModel.recoverGhosts() }
     LaunchedEffect(deleteResult) {
         deleteResult?.let {
             snackbar.showSnackbar(it)
