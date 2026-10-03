@@ -303,4 +303,34 @@ class MonitorStore(private val context: Context) {
             prefs[pushNtfyPriorityKey] = ntfyPriority
         }
     }
+
+    // ---- V3-3 R2: 监控列表分组与置顶 ----
+
+    /** 按平台分组开关（UI 偏好，顶栏切换）。 */
+    private val groupByPlatformKey = booleanPreferencesKey("group_by_platform")
+
+    val groupByPlatform: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[groupByPlatformKey] ?: false
+    }
+
+    suspend fun setGroupByPlatform(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[groupByPlatformKey] = enabled }
+    }
+
+    /** 置顶 URL 集合（\n 分隔；展示顺序以 urls 列表序为准，不依赖存储序）。 */
+    private val pinnedUrlsKey = stringPreferencesKey("pinned_urls")
+
+    val pinnedUrls: Flow<Set<String>> = context.dataStore.data.map { prefs ->
+        prefs[pinnedUrlsKey]?.split('\n')?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+    }
+
+    /** 置顶/取消置顶（卡片长按触发）。 */
+    suspend fun togglePinned(url: String) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[pinnedUrlsKey]?.split('\n')
+                ?.filter { it.isNotBlank() }?.toSet() ?: emptySet()
+            prefs[pinnedUrlsKey] = (if (url in current) current - url else current + url)
+                .joinToString("\n")
+        }
+    }
 }

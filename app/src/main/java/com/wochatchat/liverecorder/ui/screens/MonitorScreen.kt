@@ -7,6 +7,15 @@ import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +27,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,6 +37,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -43,6 +54,7 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -68,10 +80,13 @@ import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.data.AppLog
 import com.wochatchat.liverecorder.data.Account
 import com.wochatchat.liverecorder.data.Accounts
+import com.wochatchat.liverecorder.data.MonitorRow
+import com.wochatchat.liverecorder.data.groupMonitorUrls
 import com.wochatchat.liverecorder.platform.PlatformRouter
 import com.wochatchat.liverecorder.ui.MonitorViewModel
 import com.wochatchat.liverecorder.ui.components.MonitorCard
 import com.wochatchat.liverecorder.ui.components.FloatingOpPanel
+import com.wochatchat.liverecorder.ui.components.PLATFORM_LABELS
 import com.wochatchat.liverecorder.ui.components.PlatformBadge
 import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
 import com.wochatchat.liverecorder.ui.navigation.FocusRouter
@@ -105,6 +120,10 @@ fun MonitorScreen(
     val appSettingsState by viewModel.appSettings.collectAsState()
     val showDiag = appSettingsState.diagEnabled
     val accountBindings by viewModel.accountBindings.collectAsState()
+    // V3-3 R2：分组 / 置顶 / 首载骨架标记
+    val groupByPlatform by viewModel.groupByPlatform.collectAsState()
+    val pinnedUrls by viewModel.pinnedUrls.collectAsState()
+    val urlsLoaded by viewModel.urlsLoaded.collectAsState()
     var pendingAccountId by remember { mutableStateOf(Accounts.DEFAULT_ID) }
     val appSettings by viewModel.appSettings.collectAsState()
     val perUrlSheetState = androidx.compose.material3.rememberModalBottomSheetState()
@@ -154,12 +173,30 @@ fun MonitorScreen(
         }
     }
 
-    // 6f R22：消费 FocusRouter（通知点击直达）——urls 就绪后滚动定位并高亮 4s
+    // V3-3 R2：分组纯逻辑 → 展示行模型（置顶优先 + 平台分组，空组自动不出现）
+    val pinnedLabel = stringResource(R.string.monitor_group_pinned)
+    val displayItems = remember(urls, pinnedUrls, groupByPlatform, pinnedLabel) {
+        groupMonitorUrls(
+            urls = urls,
+            pinned = pinnedUrls,
+            groupByPlatform = groupByPlatform,
+            platformKeyOf = { platformKeyForUrl(it) },
+            platformLabelOf = { PLATFORM_LABELS[it] ?: it },
+            pinnedLabel = pinnedLabel,
+        ).flatMap { g ->
+            buildList {
+                g.label?.let { add(MonitorRow.Header(it)) }
+                g.urls.forEach { add(MonitorRow.UrlRow(it)) }
+            }
+        }
+    }
+
+    // 6f R22：消费 FocusRouter（通知点击直达）——列表就绪后滚动定位并高亮 4s
     val focusUrl by FocusRouter.focusUrl.collectAsState()
-    LaunchedEffect(focusUrl, urls) {
+    LaunchedEffect(focusUrl, displayItems) {
         val u = focusUrl ?: return@LaunchedEffect
-        val idx = urls.indexOf(u)
-        if (idx < 0) return@LaunchedEffect // 列表未就绪，effect 将随 urls 变化重跑
+        val idx = displayItems.indexOfFirst { it is MonitorRow.UrlRow && it.url == u }
+        if (idx < 0) return@LaunchedEffect // 列表未就绪，effect 将随变化重跑
         listState.animateScrollToItem(idx)
         highlightedUrl = u
         FocusRouter.clear()
@@ -173,6 +210,15 @@ fun MonitorScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.screen_monitor_title)) },
                 actions = {
+                    // V3-3 R2：按平台分组切换（高亮 = 已开启）
+                    IconButton(onClick = { viewModel.toggleGroupByPlatform() }) {
+                        Icon(
+                            Icons.Default.Category,
+                            contentDescription = stringResource(R.string.monitor_toggle_group),
+                            tint = if (groupByPlatform) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.desc_settings))
                     }
@@ -196,7 +242,18 @@ fun MonitorScreen(
         Box(
             modifier = Modifier.fillMaxSize().padding(padding)
         ) {
-            if (urls.isEmpty()) {
+            when {
+                // V3-3 R2：首载骨架（DataStore 未发射前防「空态」闪现）
+                !urlsLoaded -> {
+                    Column(
+                        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+                            .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        repeat(4) { SkeletonCard() }
+                    }
+                }
+                urls.isEmpty() -> {
                 EmptyState(
                     PaddingValues(0.dp),
                     onAdd = {
@@ -208,14 +265,36 @@ fun MonitorScreen(
                         showAddDialog = true
                     },
                 )
-            } else {
+                }
+                else -> {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(urls, key = { it }) { url ->
+                    // V3-3 R2：分组行模型渲染（头行 + 卡片行，key 唯一保 animateItem 生效）
+                    items(displayItems, key = { row ->
+                        when (row) {
+                            is MonitorRow.Header -> "h:${row.label}"
+                            is MonitorRow.UrlRow -> row.url
+                        }
+                    }) { row ->
+                        when (row) {
+                            is MonitorRow.Header -> Text(
+                                row.label,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .padding(start = 4.dp, top = 6.dp)
+                                    .animateItem(
+                                        fadeInSpec = tween(250),
+                                        placementSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                        fadeOutSpec = tween(200),
+                                    )
+                            )
+                            is MonitorRow.UrlRow -> {
+                        val url = row.url
                         val state = recordStates[url]
                         MonitorCard(
                             url = url,
@@ -225,7 +304,11 @@ fun MonitorScreen(
                             unhealthy = url in unhealthyUrls,
                             roundInfo = roundInfo,
                             // 6f-4：列表增删/位移动画（Foundation 1.7 animateItem）
-                            modifier = Modifier.animateItem().then(
+                            modifier = Modifier.animateItem(
+                                fadeInSpec = tween(250),
+                                placementSpec = spring(stiffness = Spring.StiffnessMediumLow),
+                                fadeOutSpec = tween(200),
+                            ).then(
                                 if (url == highlightedUrl) Modifier.border(
                                     2.dp,
                                     MaterialTheme.colorScheme.primary,
@@ -251,8 +334,14 @@ fun MonitorScreen(
                             showDiag = showDiag,
                             // V3-3 R1：紧凑模式（设置页「外观」开关，默认开）
                             compact = appSettingsState.compactMonitorCard,
+                            // V3-3 R2：置顶（长按切换）
+                            pinned = url in pinnedUrls,
+                            onTogglePin = { viewModel.togglePinned(url) },
                         )
+                            }
+                        }
                     }
+                }
                 }
             }
 
@@ -645,4 +734,62 @@ fun EditUrlDialog(
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         }
     )
+}
+
+/** V3-3 R2：监控列表骨架占位卡（首载期间呼吸闪烁，防「空态」闪现）。 */
+@Composable
+private fun SkeletonCard() {
+    val alpha by rememberInfiniteTransition(label = "skeleton").animateFloat(
+        initialValue = 0.35f,
+        targetValue = 0.85f,
+        animationSpec = infiniteRepeatable(
+            tween(700, easing = LinearEasing),
+            RepeatMode.Reverse
+        ),
+        label = "pulse"
+    )
+    val bg = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = alpha)
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        shadowElevation = 1.dp,
+        tonalElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    Modifier
+                        .size(22.dp)
+                        .background(bg, RoundedCornerShape(6.dp))
+                )
+                Spacer(Modifier.width(8.dp))
+                Box(
+                    Modifier
+                        .width(120.dp)
+                        .height(18.dp)
+                        .background(bg, RoundedCornerShape(4.dp))
+                )
+                Spacer(Modifier.weight(1f))
+                Box(
+                    Modifier
+                        .size(30.dp)
+                        .background(bg, RoundedCornerShape(15.dp))
+                )
+            }
+            Spacer(Modifier.height(10.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(12.dp)
+                    .background(bg, RoundedCornerShape(4.dp))
+            )
+            Spacer(Modifier.height(6.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth(0.6f)
+                    .height(12.dp)
+                    .background(bg, RoundedCornerShape(4.dp))
+            )
+        }
+    }
 }

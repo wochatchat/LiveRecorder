@@ -2,6 +2,7 @@ package com.wochatchat.liverecorder.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +20,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Icon
@@ -107,6 +109,7 @@ fun platformKeyForUrl(url: String): String = when {
  * 监控卡片（R10 / U6）：Surface 卡片包装，平台徽标 + 主播名大字标题 + URL 降级 caption。
  * 状态区：录制中 → 大字时长 + 进度条；其余状态 → 描述行（R13 由 RecordStatusLine 统一接管）。
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun MonitorCard(
     url: String,
@@ -130,6 +133,10 @@ fun MonitorCard(
     showDiag: Boolean = false,
     /** V3-3 R1：紧凑两行卡片（默认关，由设置页「紧凑模式」控制）。 */
     compact: Boolean = false,
+    /** V3-3 R2：是否置顶（显示 📌 指示）。 */
+    pinned: Boolean = false,
+    /** V3-3 R2：长按切换置顶。 */
+    onTogglePin: () -> Unit = {},
 ) {
     val recording = recordState is RecordController.RecordState.Resolving ||
         recordState is RecordController.RecordState.Recording ||
@@ -166,6 +173,8 @@ fun MonitorCard(
                 recording = recording,
                 boundAccount = boundAccount,
                 showDiag = showDiag,
+                pinned = pinned,
+                onTogglePin = onTogglePin,
                 onEdit = onEdit,
                 onSettings = onSettings,
                 onToggleEnabled = onToggleEnabled,
@@ -175,7 +184,12 @@ fun MonitorCard(
                 onDelete = { showConfirmDelete = true },
             )
         } else {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(12.dp)
+                // V3-3 R2：完整卡片长按置顶（compact 同）
+                .combinedClickable(onClick = {}, onLongClick = onTogglePin)
+        ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -292,6 +306,7 @@ fun MonitorCard(
  * 行 2：状态/摘要（录制中 时长·大小 / 空闲 下次检查）+ 紧凑图标组（录制/参数/编辑/删除）。
  * 标题与 URL 收进点击展开区；左侧平台色条辅助区分多条任务。
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun CompactCardInner(
     url: String,
@@ -303,6 +318,8 @@ private fun CompactCardInner(
     recording: Boolean,
     boundAccount: String?,
     showDiag: Boolean,
+    pinned: Boolean,
+    onTogglePin: () -> Unit,
     onEdit: () -> Unit,
     onSettings: () -> Unit,
     onToggleEnabled: (Boolean) -> Unit,
@@ -332,7 +349,11 @@ private fun CompactCardInner(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .clickable { expanded = !expanded }
+                // V3-3 R2：点击展开标题/URL，长按置顶
+                .combinedClickable(
+                    onClick = { expanded = !expanded },
+                    onLongClick = onTogglePin,
+                )
                 .padding(start = 10.dp, end = 4.dp, top = 8.dp, bottom = 8.dp)
         ) {
             // 行 1：徽标 + 主播名 + 状态 + 开关
@@ -367,6 +388,15 @@ private fun CompactCardInner(
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
+                }
+                // V3-3 R2：置顶指示
+                if (pinned) {
+                    Icon(
+                        Icons.Filled.PushPin,
+                        contentDescription = stringResource(R.string.monitor_pinned_desc),
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(14.dp)
+                    )
                 }
                 StatusBadge(recordState, monitorState, disabled, unhealthy)
                 // 6f-4：无障碍——Switch 必须有 contentDescription

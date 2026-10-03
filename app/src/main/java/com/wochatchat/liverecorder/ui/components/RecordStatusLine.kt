@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.ui.StatsFormat
+import com.wochatchat.liverecorder.ui.theme.LocalStatusColors
 import java.io.File
 import com.wochatchat.liverecorder.R
 
@@ -101,7 +102,7 @@ fun RecordStatusLine(
             Icon(
                 Icons.Default.Warning,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.error,
+                tint = LocalStatusColors.current.error ?: MaterialTheme.colorScheme.error,
                 modifier = Modifier.size(14.dp)
             )
             Spacer(Modifier.width(6.dp))
@@ -138,7 +139,7 @@ private fun RecordingStatsLine(
             text = StatsFormat.duration(shownMs),
             style = MaterialTheme.typography.titleMedium,
             fontFamily = FontFamily.Monospace,
-            color = MaterialTheme.colorScheme.error
+            color = LocalStatusColors.current.recording ?: MaterialTheme.colorScheme.error
         )
         LinearProgressIndicator(
             modifier = Modifier

@@ -133,6 +133,10 @@
     <string name="settings_amoled_subtitle">深色模式下背景与卡片用纯黑，更省电</string>
     <string name="settings_compact_card_title">监控卡片紧凑模式</string>
     <string name="settings_compact_card_subtitle">两行紧凑布局：主播名为主视觉，标题与网址收进点击展开；关闭后恢复完整卡片</string>
+    <!-- V3-3 R2: 监控列表分组与置顶 -->
+    <string name="monitor_toggle_group">按平台分组</string>
+    <string name="monitor_group_pinned">置顶</string>
+    <string name="monitor_pinned_desc">已置顶（长按卡片可取消）</string>
     <string name="settings_status_default">默认</string>
     <string name="settings_status_recording_color">录制中状态色</string>
     <string name="settings_status_error_color">异常状态色</string>

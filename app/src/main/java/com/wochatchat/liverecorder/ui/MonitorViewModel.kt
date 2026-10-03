@@ -17,6 +17,7 @@ import com.wochatchat.liverecorder.service.MonitorService
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -71,6 +72,27 @@ class MonitorViewModel(app: Application) : AndroidViewModel(app) {
     /** Phase 11-11.2：条目绑定账号（URL → 账号 id）。 */
     val accountBindings: StateFlow<Map<String, String>> = store.accountBindings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
+
+    // ---- V3-3 R2: 分组 / 置顶 / 首载标记 ----
+
+    /** 按平台分组开关（顶栏切换，持久化）。 */
+    val groupByPlatform: StateFlow<Boolean> = store.groupByPlatform
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+
+    /** 置顶 URL 集合（卡片长按切换）。 */
+    val pinnedUrls: StateFlow<Set<String>> = store.pinnedUrls
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptySet())
+
+    /** urls 是否已完成首次加载（DataStore 首次发射）——骨架屏只在此前显示，防空态闪现。 */
+    val urlsLoaded: StateFlow<Boolean> = store.urls
+        .map { true }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    fun toggleGroupByPlatform() = viewModelScope.launch {
+        store.setGroupByPlatform(!(groupByPlatform.value))
+    }
+
+    fun togglePinned(url: String) = viewModelScope.launch { store.togglePinned(url) }
 
     init {
         // 2b 接线：服务常驻条件 = 监控开启 或 有活动录制；两者皆无则停服。
