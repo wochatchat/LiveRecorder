@@ -43,6 +43,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -68,6 +70,7 @@ fun SettingsScreen(
     val proxy by viewModel.proxySettings.collectAsState()
     val convertMp4 by viewModel.autoConvertMp4.collectAsState()
     val settings by viewModel.appSettings.collectAsState()
+    val cloudSync by viewModel.cloudSync.collectAsState()
     val cookies by viewModel.cookies.collectAsState()
     val credentials by viewModel.credentials.collectAsState()
     // SAF 文件读写需 context
@@ -194,6 +197,8 @@ fun SettingsScreen(
             Spacer(Modifier.height(12.dp))
             // Phase 9：主题定制（9.1 主题色 / 9.2 AMOLED 纯黑）
             AppearanceGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
+            Spacer(Modifier.height(12.dp))
+            CloudSyncGroup(cloudSync, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
             BackupGroup(
                 viewModel = viewModel,
@@ -960,6 +965,75 @@ private fun StatusColorRow(
         onSelect = { label0 ->
             if (label0 == labelDefault) onSelect("") else onSelect(presetLabels[label0] ?: "")
         },
+    )
+}
+
+/** Phase 11-11.1：云同步（WebDAV）分组——开关/服务器/账号/密码/远端目录/保留本地。 */
+@Composable
+private fun CloudSyncGroup(
+    cs: com.wochatchat.liverecorder.data.CloudSyncSettings,
+    viewModel: SettingsViewModel,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
+) {
+    val title = stringResource(R.string.settings_group_cloud_sync)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
+        SwitchSettingRow(
+            title = stringResource(R.string.settings_cloud_enabled),
+            subtitle = stringResource(R.string.settings_cloud_enabled_sub),
+            checked = cs.enabled,
+            onChange = { viewModel.setCloudSync(cs.copy(enabled = it)) },
+        )
+        CloudTextField(
+            label = stringResource(R.string.settings_cloud_server),
+            value = cs.serverUrl,
+            onSave = { viewModel.setCloudSync(cs.copy(serverUrl = it)) },
+        )
+        CloudTextField(
+            label = stringResource(R.string.settings_cloud_user),
+            value = cs.username,
+            onSave = { viewModel.setCloudSync(cs.copy(username = it)) },
+        )
+        CloudTextField(
+            label = stringResource(R.string.settings_cloud_pass),
+            value = cs.password,
+            visualMask = true,
+            onSave = { viewModel.setCloudSync(cs.copy(password = it)) },
+        )
+        CloudTextField(
+            label = stringResource(R.string.settings_cloud_remote_dir),
+            value = cs.remoteDir,
+            onSave = { viewModel.setCloudSync(cs.copy(remoteDir = it)) },
+        )
+        SwitchSettingRow(
+            title = stringResource(R.string.settings_cloud_keep_local),
+            subtitle = stringResource(R.string.settings_cloud_keep_local_sub),
+            checked = cs.keepLocal,
+            onChange = { viewModel.setCloudSync(cs.copy(keepLocal = it)) },
+        )
+    }
+}
+
+/** Phase 11-11.1：云同步文本字段（失焦保存；[visualMask] 密码掩码显示）。 */
+@Composable
+private fun CloudTextField(
+    label: String,
+    value: String,
+    onSave: (String) -> Unit,
+    visualMask: Boolean = false,
+) {
+    var text by remember(value) { mutableStateOf(value) }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { text = it },
+        label = { Text(label) },
+        visualTransformation = if (visualMask) PasswordVisualTransformation() else VisualTransformation.None,
+        modifier = saveOnFocusModifier(text != value) { onSave(text.trim()) }
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        singleLine = true,
     )
 }
 

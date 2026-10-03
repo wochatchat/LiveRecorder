@@ -17,6 +17,7 @@ import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.AccountHealth
 import com.wochatchat.liverecorder.data.AdaptiveQuality
 import com.wochatchat.liverecorder.data.AppSettings
+import com.wochatchat.liverecorder.data.CloudSyncStore
 import com.wochatchat.liverecorder.data.NetType
 import com.wochatchat.liverecorder.data.AppSettingsStore
 import com.wochatchat.liverecorder.data.MonitorStore
@@ -26,6 +27,7 @@ import com.wochatchat.liverecorder.recorder.RecordSource
 import com.wochatchat.liverecorder.push.HttpPusher
 import com.wochatchat.liverecorder.service.EventNotifier
 import com.wochatchat.liverecorder.storage.StorageManager
+import com.wochatchat.liverecorder.sync.CloudSyncManager
 import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
 import com.wochatchat.liverecorder.data.DailyReport
 import kotlinx.coroutines.CoroutineScope
@@ -120,6 +122,18 @@ class RecorderApp : Application() {
     /** 6e R18：录制历史存储层（RecordController onFinished 落库，RecordsViewModel 读取）。 */
     val historyStore by lazy { RecordHistoryStore(this) }
 
+    /** Phase 11-11.1：WebDAV 云同步（录制完成后自动上传 NAS）。 */
+    val cloudSyncManager by lazy {
+        CloudSyncManager(
+            store = cloudSyncStore,
+            baseDir = File(filesDir, "downloads"),
+            savePaths = { historyStore.entries.first().map { it.savePath } },
+        )
+    }
+
+    /** Phase 11-11.1：云同步设置存储。 */
+    val cloudSyncStore by lazy { CloudSyncStore(this) }
+
     private fun timeNow(): String =
         SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date())
 
@@ -127,6 +141,8 @@ class RecorderApp : Application() {
         super.onCreate()
         // Phase 10-10.2：注册网络回调（自适应画质感知 WiFi/流量切换）
         registerNetworkCallback()
+        // Phase 11-11.1：云同步常驻循环（开关关闭时 syncOnce 直接空转返回）
+        appScope.launch { cloudSyncManager.runLoop() }
         // 5d：文件日志尽早初始化（logs/ 落 app 私有目录，日志页可查看/导出）
         AppLog.init(File(filesDir, "logs"))
         // 事件渠道尽早创建（2e：开播/关播通知）
@@ -190,6 +206,8 @@ class RecorderApp : Application() {
                         completed = fin.completed,
                     )
                 )
+                // Phase 11-11.1：录制完成立即触发一次云同步扫描
+                runCatching { cloudSyncManager.kickUpload() }
             },
             // Phase 4-4.1：单条录制参数覆盖（fetchInfo 里已处理 quality，此处处理分段/格式）
             perUrlSettings = { url ->

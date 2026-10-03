@@ -10,6 +10,7 @@ import com.wochatchat.liverecorder.data.AuthStore
 import com.wochatchat.liverecorder.data.AccountHealth
 import com.wochatchat.liverecorder.data.AccountHealthEntry
 import com.wochatchat.liverecorder.data.CheckResultEntry
+import com.wochatchat.liverecorder.data.CloudSyncSettings
 import com.wochatchat.liverecorder.data.ConfigExporter
 import com.wochatchat.liverecorder.data.MonitorStore
 import com.wochatchat.liverecorder.data.ProxySettings
@@ -80,6 +81,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     /** 5a：全局录制设置（画质/循环时间/分段/命名等）。 */
     val appSettings: StateFlow<AppSettings> = (app as RecorderApp).appSettings.settings
+
+    /** Phase 11-11.1：云同步设置。 */
+    val cloudSync: StateFlow<CloudSyncSettings> =
+        (app as RecorderApp).cloudSyncStore.settings
+            .stateIn(viewModelScope, SharingStarted.Eagerly, CloudSyncSettings())
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AppSettings())
 
     /** 4b：平台 cookie（平台键 → cookie 串）。 */
@@ -116,6 +122,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun setAppSettings(settings: AppSettings) = viewModelScope.launch {
         (getApplication() as RecorderApp).appSettings.set(settings)
+    }
+
+    /** Phase 11-11.1：保存云同步设置。 */
+    fun setCloudSync(s: CloudSyncSettings) = viewModelScope.launch {
+        (getApplication() as RecorderApp).cloudSyncStore.set(s)
     }
 
     fun setCookie(platform: String, cookie: String) = viewModelScope.launch {
