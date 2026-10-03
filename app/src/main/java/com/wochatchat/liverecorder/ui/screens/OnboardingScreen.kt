@@ -30,6 +30,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
@@ -49,6 +50,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -61,9 +63,10 @@ import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.ui.components.PlatformBadge
 import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
 import kotlinx.coroutines.launch
+import androidx.compose.animation.core.animateFloat
 
-/** 引导总页数（Phase 7-7.1：欢迎 / 权限 / 添加监控项 / 开始使用）。 */
-private const val PAGE_COUNT = 4
+/** 引导总页数（Phase 7-7.1：欢迎 / 权限 / 添加监控项 / Tutorial 动画 / 开始使用）。 */
+private const val PAGE_COUNT = 5
 
 /**
  * 6f R21：首次使用引导（4 页：欢迎与平台 → 权限设置 → 添加第一个监控项 → 开始使用）。
@@ -159,6 +162,7 @@ fun OnboardingScreen(onComplete: () -> Unit, onAddMonitor: ((String) -> Unit)? =
                     onRequestBattery = ::requestBattery,
                 )
                 2 -> AddMonitorPage(onAddMonitor)
+                3 -> TutorialPage()
                 else -> StartPage()
             }
         }
@@ -409,6 +413,76 @@ private fun AddMonitorPage(onAddMonitor: ((String) -> Unit)?) {
             color = MaterialTheme.colorScheme.outline,
         )
     }
+}
+
+/**
+ * Phase 7-7.3 第 4 页：Tutorial 动画——循环演示「添加 → 录制 → 查看回放」三步流程。
+ * 纯 Compose 无限过渡（零依赖）：三个图标按序点亮，当前步放大 + 主色。
+ */
+@Composable
+private fun TutorialPage() {
+    val transition = androidx.compose.animation.core.rememberInfiniteTransition(label = "tutorial")
+    val phase by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 3f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            androidx.compose.animation.core.tween(3600, easing = androidx.compose.animation.core.LinearEasing)
+        ),
+        label = "tutorial_phase",
+    )
+
+    // 步骤 i 的点亮程度：phase 越接近 (i + 0.5) 越亮（1.0），两侧线性衰减到 0
+    fun highlight(i: Int): Float {
+        val d = kotlin.math.abs(phase - (i + 0.5f))
+        return (1f - d / 0.5f).coerceIn(0f, 1f)
+    }
+
+    val steps = listOf(
+        Triple(Icons.Default.Add, stringResource(R.string.onboarding_tutorial_step_add), 0),
+        Triple(Icons.Default.PlayArrow, stringResource(R.string.onboarding_tutorial_step_record), 1),
+        Triple(Icons.Default.Folder, stringResource(R.string.onboarding_tutorial_step_view), 2),
+    )
+
+    OnboardingScaffold(
+        icon = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                steps.forEachIndexed { idx, (icon, label, i) ->
+                    if (idx > 0) {
+                        Text(
+                            "→",
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.outline,
+                            modifier = Modifier.padding(horizontal = 8.dp),
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        val h = highlight(i)
+                        Icon(
+                            icon, contentDescription = label,
+                            tint = if (h > 0.5f) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.outlineVariant,
+                            modifier = Modifier
+                                .size(56.dp)
+                                .graphicsLayer {
+                                    scaleX = 1f + 0.25f * h
+                                    scaleY = 1f + 0.25f * h
+                                    alpha = 0.45f + 0.55f * h
+                                },
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (h > 0.5f) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        },
+        title = stringResource(R.string.onboarding_tutorial_title),
+        body = stringResource(R.string.onboarding_tutorial_body),
+    )
 }
 
 /** 引导页通用骨架：图标 + 标题 + 说明文字 + 可选附加内容（垂直居中）。 */

@@ -133,6 +133,27 @@ fun RecordDetailScreen(
     var mergeProgress by remember { mutableFloatStateOf(-1f) }
     var mergeError by remember { mutableStateOf<String?>(null) }
 
+    // Phase 7-7.3：首次进入详情页提示（只显示一次，DataStore 标记）
+    val appSettings = remember {
+        (context.applicationContext as com.wochatchat.liverecorder.RecorderApp).appSettings
+    }
+    val detailHintShown by appSettings.detailHintShown.collectAsState(initial = true)
+    fun dismissHint() {
+        scope.launch { runCatching { appSettings.markDetailHintShown() } }
+    }
+    if (!detailHintShown) {
+        AlertDialog(
+            onDismissRequest = ::dismissHint,
+            title = { Text(stringResource(R.string.detail_hint_title)) },
+            text = { Text(stringResource(R.string.detail_hint_body)) },
+            confirmButton = {
+                TextButton(onClick = ::dismissHint) {
+                    Text(stringResource(R.string.detail_hint_dismiss))
+                }
+            },
+        )
+    }
+
     // 模拟进度（真实进度需解析 ffmpeg stderr 输出，后续可改）
     fun startMerge() {
         scope.launch {

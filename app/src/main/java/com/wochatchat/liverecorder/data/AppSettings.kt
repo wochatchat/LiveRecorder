@@ -116,6 +116,9 @@ class AppSettingsStore(private val context: android.content.Context) {
     /** Phase 3：用户忽略的版本号（忽略后不再提示，直到有新版本）。 */
     private val ignoredVersionKey = stringPreferencesKey("ignored_version")
 
+    /** Phase 7-7.3：录制详情页首次提示是否已展示（只显示一次）。 */
+    private val detailHintShownKey = booleanPreferencesKey("detail_hint_shown")
+
     // Phase 4-4.2：定时监控
     private val scheduleMonitorEnabledKey = booleanPreferencesKey("schedule_monitor_enabled")
     private val scheduleStartMinuteKey = intPreferencesKey("schedule_start_minute")
@@ -142,6 +145,17 @@ class AppSettingsStore(private val context: android.content.Context) {
     /** Phase 3：已忽略的版本号（忽略后不再提示）。 */
     val ignoredVersion: Flow<String?> = context.settingsDataStore.data
         .map { prefs -> prefs[ignoredVersionKey] }
+
+    /** Phase 7-7.3：详情页首次提示是否已展示。 */
+    val detailHintShown: Flow<Boolean> = context.settingsDataStore.data
+        .map { prefs -> prefs[detailHintShownKey] ?: false }
+
+    /** Phase 7-7.3：标记详情页首次提示已展示（只显示一次）。 */
+    suspend fun markDetailHintShown() {
+        context.settingsDataStore.edit { prefs ->
+            prefs[detailHintShownKey] = true
+        }
+    }
 
     /** Phase 3：忽略指定版本。 */
     suspend fun setIgnoredVersion(version: String) {

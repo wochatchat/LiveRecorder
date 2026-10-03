@@ -99,6 +99,16 @@
     <string name="onboarding_add_quick">快捷添加</string>
     <string name="onboarding_add_platform_tip">点击上方链接可直接添加并开始监控</string>
 
+    <!-- Phase 7-7.3：Tutorial 动画 + 详情页首次提示 -->
+    <string name="onboarding_tutorial_title">三步上手</string>
+    <string name="onboarding_tutorial_body">添加直播间 → 自动录制 → 查看回放</string>
+    <string name="onboarding_tutorial_step_add">添加直播间</string>
+    <string name="onboarding_tutorial_step_record">自动录制</string>
+    <string name="onboarding_tutorial_step_view">查看回放</string>
+    <string name="detail_hint_title">录制详情页</string>
+    <string name="detail_hint_body">点击 ▶ 播放或分享分段文件\n时间轴展示录制过程与分段占比\n顶部「合并导出」可输出完整视频\n此提示仅显示一次</string>
+    <string name="detail_hint_dismiss">知道了</string>
+
     <!-- Phase 7-7.2：设置页权限状态检查 -->
     <string name="settings_group_system_status">系统状态</string>
     <string name="settings_permission_check_title">权限状态检查</string>
