@@ -9,6 +9,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
@@ -44,12 +45,16 @@ private fun brandScheme(key: String, darkTheme: Boolean): ColorScheme {
  *
  * Phase 9-9.1：[themeColor] 非 system 时使用固定品牌色（不再走动态取色）。
  * Phase 9-9.2：[amoledBlack] 开启且深色时，背景/表面覆盖为纯黑 #000000。
+ * Phase 9-9.3：状态色非空时经 LocalStatusColors 提供给全站徽标。
  */
 @Composable
 fun LiveRecorderTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     themeColor: String = THEME_SYSTEM,
     amoledBlack: Boolean = false,
+    statusRecordingColor: String = "",
+    statusErrorColor: String = "",
+    statusOfflineColor: String = "",
     content: @Composable () -> Unit,
 ) {
     val colorScheme = when {
@@ -62,7 +67,14 @@ fun LiveRecorderTheme(
         else -> LightColors
     }
     val finalScheme = if (darkTheme && amoledBlack) colorScheme.amoled() else colorScheme
-    MaterialTheme(colorScheme = finalScheme, content = content)
+    val statusColors = StatusColors(
+        recording = parseStatusColor(statusRecordingColor),
+        error = parseStatusColor(statusErrorColor),
+        offline = parseStatusColor(statusOfflineColor),
+    )
+    MaterialTheme(colorScheme = finalScheme) {
+        CompositionLocalProvider(LocalStatusColors provides statusColors, content = content)
+    }
 }
 
 /** Phase 9-9.2：深色方案背景/表面层级覆盖为纯黑（OLED 省电）。 */

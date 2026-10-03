@@ -38,6 +38,9 @@ class MainActivity : ComponentActivity() {
             LiveRecorderTheme(
                 themeColor = settings.themeColor,
                 amoledBlack = settings.amoledBlack,
+                statusRecordingColor = settings.statusRecordingColor,
+                statusErrorColor = settings.statusErrorColor,
+                statusOfflineColor = settings.statusOfflineColor,
             ) {
                 AppNavigation()
             }

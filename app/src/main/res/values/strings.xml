@@ -126,6 +126,10 @@
     <string name="settings_theme_orange">橙</string>
     <string name="settings_amoled_title">AMOLED 纯黑模式</string>
     <string name="settings_amoled_subtitle">深色模式下背景与卡片用纯黑，更省电</string>
+    <string name="settings_status_default">默认</string>
+    <string name="settings_status_recording_color">录制中状态色</string>
+    <string name="settings_status_error_color">异常状态色</string>
+    <string name="settings_status_offline_color">离线状态色</string>
 
     <!-- Phase 7-7.2：设置页权限状态检查 -->
     <string name="settings_group_system_status">系统状态</string>

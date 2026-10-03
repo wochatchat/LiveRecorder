@@ -11,10 +11,12 @@ import androidx.compose.ui.unit.dp
 import com.wochatchat.liverecorder.monitor.MonitorLoop
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.R
+import com.wochatchat.liverecorder.ui.theme.LocalStatusColors
 
 /**
  * 统一状态徽标：录制链路状态（Recording/Reconnecting/Resolving）优先于监控状态。
  * 颜色走 MaterialTheme，深色模式自动适配（R3）。
+ * Phase 9-9.3：录制中/异常/离线三态支持用户自定义色（null = 语义默认）。
  */
 @Composable
 fun StatusBadge(
@@ -23,16 +25,24 @@ fun StatusBadge(
     disabled: Boolean,
     unhealthy: Boolean = false,
 ) {
+    val custom = LocalStatusColors.current
     val (text, color) = when {
         disabled -> stringResource(R.string.badge_disabled) to MaterialTheme.colorScheme.outline
-        recordState is RecordController.RecordState.Recording -> stringResource(R.string.badge_recording) to MaterialTheme.colorScheme.error
-        recordState is RecordController.RecordState.Reconnecting -> stringResource(R.string.badge_reconnecting) to MaterialTheme.colorScheme.tertiary
-        recordState is RecordController.RecordState.Resolving -> stringResource(R.string.badge_resolving) to MaterialTheme.colorScheme.primary
-        monitorState is MonitorLoop.State.Live -> stringResource(R.string.badge_live) to MaterialTheme.colorScheme.primary
-        monitorState is MonitorLoop.State.Offline -> stringResource(R.string.badge_offline) to MaterialTheme.colorScheme.onSurfaceVariant
-        monitorState is MonitorLoop.State.Error && unhealthy -> stringResource(R.string.badge_unhealthy) to MaterialTheme.colorScheme.outline
-        monitorState is MonitorLoop.State.Error -> stringResource(R.string.badge_error) to MaterialTheme.colorScheme.error
-        else -> stringResource(R.string.badge_pending) to MaterialTheme.colorScheme.onSurfaceVariant
+        recordState is RecordController.RecordState.Recording ->
+            stringResource(R.string.badge_recording) to (custom.recording ?: MaterialTheme.colorScheme.error)
+        recordState is RecordController.RecordState.Reconnecting ->
+            stringResource(R.string.badge_reconnecting) to MaterialTheme.colorScheme.tertiary
+        recordState is RecordController.RecordState.Resolving ->
+            stringResource(R.string.badge_resolving) to MaterialTheme.colorScheme.primary
+        monitorState is MonitorLoop.State.Live ->
+            stringResource(R.string.badge_live) to MaterialTheme.colorScheme.primary
+        monitorState is MonitorLoop.State.Offline ->
+            stringResource(R.string.badge_offline) to (custom.offline ?: MaterialTheme.colorScheme.onSurfaceVariant)
+        monitorState is MonitorLoop.State.Error && unhealthy ->
+            stringResource(R.string.badge_unhealthy) to MaterialTheme.colorScheme.outline
+        monitorState is MonitorLoop.State.Error ->
+            stringResource(R.string.badge_error) to (custom.error ?: MaterialTheme.colorScheme.error)
+        else -> stringResource(R.string.badge_pending) to (custom.offline ?: MaterialTheme.colorScheme.onSurfaceVariant)
     }
     Surface(
         color = color.copy(alpha = 0.12f),

@@ -84,6 +84,14 @@ data class AppSettings(
     val themeColor: String = "system",
     /** AMOLED 纯黑模式（Phase 9-9.2）：深色下背景/表面用 #000000。 */
     val amoledBlack: Boolean = false,
+
+    // ---- Phase 9-9.3: 自定义状态色（ARGB hex 字符串，空 = 走语义默认色） ----
+    /** 「录制中」徽标色。 */
+    val statusRecordingColor: String = "",
+    /** 「异常」徽标色（监控 Error/录制失败）。 */
+    val statusErrorColor: String = "",
+    /** 「离线」徽标色。 */
+    val statusOfflineColor: String = "",
 ) {
     companion object {
         /** 静音时段起止（小时）：23:00 起，07:00 止。 */
@@ -152,6 +160,11 @@ class AppSettingsStore(private val context: android.content.Context) {
 
     /** Phase 9-9.2：AMOLED 纯黑模式。 */
     private val amoledBlackKey = booleanPreferencesKey("amoled_black")
+
+    /** Phase 9-9.3：自定义状态色（ARGB hex，空 = 语义默认）。 */
+    private val statusRecordingColorKey = stringPreferencesKey("status_recording_color")
+    private val statusErrorColorKey = stringPreferencesKey("status_error_color")
+    private val statusOfflineColorKey = stringPreferencesKey("status_offline_color")
 
     /** 6f R21：首启引导是否已完成。 */
     val onboardingCompleted: Flow<Boolean> = context.settingsDataStore.data
@@ -223,6 +236,9 @@ class AppSettingsStore(private val context: android.content.Context) {
             dailyReportEnabled = prefs[dailyReportEnabledKey] ?: false,
             themeColor = prefs[themeColorKey] ?: "system",
             amoledBlack = prefs[amoledBlackKey] ?: false,
+            statusRecordingColor = prefs[statusRecordingColorKey] ?: "",
+            statusErrorColor = prefs[statusErrorColorKey] ?: "",
+            statusOfflineColor = prefs[statusOfflineColorKey] ?: "",
         )
     }
 
@@ -254,6 +270,9 @@ class AppSettingsStore(private val context: android.content.Context) {
             prefs[dailyReportEnabledKey] = settings.dailyReportEnabled
             prefs[themeColorKey] = settings.themeColor
             prefs[amoledBlackKey] = settings.amoledBlack
+            prefs[statusRecordingColorKey] = settings.statusRecordingColor
+            prefs[statusErrorColorKey] = settings.statusErrorColor
+            prefs[statusOfflineColorKey] = settings.statusOfflineColor
         }
     }
 

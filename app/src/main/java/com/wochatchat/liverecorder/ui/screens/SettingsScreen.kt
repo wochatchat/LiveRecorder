@@ -887,7 +887,73 @@ private fun AppearanceGroup(
             checked = settings.amoledBlack,
             onChange = { viewModel.setAppSettings(settings.copy(amoledBlack = it)) },
         )
+        // Phase 9-9.3：三个状态色 ChipRow（默认 + 5 预设色，写 ARGB hex）
+        val labelDefault = stringResource(R.string.settings_status_default)
+        StatusColorRow(
+            label = stringResource(R.string.settings_status_recording_color),
+            current = settings.statusRecordingColor,
+            labelDefault = labelDefault,
+            presetLabels = statusPresetLabels(labelRed, labelBlue, labelGreen, labelPurple, labelOrange),
+            onSelect = { viewModel.setAppSettings(settings.copy(statusRecordingColor = it)) },
+        )
+        StatusColorRow(
+            label = stringResource(R.string.settings_status_error_color),
+            current = settings.statusErrorColor,
+            labelDefault = labelDefault,
+            presetLabels = statusPresetLabels(labelRed, labelBlue, labelGreen, labelPurple, labelOrange),
+            onSelect = { viewModel.setAppSettings(settings.copy(statusErrorColor = it)) },
+        )
+        StatusColorRow(
+            label = stringResource(R.string.settings_status_offline_color),
+            current = settings.statusOfflineColor,
+            labelDefault = labelDefault,
+            presetLabels = statusPresetLabels(labelRed, labelBlue, labelGreen, labelPurple, labelOrange),
+            onSelect = { viewModel.setAppSettings(settings.copy(statusOfflineColor = it)) },
+        )
     }
+}
+
+/** Phase 9-9.3：预设色标签 → hex 映射（组合期构建，lambda 内纯映射）。 */
+private fun statusPresetLabels(
+    red: String, blue: String, green: String, purple: String, orange: String,
+): Map<String, String> {
+    val out = LinkedHashMap<String, String>()
+    com.wochatchat.liverecorder.ui.theme.STATUS_COLOR_PRESETS.forEach { (key, hex) ->
+        val label = when (key) {
+            "red" -> red
+            "blue" -> blue
+            "green" -> green
+            "purple" -> purple
+            "orange" -> orange
+            else -> key
+        }
+        out[label] = hex
+    }
+    return out
+}
+
+/** Phase 9-9.3：单行状态色选择（默认回落语义色 + 预设色 chips）。 */
+@Composable
+private fun StatusColorRow(
+    label: String,
+    current: String,
+    labelDefault: String,
+    presetLabels: Map<String, String>,
+    onSelect: (String) -> Unit,
+) {
+    val options = listOf(labelDefault) + presetLabels.keys.toList()
+    val selected = when {
+        current.isBlank() -> labelDefault
+        else -> presetLabels.entries.firstOrNull { it.value == current }?.key ?: labelDefault
+    }
+    ChipRow(
+        label = label,
+        options = options,
+        selected = selected,
+        onSelect = { label0 ->
+            if (label0 == labelDefault) onSelect("") else onSelect(presetLabels[label0] ?: "")
+        },
+    )
 }
 
 /** Phase 4-4.3：配置导出/导入（SAF）。 */
