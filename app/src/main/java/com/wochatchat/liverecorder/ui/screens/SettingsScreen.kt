@@ -13,12 +13,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LinearProgressIndicator
@@ -39,6 +41,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,8 +52,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wochatchat.liverecorder.R
+import com.wochatchat.liverecorder.RecorderApp
 import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.ProxySettings
+import com.wochatchat.liverecorder.data.UpdateChecker
 import com.wochatchat.liverecorder.push.PushConfig
 import com.wochatchat.liverecorder.storage.StorageUsage
 import com.wochatchat.liverecorder.ui.SettingsViewModel
@@ -115,6 +120,26 @@ fun SettingsScreen(
                 snackbarHostState.showSnackbar(message)
                 viewModel.consumePushTestResult()
             }
+        }
+    }
+    // V3-7：手动检查更新
+    var checkingUpdate by remember { mutableStateOf(false) }
+    var manualUpdateInfo by remember { mutableStateOf<UpdateChecker.UpdateInfo?>(null) }
+    val app = context.applicationContext as RecorderApp
+    val ignoredVersion by app.appSettings.ignoredVersion.collectAsState(initial = null)
+    val updateScope = rememberCoroutineScope()
+    fun checkUpdate() {
+        if (checkingUpdate) return
+        checkingUpdate = true
+        updateScope.launch {
+            when (val outcome = UpdateChecker.checkOutcome(context, ignoredVersion)) {
+                is UpdateChecker.CheckOutcome.Available -> manualUpdateInfo = outcome.info
+                is UpdateChecker.CheckOutcome.UpToDate ->
+                    snackbarHostState.showSnackbar("已是最新版本 v${outcome.currentVersion}")
+                is UpdateChecker.CheckOutcome.Error ->
+                    snackbarHostState.showSnackbar(outcome.message)
+            }
+            checkingUpdate = false
         }
     }
     // Phase 4-4.3：配置导出/导入结果反馈
@@ -211,11 +236,26 @@ fun SettingsScreen(
             )
             Spacer(Modifier.height(12.dp))
             MaintenanceGroup({ showLogDialog = true }, searchQuery, ::isGroupExpanded, ::toggleGroup)
+            Spacer(Modifier.height(12.dp))
+            // V3-7：关于——手动检查更新
+            AboutGroup({ checkUpdate() }, checkingUpdate, searchQuery, ::isGroupExpanded, ::toggleGroup)
         }
     }
 
     if (showLogDialog) {
         LogDialog(onDismiss = { showLogDialog = false })
+    }
+
+    // V3-7：手动检查发现更新 → 弹更新对话框
+    manualUpdateInfo?.let { info ->
+        UpdateDialog(
+            info = info,
+            onIgnore = {
+                manualUpdateInfo = null
+                updateScope.launch { app.appSettings.setIgnoredVersion(info.latestVersion) }
+            },
+            onDismiss = { manualUpdateInfo = null },
+        )
     }
 }
 
@@ -1316,38 +1356,4 @@ private fun SegmentTimeField(settings: AppSettings, viewModel: SettingsViewModel
 
 /** 通用文本字段：失焦时若内容有效且变更则保存。 */
 @Composable
-private fun SaveOnFocusLostField(
-    initial: String,
-    label: String,
-    placeholder: String,
-    validate: (String) -> Boolean,
-    onSave: (String) -> Unit,
-) {
-    var text by remember(initial) { mutableStateOf(initial) }
-    var focused by remember { mutableStateOf(false) }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { text = it },
-        label = { Text(label) },
-        placeholder = { Text(placeholder) },
-        modifier = Modifier
-            .onFocusChanged {
-                val wasFocused = focused
-                focused = it.isFocused
-                if (wasFocused && !it.isFocused && text.trim() != initial && validate(text)) {
-                    onSave(text)
-                }
-            }
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        singleLine = true
-    )
-}
-
-/** 失焦保存 modifier：聚焦离开且 [enabled] 时执行 [onSave]。 */
-private fun saveOnFocusModifier(enabled: Boolean, onSave: () -> Unit): Modifier =
-    Modifier.onFocusChanged {
-        if (!it.isFocused && enabled) onSave()
-    }
-
-
+private fun SaveOnFocusL

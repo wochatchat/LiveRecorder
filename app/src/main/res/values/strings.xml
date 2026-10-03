@@ -215,6 +215,14 @@
     <string name="update_dialog_changelog_label">更新内容</string>
     <string name="update_action_download">下载安装</string>
     <string name="update_action_ignore">忽略此版本</string>
+    <string name="update_downloading">下载中…</string>
+    <string name="update_action_downloading">下载中…</string>
+    <string name="update_action_install">安装</string>
+    <string name="update_download_failed">下载失败：%1$s</string>
+    <string name="update_action_cancel_download">取消下载</string>
+    <string name="settings_group_about">关于</string>
+    <string name="settings_check_update">检查更新</string>
+    <string name="settings_check_update_sub">检查新版本并下载安装</string>
     <string name="monitor_state_running">监控中</string>
     <string name="monitor_state_paused">已暂停</string>
     <string name="add_dialog_title">添加直播间</string>

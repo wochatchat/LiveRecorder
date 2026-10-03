@@ -4,4 +4,6 @@
     <files-path name="logs" path="logs/" />
     <!-- R13：录制文件播放入口（filesDir/downloads） -->
     <files-path name="downloads" path="downloads/" />
+    <!-- V3-7：更新包安装（cache/apk_cache） -->
+    <cache-path name="apk_cache" path="apk_cache/" />
 </paths>
