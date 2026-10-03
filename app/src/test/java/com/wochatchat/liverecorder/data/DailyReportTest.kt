@@ -53,18 +53,18 @@ class DailyReportTest {
         val entries = listOf(
             entry(day0 + 100, 300),          // 今天
             entry(yesterday + 100, 200),     // 昨天
-            entry(yesterday + 200, 100),     // 昨天
+            entry(yesterday + 200, 100),     // 昨天（合计 300）
             entry(yesterday - DailyReport.DAY_MS + 100, 100), // 前天
         )
         val bytes = DailyReport.dailyBytes(entries, todayStartMs = day0, days = 3)
-        org.junit.Assert.assertEquals(listOf(100L, 200L, 300L), bytes)
+        org.junit.Assert.assertEquals(listOf(100L, 300L, 300L), bytes)
     }
 
     @Test
     fun `窗口对齐边界含起不含止`() {
-        // 恰好等于次日 00:00 不计入当天
+        // 恰好等于次日 00:00 计入次日（新窗口），不计入当天
         val bytes = DailyReport.dailyBytes(listOf(entry(day0 + DailyReport.DAY_MS, 500)), day0, days = 2)
-        org.junit.Assert.assertEquals(listOf(0L, 0L), bytes)
+        org.junit.Assert.assertEquals(listOf(0L, 500L), bytes)
     }
 
     // ---- 带宽估算 ----
