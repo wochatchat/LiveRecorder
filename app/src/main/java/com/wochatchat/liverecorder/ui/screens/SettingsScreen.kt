@@ -43,6 +43,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
@@ -1356,4 +1357,72 @@ private fun SegmentTimeField(settings: AppSettings, viewModel: SettingsViewModel
 
 /** 通用文本字段：失焦时若内容有效且变更则保存。 */
 @Composable
-private fun SaveOnFocusL
+private fun SaveOnFocusLostField(
+    initial: String,
+    label: String,
+    placeholder: String,
+    validate: (String) -> Boolean,
+    onSave: (String) -> Unit,
+) {
+    var text by remember(initial) { mutableStateOf(initial) }
+    var focused by remember { mutableStateOf(false) }
+    OutlinedTextField(
+        value = text,
+        onValueChange = { text = it },
+        label = { Text(label) },
+        placeholder = { Text(placeholder) },
+        modifier = Modifier
+            .onFocusChanged {
+                val wasFocused = focused
+                focused = it.isFocused
+                if (wasFocused && !it.isFocused && text.trim() != initial && validate(text)) {
+                    onSave(text)
+                }
+            }
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 4.dp),
+        singleLine = true
+    )
+}
+
+/** 失焦保存 modifier：聚焦离开且 [enabled] 时执行 [onSave]。 */
+private fun saveOnFocusModifier(enabled: Boolean, onSave: () -> Unit): Modifier =
+    Modifier.onFocusChanged {
+        if (!it.isFocused && enabled) onSave()
+    }
+
+/** V3-7：关于——手动检查更新入口。 */
+@Composable
+private fun AboutGroup(
+    onCheckUpdate: () -> Unit,
+    checking: Boolean,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
+) {
+    val title = stringResource(R.string.settings_group_about)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(enabled = !checking) { onCheckUpdate() }
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.settings_check_update), style = MaterialTheme.typography.bodyLarge)
+                Text(
+                    stringResource(R.string.settings_check_update_sub),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (checking) {
+                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            } else {
+                Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.outline)
+            }
+        }
+    }
+}
