@@ -193,7 +193,7 @@ class MonitorLoop(
 
     /** 单轮完整流程：存储/定时/网络检查（2h/4.2/4.4）→ 轮询。存储不足返回 null（本轮跳过）。 */
     internal suspend fun runRound(urls: suspend () -> List<String>): RoundResult? {
-        val ok: Boolean
+        var ok: Boolean
         val logPaused = StringBuilder()
         try {
             ok = storageOk()

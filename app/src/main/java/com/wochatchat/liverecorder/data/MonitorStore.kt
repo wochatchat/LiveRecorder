@@ -135,6 +135,9 @@ class MonitorStore(private val context: Context) {
     private val proxyAddrKey = stringPreferencesKey("proxy_addr")
     private val proxyPlatformsKey = stringPreferencesKey("proxy_platforms")
 
+    /** Phase 4-4.1：单条监控条目的录制参数覆盖（JSON map，URL → PerUrlSettings）。 */
+    private val perUrlOverridesKey = stringPreferencesKey("per_url_overrides")
+
     val proxySettings: Flow<ProxySettings> = context.dataStore.data.map { prefs ->
         ProxySettings(
             enabled = prefs[proxyEnabledKey] ?: false,

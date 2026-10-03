@@ -187,9 +187,8 @@ fun SettingsScreen(
             AuthGroup(cookies.size + credentials.size, onOpenCookies, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
             BackupGroup(
-                includeAuth = exportIncludeAuth,
-                onSetIncludeAuth = { exportIncludeAuth = it },
-                onExport = { exportLauncher.launch("liverecorder-config.json") },
+                viewModel = viewModel,
+                onExport = { includeAuth -> exportLauncher.launch("liverecorder-config.json") },
                 onImport = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
                 query = searchQuery, isGroupExpanded = ::isGroupExpanded, toggleGroup = ::toggleGroup,
             )
@@ -695,8 +694,6 @@ private fun AuthGroup(
     }
 }
 
-/** 维护：运行日志。 */
-@Composable
 /** Phase 4-4.3：配置导出/导入（SAF）。 */
 @Composable
 private fun BackupGroup(
@@ -753,6 +750,8 @@ private fun BackupGroup(
     }
 }
 
+/** 维护：运行日志。 */
+@Composable
 private fun MaintenanceGroup(
     onOpenLogs: () -> Unit,
     query: String = "",
@@ -834,7 +833,7 @@ private fun TimeField(label: String, hour: Int, minute: Int, onSave: (Int, Int) 
         isError = !valid && text.isNotBlank(),
         supportingText = { Text("格式: HH:MM", style = MaterialTheme.typography.labelSmall) },
         modifier = Modifier
-            .then(if (changed) Modifier.saveOnFocusModifier(true) { onSave(parsed[0], parsed[1]) } else Modifier)
+            .then(if (changed) saveOnFocusModifier(true) { onSave(parsed[0], parsed[1]) } else Modifier)
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp),
         singleLine = true,
