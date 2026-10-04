@@ -4,10 +4,14 @@
 package com.wochatchat.liverecorder.ui.screens
 
 import android.content.Intent
+import android.widget.Toast
 import androidx.core.content.FileProvider
+import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.data.RecordHistoryEntry
 import java.io.File
 import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /** 格式化标签（QW2）：单文件取扩展名；分段目录按 .ts 存在性判定（分段默认 TS）。 */
 internal fun formatBadgeText(savePath: String): String? {
