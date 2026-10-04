@@ -89,23 +89,8 @@ jobs:
           # Release notes: prefer changelog/latest.json when its version matches
           # this build (stale file describing an old version falls back to placeholder).
           NOTES="LiveRecorder v${VERSION_NAME} release APK."
-          if [ -f changelog/latest.json ]; then
-            GENERATED=$(python3 -c "
-import json, sys
-try:
-    d = json.load(open('changelog/latest.json'))
-    assert d.get('version') == sys.argv[1], 'version mismatch'
-    lines = []
-    for lang, title in (('zh', '中文'), ('en', 'English')):
-        items = d.get(lang) or []
-        if items:
-            lines.append('**' + title + '**')
-            lines += ['- ' + it for it in items]
-            lines.append('')
-    print('\n'.join(lines).strip())
-except Exception:
-    sys.exit(1)
-" "$VERSION_NAME") && [ -n "$GENERATED" ] && NOTES="$GENERATED"
+          if NOTES_GENERATED=$(python3 scripts/gen_changelog.py "$VERSION_NAME"); then
+            NOTES="$NOTES_GENERATED"
           fi
 
           gh release create "v${VERSION_NAME}" "$APK" \
