@@ -141,5 +141,6 @@ object UpdateDownloader {
     /** 清理缓存中的安装包。 */
     fun cleanup(context: Context) {
         runCatching { File(context.cacheDir, APK_DIR).listFiles()?.forEach { it.delete() } }
+            .onFailure { android.util.Log.w("UpdateDownloader", "APK 缓存清理失败: ${it.message}") }
     }
 }

@@ -139,7 +139,8 @@ fun RecordDetailScreen(
     }
     val detailHintShown by appSettings.detailHintShown.collectAsState(initial = true)
     fun dismissHint() {
-        scope.launch { runCatching { appSettings.markDetailHintShown() } }
+        scope.launch { runCatching { appSettings.markDetailHintShown() }
+            .onFailure { android.util.Log.w("RecordDetail", "提示标记写盘失败: ${it.message}") } }
     }
     if (!detailHintShown) {
         AlertDialog(

@@ -120,6 +120,7 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
         _sortMode.value = mode
         viewModelScope.launch {
             runCatching { uiStore.edit { it[KEY_SORT_MODE] = mode.name } }
+                .onFailure { android.util.Log.w("RecordsViewModel", "排序模式写盘失败: ${it.message}") }
         }
     }
 
@@ -127,6 +128,7 @@ class RecordsViewModel(app: Application) : AndroidViewModel(app) {
     fun recoverGhosts() {
         viewModelScope.launch {
             runCatching { (getApplication() as RecorderApp).recoverGhostFiles() }
+                .onFailure { android.util.Log.w("RecordsViewModel", "幽灵文件回收失败: ${it.message}") }
         }
     }
 
