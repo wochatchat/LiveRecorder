@@ -85,9 +85,32 @@ jobs:
 
           # Replace existing release/tag if re-running on the same version.
           gh release delete "v${VERSION_NAME}" --yes --cleanup-tag 2>/dev/null || true
+
+          # Release notes: prefer changelog/latest.json when its version matches
+          # this build (stale file describing an old version falls back to placeholder).
+          NOTES="LiveRecorder v${VERSION_NAME} release APK."
+          if [ -f changelog/latest.json ]; then
+            GENERATED=$(python3 -c "
+import json, sys
+try:
+    d = json.load(open('changelog/latest.json'))
+    assert d.get('version') == sys.argv[1], 'version mismatch'
+    lines = []
+    for lang, title in (('zh', '中文'), ('en', 'English')):
+        items = d.get(lang) or []
+        if items:
+            lines.append('**' + title + '**')
+            lines += ['- ' + it for it in items]
+            lines.append('')
+    print('\n'.join(lines).strip())
+except Exception:
+    sys.exit(1)
+" "$VERSION_NAME") && [ -n "$GENERATED" ] && NOTES="$GENERATED"
+          fi
+
           gh release create "v${VERSION_NAME}" "$APK" \
             --title "LiveRecorder v${VERSION_NAME}" \
-            --notes "LiveRecorder v${VERSION_NAME} release APK."
+            --notes "$NOTES"
 
           # Prune old releases/tags, keep only the newest 2.
           mapfile -t ALL_TAGS < <(gh release list --json tagName --jq '.[].tagName' | sort -V -r)
