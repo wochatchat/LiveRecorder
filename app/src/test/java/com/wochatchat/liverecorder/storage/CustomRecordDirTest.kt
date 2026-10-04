@@ -24,7 +24,7 @@ class CustomRecordDirTest {
 
     @Test
     fun `primary 卷根目录映射`() {
-        assertEquals(primaryRoot, CustomRecordDir.pathFromTreeId("primary", primaryRoot))
+        assertEquals(primaryRoot, CustomRecordDir.pathFromTreeId("primary:", primaryRoot))
     }
 
     @Test
@@ -50,7 +50,7 @@ class CustomRecordDirTest {
 
     @Test
     fun `SD 卡卷根映射`() {
-        assertEquals("/storage/6236-4123", CustomRecordDir.pathFromTreeId("6236-4123", primaryRoot))
+        assertEquals("/storage/6236-4123", CustomRecordDir.pathFromTreeId("6236-4123:", primaryRoot))
     }
 
     @Test
