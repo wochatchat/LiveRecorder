@@ -28,6 +28,7 @@ import com.wochatchat.liverecorder.data.GhostRecovery
 import com.wochatchat.liverecorder.recorder.RecordSource
 import com.wochatchat.liverecorder.push.HttpPusher
 import com.wochatchat.liverecorder.service.EventNotifier
+import com.wochatchat.liverecorder.service.FloatingBallService
 import com.wochatchat.liverecorder.storage.CustomRecordDir
 import com.wochatchat.liverecorder.storage.StorageManager
 import com.wochatchat.liverecorder.sync.CloudSyncManager
