@@ -141,7 +141,7 @@ private fun PlatformHealthRow(platform: String, stats: PlatformHealthStats, entr
                 .background(healthColor(stats), CircleShape)
         )
         Spacer(Modifier.width(12.dp))
-        PlatformBadge(platformKey = platform)
+        PlatformBadge(platformKey = com.wochatchat.liverecorder.data.Accounts.uiKeyForCookieKey(platform))
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
             Text(

@@ -126,4 +126,21 @@ class AccountsTest {
         assertTrue(a.isNotBlank() && b.isNotBlank())
         assertTrue(a != b)
     }
+
+    // ---- V3-8：uiKeyForCookieKey 反向映射 + 往返一致性 ----
+
+    @Test
+    fun `uiKeyForCookieKey 与正向映射互逆`() {
+        val renamed = listOf("xiaohongshu", "maoerfm", "live17", "soop", "inke", "liujianfang")
+        renamed.forEach { ui ->
+            assertEquals(ui, Accounts.uiKeyForCookieKey(Accounts.cookieKeyForPlatform(ui)))
+        }
+    }
+
+    @Test
+    fun `未改名平台反向映射为恒等`() {
+        assertEquals("douyin", Accounts.uiKeyForCookieKey("douyin"))
+        assertEquals("huya", Accounts.uiKeyForCookieKey("huya"))
+        assertEquals("unknown", Accounts.uiKeyForCookieKey("unknown"))
+    }
 }

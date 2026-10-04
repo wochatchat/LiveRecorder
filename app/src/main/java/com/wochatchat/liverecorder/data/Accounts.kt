@@ -95,6 +95,17 @@ object Accounts {
         else -> platform
     }
 
+    /** V3-8：cookie 键 → UI 徽标键反向映射（健康仪表盘徽标显示用）。 */
+    fun uiKeyForCookieKey(cookieKey: String): String = when (cookieKey) {
+        "xhs" -> "xiaohongshu"
+        "maoer" -> "maoerfm"
+        "seventeen" -> "live17"
+        "sooplive" -> "soop"
+        "yingke" -> "inke"
+        "liujian" -> "liujianfang"
+        else -> cookieKey
+    }
+
     /**
      * 解析某平台指定账号 id 的 cookie：绑定默认/空/账号已删 → 回落 legacy cookie；
      * 命中额外账号 → 返回其 cookie。纯函数，录制链路 effectiveCookies / 单测共用。

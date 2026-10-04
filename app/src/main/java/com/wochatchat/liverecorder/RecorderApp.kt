@@ -407,7 +407,9 @@ class RecorderApp : Application() {
             },
             // Phase 5-5.1：归集检查结果到平台健康仪表盘（环形缓冲 100 条/平台）
             onCheckResult = { url, ok ->
-                val platform = platformKeyForUrl(url)
+                // V3-8：平台键统一——健康度/检查历史统一走 cookie 键（对齐 cookies 表与
+                // CookieManagementScreen/悬浮球面板的查表键；此前用 UI 徽标键导致改名平台错位）
+                val platform = Accounts.cookieKeyForPlatform(platformKeyForUrl(url))
                 // Phase 5-5.2：检查成功 → 账号健康恢复 ok（内部幂等，未变化不写盘）
                 if (ok) authStore.markAccountHealth(platform, AccountHealth.STATUS_OK)
                 store.recordCheckResult(platform, ok)
@@ -424,7 +426,8 @@ class RecorderApp : Application() {
             monitorLoop.unhealthy.collect { urls ->
                 runCatching {
                     val cookies = authStore.cookies.first()
-                    val expired = urls.map { platformKeyForUrl(it) }
+                    // V3-8：平台键统一——过期判定同样过 cookieKeyForPlatform 再查 cookies 表
+                    val expired = urls.map { Accounts.cookieKeyForPlatform(platformKeyForUrl(it)) }
                         .filter { cookies[it]?.isNotBlank() == true }
                         .toSet()
                     (expired - prevExpired).forEach { p ->
