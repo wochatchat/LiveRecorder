@@ -8,7 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
-import com.wochatchat.liverecorder.AppLog
+import com.wochatchat.liverecorder.data.AppLog
 import java.io.File
 
 /**
