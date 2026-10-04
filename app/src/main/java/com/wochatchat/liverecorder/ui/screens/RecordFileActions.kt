@@ -75,7 +75,7 @@ internal fun shareRecording(context: android.content.Context, entry: RecordHisto
 }
 
 /** QW6 支持的视频扩展名（分段目录枚举用）。 */
-private val VIDEO_EXTS = listOf(".mp4", ".ts", ".flv", ".mkv")
+internal val VIDEO_EXTS = listOf(".mp4", ".ts", ".flv", ".mkv")
 
 /** QW6：单个文件播放（FileProvider 授权）。 */
 internal fun openFile(context: android.content.Context, file: File) {
