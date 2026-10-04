@@ -36,7 +36,8 @@ import java.util.concurrent.ConcurrentHashMap
  *   {主播}_{标题_}{时间戳}.{ext}；主播名与标题均经 clean_name（emoji 开关）
  */
 class RecordController(
-    private val baseDir: File,
+    /** V3-6：录制根目录。改为 var，由 RecorderApp 按设置动态切换（仅影响下一次录制）。 */
+    var baseDir: File,
     private val downloader: StreamDownloader = StreamDownloader(),
     /**
      * 直播源解析。[proxyAddr] 为该 URL 应使用的代理地址（4a），

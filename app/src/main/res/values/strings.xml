@@ -223,6 +223,12 @@
     <string name="settings_group_about">关于</string>
     <string name="settings_check_update">检查更新</string>
     <string name="settings_check_update_sub">检查新版本并下载安装</string>
+    <string name="settings_record_dir">录制目录</string>
+    <string name="settings_record_dir_default">默认（应用私有目录）</string>
+    <string name="settings_record_dir_reset">恢复默认目录</string>
+    <string name="record_dir_perm_denied">未授予存储权限，无法自定义录制目录</string>
+    <string name="record_dir_unsupported">不支持所选目录，请选择本机存储或 SD 卡目录</string>
+    <string name="record_dir_set_to">录制目录已设为 %1$s</string>
     <string name="monitor_state_running">监控中</string>
     <string name="monitor_state_paused">已暂停</string>
     <string name="add_dialog_title">添加直播间</string>

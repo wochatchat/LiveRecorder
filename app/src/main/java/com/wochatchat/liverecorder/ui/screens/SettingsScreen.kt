@@ -1,6 +1,9 @@
 package com.wochatchat.liverecorder.ui.screens
 
+import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -58,6 +61,7 @@ import com.wochatchat.liverecorder.data.AppSettings
 import com.wochatchat.liverecorder.data.ProxySettings
 import com.wochatchat.liverecorder.data.UpdateChecker
 import com.wochatchat.liverecorder.push.PushConfig
+import com.wochatchat.liverecorder.storage.CustomRecordDir
 import com.wochatchat.liverecorder.storage.StorageUsage
 import com.wochatchat.liverecorder.ui.SettingsViewModel
 
@@ -202,7 +206,7 @@ fun SettingsScreen(
             Spacer(Modifier.height(12.dp))
             PowerGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
-            StorageGroup(storageUsage, diskLimitGb, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
+            StorageGroup(settings, storageUsage, diskLimitGb, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
             PushGroup(
                 pushConfig, settings, viewModel,
@@ -367,6 +371,7 @@ private fun ChipRow(
 /** 存储管理（R20）：用量进度条 + 已用/总容量 + 告警阈值（触底暂停监控录制）。 */
 @Composable
 private fun StorageGroup(
+    settings: AppSettings,
     usage: StorageUsage,
     diskLimitGb: Double,
     viewModel: SettingsViewModel,
@@ -401,6 +406,8 @@ private fun StorageGroup(
             validate = { (it.toDoubleOrNull() ?: 0.0) > 0 },
             onSave = { it.toDoubleOrNull()?.let(viewModel::setDiskLimitGb) },
         )
+        // V3-6：自定义录制目录
+        RecordDirRow(settings, viewModel)
     }
 }
 
@@ -1423,6 +1430,89 @@ private fun AboutGroup(
             } else {
                 Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.outline)
             }
+        }
+    }
+}
+
+/**
+ * V3-6：录制目录行——自定义保存目录。
+ * 首次点击引导授权（API 30+ 所有文件访问页 / 低版本运行时权限），授权后打开
+ * SAF 目录选择器，选完映射为真实路径写入设置；RecorderApp 监听后切换录制根目录。
+ */
+@Composable
+private fun RecordDirRow(settings: AppSettings, viewModel: SettingsViewModel) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // API < 30：WRITE_EXTERNAL_STORAGE 运行时权限
+    val writePermLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (!granted) {
+            Toast.makeText(context, R.string.record_dir_perm_denied, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // SAF 目录选择 → 映射真实文件系统路径
+    val treePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        runCatching {
+            context.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+            )
+        }
+        val path = CustomRecordDir.pathFromTreeUri(uri)
+        if (path == null) {
+            Toast.makeText(context, R.string.record_dir_unsupported, Toast.LENGTH_SHORT).show()
+        } else {
+            viewModel.setAppSettings(settings.copy(customRecordDir = path))
+            Toast.makeText(context, context.getString(R.string.record_dir_set_to, path), Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable {
+                if (!CustomRecordDir.hasAccess(context)) {
+                    if (Build.VERSION.SDK_INT >= 30) {
+                        CustomRecordDir.openAccessSettings(context)
+                    } else {
+                        writePermLauncher.launch(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                    }
+                } else {
+                    treePicker.launch(null)
+                }
+            }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.settings_record_dir), style = MaterialTheme.typography.bodyLarge)
+            Text(
+                if (settings.customRecordDir.isBlank()) {
+                    stringResource(R.string.settings_record_dir_default)
+                } else {
+                    settings.customRecordDir
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text("›", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.outline)
+    }
+    if (settings.customRecordDir.isNotBlank()) {
+        TextButton(
+            onClick = { viewModel.setAppSettings(settings.copy(customRecordDir = "")) },
+            modifier = Modifier.padding(horizontal = 8.dp),
+        ) {
+            Text(
+                stringResource(R.string.settings_record_dir_reset),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
         }
     }
 }

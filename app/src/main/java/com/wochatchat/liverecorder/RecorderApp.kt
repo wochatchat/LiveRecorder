@@ -28,6 +28,7 @@ import com.wochatchat.liverecorder.data.GhostRecovery
 import com.wochatchat.liverecorder.recorder.RecordSource
 import com.wochatchat.liverecorder.push.HttpPusher
 import com.wochatchat.liverecorder.service.EventNotifier
+import com.wochatchat.liverecorder.storage.CustomRecordDir
 import com.wochatchat.liverecorder.storage.StorageManager
 import com.wochatchat.liverecorder.sync.CloudSyncManager
 import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
@@ -36,7 +37,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -265,6 +268,17 @@ class RecorderApp : Application() {
                 runCatching { store.getPerUrlSettings(url) }.getOrNull()
             },
         )
+        // V3-6：自定义录制目录——设置变更时切换录制根目录（仅影响下一次录制）
+        appScope.launch {
+            appSettings.settings.map { it.customRecordDir }.distinctUntilChanged().collect { path ->
+                recordController.baseDir = CustomRecordDir.resolveOrDefault(
+                    customPath = path,
+                    accessGranted = CustomRecordDir.hasAccess(this@RecorderApp),
+                    defaultDir = CustomRecordDir.defaultDir(this@RecorderApp),
+                )
+                AppLog.i("CustomRecordDir", "录制目录: ${recordController.baseDir.absolutePath}")
+            }
+        }
         monitorLoop = MonitorLoop(
             check = { url ->
                 // 轮询探测与录制同源走同一代理判定（上游 check/record 共用 proxy_address）
