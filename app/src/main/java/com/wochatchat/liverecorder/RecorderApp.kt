@@ -186,26 +186,39 @@ class RecorderApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // 5d：文件日志尽早初始化（logs/ 落 app 私有目录，日志页可查看/导出）
+        AppLog.init(File(filesDir, "logs"))
         // Phase 10-10.2：注册网络回调（自适应画质感知 WiFi/流量切换）
         registerNetworkCallback()
         // Phase 11-11.1：云同步常驻循环（开关关闭时 syncOnce 直接空转返回）
         appScope.launch { cloudSyncManager.runLoop() }
         // V3-1：启动时幽灵文件回收——未入库的落盘视频补写历史（completed=false）
         appScope.launch { runCatching { recoverGhostFiles() } }
-        // 5d：文件日志尽早初始化（logs/ 落 app 私有目录，日志页可查看/导出）
-        AppLog.init(File(filesDir, "logs"))
         // 事件渠道尽早创建（2e：开播/关播通知）
-        val notifier = EventNotifier(this)
-        notifier.createChannel()
-        val spider = DouyinSpider()
-        val router = PlatformRouter(spider, DouyuSpider())
+        val notifier = EventNotifier(this).also { it.createChannel() }
+        val router = PlatformRouter(DouyinSpider(), DouyuSpider())
         val pusher = HttpPusher()
         // 3g：ffmpeg 分段录制（m3u8 必须 + FLV 分段）
         val ffmpegBin = File(applicationInfo.nativeLibraryDir, "libffmpeg.so")
         val ffmpegRecorder = if (ffmpegBin.exists()) {
             FfmpegRecorder(ffmpegBin = ffmpegBin, scope = appScope)
         } else null
-        recordController = RecordController(
+        // V3-8：onCreate 收口为编排层——工厂与循环拆到下方私有函数
+        recordController = buildRecordController(router, ffmpegRecorder, notifier)
+        observeSettingsToggles()
+        monitorLoop = buildMonitorLoop(router, pusher, notifier)
+        this.pusher = pusher
+        this.storage = StorageManager(File(filesDir, "downloads"))
+        startHealthWatch(notifier)
+        startDailyReportLoop()
+    }
+
+    /** V3-8：录制控制器工厂——fetchInfo/落库/失败通知/单条覆盖等回调装配。 */
+    private fun buildRecordController(
+        router: PlatformRouter,
+        ffmpegRecorder: FfmpegRecorder?,
+        notifier: EventNotifier,
+    ): RecordController = RecordController(
             baseDir = File(filesDir, "downloads"),
             fetchInfo = { url, proxyAddr ->
                 // Phase 10-10.2：画质统一走 effectiveQuality（单条覆盖 → 自适应 → 全局）
@@ -269,6 +282,9 @@ class RecorderApp : Application() {
                 runCatching { store.getPerUrlSettings(url) }.getOrNull()
             },
         )
+
+    /** V3-8：设置开关观察——自定义录制目录切换 / 悬浮球服务启停。 */
+    private fun observeSettingsToggles() {
         // V3-6：自定义录制目录——设置变更时切换录制根目录（仅影响下一次录制）
         appScope.launch {
             appSettings.settings.map { it.customRecordDir }.distinctUntilChanged().collect { path ->
@@ -293,7 +309,14 @@ class RecorderApp : Application() {
                 }
             }
         }
-        monitorLoop = MonitorLoop(
+    }
+
+    /** V3-8：监控轮询工厂——探测/开播关播事件/存储阈值/定时/省电/健康度归集。 */
+    private fun buildMonitorLoop(
+        router: PlatformRouter,
+        pusher: HttpPusher,
+        notifier: EventNotifier,
+    ): MonitorLoop = MonitorLoop(
             check = { url ->
                 // 轮询探测与录制同源走同一代理判定（上游 check/record 共用 proxy_address）
                 // Phase 10-10.2：画质统一走 effectiveQuality（单条覆盖 → 自适应 → 全局）
@@ -389,11 +412,12 @@ class RecorderApp : Application() {
                 store.recordCheckResult(platform, ok)
             },
         )
-        this.pusher = pusher
-        this.storage = StorageManager(File(filesDir, "downloads"))
 
-        // Phase 5-5.2：账号健康度——已配置 Cookie 的平台出现不健康条目（连续检查
-        // 失败 ≥3 轮）→ 标记 expired 并提醒续期；条目恢复健康 → 恢复 ok
+    /**
+     * V3-8 / Phase 5-5.2：账号健康度 watch——已配置 Cookie 的平台出现不健康条目
+     * （连续检查失败 ≥3 轮）→ 标记 expired 并提醒续期；条目恢复健康 → 恢复 ok。
+     */
+    private fun startHealthWatch(notifier: EventNotifier) {
         appScope.launch {
             var prevExpired = emptySet<String>()
             monitorLoop.unhealthy.collect { urls ->
@@ -413,9 +437,10 @@ class RecorderApp : Application() {
                 }
             }
         }
+    }
 
-        // Phase 8-8.1：录制日报——每日 09:00 后推送昨日统计（走 HTTP 推送）。
-        // 依赖监控前台服务保活进程；每 15 分钟轮询检查一次，当天已发不重复。
+    /** V3-8 / Phase 8-8.1：录制日报调度——每日 09:00 后推送昨日统计，15 分钟轮询防重。 */
+    private fun startDailyReportLoop() {
         appScope.launch {
             while (true) {
                 runCatching {
