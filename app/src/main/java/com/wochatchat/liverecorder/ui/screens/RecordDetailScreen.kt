@@ -445,25 +445,4 @@ private fun SegmentFileRow(
     }
 }
 
-private fun formatDate(ms: Long): String = if (ms <= 0) "--" else SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(ms))
-
-private fun openFile(context: Context, file: File) {
-    runCatching {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        context.startActivity(Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "video/*")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        })
-    }.onFailure { Toast.makeText(context, context.getString(R.string.toast_play_failed, it.message), Toast.LENGTH_SHORT).show() }
-}
-
-private fun shareFile(context: Context, file: File) {
-    runCatching {
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-            type = "video/*"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }, context.getString(R.string.share_record_title)))
-    }.onFailure { Toast.makeText(context, context.getString(R.string.toast_share_failed, it.message), Toast.LENGTH_SHORT).show() }
-}
+// V3-8：formatDate/openFile/shareFile 私有副本已删——统一复用 RecordFileActions.kt 的 internal 版本（实现完全一致）
