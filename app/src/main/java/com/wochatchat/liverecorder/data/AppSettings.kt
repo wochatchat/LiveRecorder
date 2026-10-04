@@ -108,6 +108,8 @@ data class AppSettings(
     val compactMonitorCard: Boolean = true,
     /** V3-6：自定义录制目录绝对路径（空 = 应用私有 filesDir/downloads）。 */
     val customRecordDir: String = "",
+    /** V3-4 R1：悬浮球开关（需悬浮窗权限，默认关）。 */
+    val floatingBallEnabled: Boolean = false,
 ) {
     companion object {
         /** 静音时段起止（小时）：23:00 起，07:00 止。 */
@@ -196,6 +198,9 @@ class AppSettingsStore(private val context: android.content.Context) {
     /** V3-6：自定义录制目录。 */
     private val customRecordDirKey = stringPreferencesKey("custom_record_dir")
 
+    /** V3-4 R1：悬浮球开关。 */
+    private val floatingBallEnabledKey = booleanPreferencesKey("floating_ball_enabled")
+
     /** 6f R21：首启引导是否已完成。 */
     val onboardingCompleted: Flow<Boolean> = context.settingsDataStore.data
         .map { prefs -> prefs[onboardingCompletedKey] ?: false }
@@ -274,6 +279,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             adaptiveQuality = prefs[adaptiveQualityKey] ?: false,
             compactMonitorCard = prefs[compactMonitorCardKey] ?: true,
             customRecordDir = prefs[customRecordDirKey] ?: "",
+            floatingBallEnabled = prefs[floatingBallEnabledKey] ?: false,
         )
     }
 
@@ -313,6 +319,7 @@ class AppSettingsStore(private val context: android.content.Context) {
             prefs[adaptiveQualityKey] = settings.adaptiveQuality
             prefs[compactMonitorCardKey] = settings.compactMonitorCard
             prefs[customRecordDirKey] = settings.customRecordDir
+            prefs[floatingBallEnabledKey] = settings.floatingBallEnabled
         }
     }
 

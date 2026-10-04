@@ -489,4 +489,19 @@
     <string name="config_import_confirm_title">导入确认</string>
     <string name="config_import_confirm_text">将覆盖当前全部监控条目与设置，且文件含明文 Cookie/账密。确定导入？</string>
     <string name="action_confirm">确定</string>
+
+    <!-- V3-4 R1：跨 app 真悬浮球 -->
+    <string name="settings_group_floating_ball">悬浮球</string>
+    <string name="settings_floating_ball_title">显示悬浮球</string>
+    <string name="settings_floating_ball_sub">跨 app 常驻小浮标：点击展开快捷面板（录制概要 + 去记录/去监控）。需悬浮窗权限</string>
+    <string name="settings_floating_ball_no_permission">悬浮窗权限未授予，已打开系统设置，授权后重新打开开关</string>
+    <string name="notif_channel_ball">悬浮球</string>
+    <string name="notif_channel_ball_desc">悬浮球常驻通知与快捷开关</string>
+    <string name="notif_ball_title">悬浮球已开启</string>
+    <string name="notif_ball_text">点击展开面板，可在桌面和其他应用上使用</string>
+    <string name="notif_ball_action_stop">关闭悬浮球</string>
+    <string name="ball_panel_records">记录</string>
+    <string name="ball_panel_monitor">监控</string>
+    <string name="ball_panel_collapse">收起</string>
+    <string name="ball_panel_summary">录制中 %1$d 条 · 监控 %2$d 项</string>
 </resources>

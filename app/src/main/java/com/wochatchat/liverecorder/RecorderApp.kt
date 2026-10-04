@@ -279,6 +279,19 @@ class RecorderApp : Application() {
                 AppLog.i("CustomRecordDir", "录制目录: ${recordController.baseDir.absolutePath}")
             }
         }
+        // V3-4 R1：悬浮球开关——开关开启且已授权时拉起悬浮球服务，关闭即停
+        appScope.launch {
+            appSettings.settings.map { it.floatingBallEnabled }.distinctUntilChanged().collect { enabled ->
+                val granted = android.provider.Settings.canDrawOverlays(this@RecorderApp)
+                if (enabled && granted) {
+                    FloatingBallService.start(this@RecorderApp)
+                } else if (!enabled) {
+                    FloatingBallService.stop(this@RecorderApp)
+                } else {
+                    AppLog.i("FloatingBall", "悬浮球开关已开但无悬浮窗权限，等待授权")
+                }
+            }
+        }
         monitorLoop = MonitorLoop(
             check = { url ->
                 // 轮询探测与录制同源走同一代理判定（上游 check/record 共用 proxy_address）

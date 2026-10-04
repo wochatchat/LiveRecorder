@@ -100,6 +100,11 @@ class MainActivity : ComponentActivity() {
         if (!focusUrl.isNullOrBlank()) {
             FocusRouter.focusUrl.value = focusUrl
         }
+        // V3-4 R1：悬浮球面板快捷入口——指定打开的底部 Tab
+        val tab = intent.getStringExtra(com.wochatchat.liverecorder.ui.navigation.TabRouter.EXTRA_TAB)
+        if (!tab.isNullOrBlank()) {
+            com.wochatchat.liverecorder.ui.navigation.TabRouter.pendingTab.value = tab
+        }
     }
 
     /** 处理分享 Intent：提取 URL 入路由队列。 */

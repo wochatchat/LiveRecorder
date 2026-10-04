@@ -14,3 +14,12 @@ object FocusRouter {
         focusUrl.value = null
     }
 }
+
+/**
+ * V3-4 R1：悬浮球面板快捷入口——MainActivity 收到 EXTRA_TAB 后写入此路由，
+ * MainScaffold 消费（导航到对应底部 Tab）。
+ */
+object TabRouter {
+    const val EXTRA_TAB = "focus_tab"
+    val pendingTab = MutableStateFlow<String?>(null)
+}

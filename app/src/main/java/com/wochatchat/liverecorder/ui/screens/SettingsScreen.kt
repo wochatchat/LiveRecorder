@@ -228,6 +228,9 @@ fun SettingsScreen(
             // V3-1：仪器化诊断开关
             DiagGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
+            // V3-4 R1：悬浮球开关
+            FloatingBallGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
+            Spacer(Modifier.height(12.dp))
             // Phase 9：主题定制（9.1 主题色 / 9.2 AMOLED 纯黑）
             AppearanceGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
             Spacer(Modifier.height(12.dp))
@@ -938,6 +941,45 @@ private fun DiagGroup(
             subtitle = stringResource(R.string.settings_diag_show_subtitle),
             checked = settings.diagEnabled,
             onChange = { viewModel.setAppSettings(settings.copy(diagEnabled = it)) }
+        )
+    }
+}
+
+/** V3-4 R1：悬浮球开关（无悬浮窗权限时先引导授权，不落开关）。 */
+@Composable
+private fun FloatingBallGroup(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+    query: String = "",
+    isGroupExpanded: (String) -> Boolean = { true },
+    toggleGroup: (String) -> Unit = {},
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val title = stringResource(R.string.settings_group_floating_ball)
+    if (!rowMatchesQuery(title, query) && query.isNotBlank()) return
+    SettingsGroup(title, isGroupExpanded(title), { toggleGroup(title) }) {
+        SwitchSettingRow(
+            title = stringResource(R.string.settings_floating_ball_title),
+            subtitle = stringResource(R.string.settings_floating_ball_sub),
+            checked = settings.floatingBallEnabled,
+            onChange = { on ->
+                if (on && !canDrawOverlays(context)) {
+                    // 未授权：跳系统设置授权（不落开关，授权后重新打开）
+                    runCatching {
+                        context.startActivity(
+                            android.content.Intent(
+                                android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                Uri.parse("package:${context.packageName}"),
+                            ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        )
+                        Toast.makeText(
+                            context, R.string.settings_floating_ball_no_permission, Toast.LENGTH_LONG
+                        ).show()
+                    }
+                } else {
+                    viewModel.setAppSettings(settings.copy(floatingBallEnabled = on))
+                }
+            }
         )
     }
 }

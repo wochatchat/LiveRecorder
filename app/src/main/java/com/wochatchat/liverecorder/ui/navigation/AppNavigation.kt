@@ -133,6 +133,20 @@ private fun MainScaffold() {
 
     val isTopLevel = bottomNavItems.any { it.route == currentDestination?.route }
 
+    // V3-4 R1：悬浮球面板快捷入口——导航到指定底部 Tab（对齐 Tab 点击的回栈语义）
+    LaunchedEffect(Unit) {
+        TabRouter.pendingTab.collect { tab ->
+            if (!tab.isNullOrBlank()) {
+                navController.navigate(tab) {
+                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+                TabRouter.pendingTab.value = null
+            }
+        }
+    }
+
     Scaffold(
         bottomBar = {
             if (isTopLevel) NavigationBar {

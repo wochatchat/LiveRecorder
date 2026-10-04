@@ -13,6 +13,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- V3-4 R1：跨 app 真悬浮球（悬浮窗权限需用户在系统设置授予） -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <!-- 6f R21：引导页直接拉起电池优化白名单授权弹窗（被拒/ROM 拦截则回落设置页） -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
@@ -44,6 +47,16 @@
             android:name=".service.MonitorService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- V3-4 R1：跨 app 真悬浮球（specialUse 前台服务，subtype 声明用途） -->
+        <service
+            android:name=".service.FloatingBallService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="floating_ball_overlay" />
+        </service>
 
         <!-- 5d：日志导出分享 -->
         <provider
