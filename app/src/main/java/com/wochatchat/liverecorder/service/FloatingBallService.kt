@@ -22,6 +22,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -338,7 +339,16 @@ class FloatingBallService : Service() {
             }
             visibility = View.GONE
         }
-        btn.setOnClickListener { openApp(tab = null) }
+        btn.setOnClickListener {
+            // V3-4 R3（降级方案）：打开 App 前提示该平台的复制链接路径
+            val key = fgPlatform.value
+            if (key.isNotEmpty()) {
+                runCatching {
+                    Toast.makeText(this, probeHintRes(key), Toast.LENGTH_LONG).show()
+                }
+            }
+            openApp(tab = null)
+        }
         probeBtn = btn
         return btn
     }
@@ -543,6 +553,18 @@ class FloatingBallService : Service() {
         private const val NOTIFICATION_ID = 1002
         private const val BALL_SIZE_DP = 46
         private const val PANEL_WIDTH_DP = 240
+
+        /** V3-4 R3（降级方案）：平台键 → 分享路径指引文案（Toast 用）。 */
+        internal fun probeHintRes(platformKey: String): Int = when (platformKey) {
+            "douyin" -> R.string.ball_hint_douyin
+            "kuaishou" -> R.string.ball_hint_kuaishou
+            "xiaohongshu" -> R.string.ball_hint_xiaohongshu
+            "bilibili" -> R.string.ball_hint_bilibili
+            "huya" -> R.string.ball_hint_huya
+            "douyu" -> R.string.ball_hint_douyu
+            "yy" -> R.string.ball_hint_yy
+            else -> R.string.ball_panel_probe
+        }
 
         const val ACTION_STOP = "com.wochatchat.liverecorder.action.BALL_STOP"
         const val ACTION_OPEN_APP = "com.wochatchat.liverecorder.action.BALL_OPEN_APP"

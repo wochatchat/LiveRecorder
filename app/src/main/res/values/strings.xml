@@ -511,4 +511,12 @@
     <string name="ball_panel_cookie_expired">Cookie 已失效</string>
     <string name="ball_panel_cookie_none">Cookie 未配置</string>
     <string name="ball_panel_probe">探测直播间</string>
+    <!-- V3-4 R3（降级方案）：各平台分享路径指引（探测按钮点击 Toast） -->
+    <string name="ball_hint_douyin">抖音：进直播间 → 右上角「…」分享 → 复制链接，回 App 自动识别</string>
+    <string name="ball_hint_kuaishou">快手：进直播间 → 分享 → 复制链接，回 App 自动识别</string>
+    <string name="ball_hint_xiaohongshu">小红书：进直播间 → 右上角分享 → 复制链接，回 App 自动识别</string>
+    <string name="ball_hint_bilibili">B站：进直播间 → 分享 → 复制链接，回 App 自动识别</string>
+    <string name="ball_hint_huya">虎牙：进直播间 → 分享 → 复制链接，回 App 自动识别</string>
+    <string name="ball_hint_douyu">斗鱼：进直播间 → 分享 → 复制链接，回 App 自动识别</string>
+    <string name="ball_hint_yy">YY：进直播间 → 分享 → 复制链接，回 App 自动识别</string>
 </resources>
