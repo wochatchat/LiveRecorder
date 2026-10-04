@@ -132,8 +132,8 @@ class RecorderApp : Application() {
 
     private val store by lazy { MonitorStore(this) }
 
-    /** 4b：平台 cookie / 账密（快手等平台爬虫按需取用）。 */
-    private val authStore by lazy { AuthStore(this) }
+    /** 4b：平台 cookie / 账密（快手等平台爬虫按需取用；V3-4 R2 悬浮球面板也读取）。 */
+    val authStore by lazy { AuthStore(this) }
 
     /** 5a：全局录制设置（画质/循环时间/分段/https/推送开关等）。 */
     val appSettings by lazy { AppSettingsStore(this) }

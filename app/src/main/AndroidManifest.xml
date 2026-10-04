@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- V3-6：自定义录制目录（所有文件访问，API 30+；低版本走 WRITE + legacy 标记） -->
@@ -16,6 +17,10 @@
     <!-- V3-4 R1：跨 app 真悬浮球（悬浮窗权限需用户在系统设置授予） -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <!-- V3-4 R2：前台平台探测（使用情况访问权限，需用户在系统设置授予） -->
+    <uses-permission
+        android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
     <!-- 6f R21：引导页直接拉起电池优化白名单授权弹窗（被拒/ROM 拦截则回落设置页） -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 

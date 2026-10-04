@@ -504,4 +504,11 @@
     <string name="ball_panel_monitor">监控</string>
     <string name="ball_panel_collapse">收起</string>
     <string name="ball_panel_summary">录制中 %1$d 条 · 监控 %2$d 项</string>
+    <!-- V3-4 R2：前台平台探测 -->
+    <string name="settings_permission_usage">使用情况访问权限</string>
+    <string name="ball_panel_fg_platform">前台：%1$s</string>
+    <string name="ball_panel_cookie_ok">Cookie 已配置</string>
+    <string name="ball_panel_cookie_expired">Cookie 已失效</string>
+    <string name="ball_panel_cookie_none">Cookie 未配置</string>
+    <string name="ball_panel_probe">探测直播间</string>
 </resources>

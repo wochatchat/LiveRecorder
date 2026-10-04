@@ -835,12 +835,15 @@ private fun SystemStatusGroup(
     var notifOk by remember { mutableStateOf(notifPermissionGranted(context)) }
     var batteryOk by remember { mutableStateOf(batteryWhitelisted(context)) }
     var overlayOk by remember { mutableStateOf(canDrawOverlays(context)) }
+    // V3-4 R2：使用情况访问权限（前台平台探测依赖）
+    var usageOk by remember { mutableStateOf(usageAccessGranted(context)) }
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 notifOk = notifPermissionGranted(context)
                 batteryOk = batteryWhitelisted(context)
                 overlayOk = canDrawOverlays(context)
+                usageOk = usageAccessGranted(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -896,6 +899,15 @@ private fun SystemStatusGroup(
                 )
             },
         )
+        PermissionStatusRow(
+            label = stringResource(R.string.settings_permission_usage),
+            granted = usageOk,
+            onClick = {
+                if (!usageOk) openSystemSettings(
+                    android.provider.Settings.ACTION_USAGE_ACCESS_SETTINGS
+                )
+            },
+        )
     }
 }
 
@@ -923,6 +935,17 @@ private fun PermissionStatusRow(label: String, granted: Boolean, onClick: () -> 
 /** 悬浮窗权限是否已授（Phase 7-7.2，悬浮球功能用）。 */
 internal fun canDrawOverlays(context: android.content.Context): Boolean =
     android.provider.Settings.canDrawOverlays(context)
+
+/** V3-4 R2：使用情况访问权限是否已授（AppOps 判定，前台平台探测依赖）。 */
+internal fun usageAccessGranted(context: android.content.Context): Boolean = try {
+    val ops = context.getSystemService(android.content.Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+    ops.checkOpNoThrow(
+        android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+        android.os.Process.myUid(), context.packageName,
+    ) == android.app.AppOpsManager.MODE_ALLOWED
+} catch (e: Exception) {
+    false
+}
 
 /** V3-1：仪器化诊断——开启后监控卡片状态行渲染 DBG 诊断文本（可截图回传定位断点）。 */
 @Composable

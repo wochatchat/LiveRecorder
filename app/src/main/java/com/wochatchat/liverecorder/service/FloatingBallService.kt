@@ -22,6 +22,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -29,12 +30,17 @@ import com.wochatchat.liverecorder.MainActivity
 import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.RecorderApp
 import com.wochatchat.liverecorder.data.AppLog
+import com.wochatchat.liverecorder.data.AccountHealthEntry
+import com.wochatchat.liverecorder.data.FgPlatform
 import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.ui.navigation.TabRouter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -109,6 +115,7 @@ class FloatingBallService : Service() {
             return
         }
         observeCounts()
+        observeForegroundPlatform()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -253,7 +260,16 @@ class FloatingBallService : Service() {
         }
         panel.addView(title)
         panel.addView(summary)
+        // V3-4 R2：前台平台行（前台为支持平台时显示 平台名 · Cookie 状态）
+        val fgLine = TextView(this).apply {
+            id = android.R.id.text2
+            setTextColor(0xFFBDBDC4.toInt())
+            textSize = 12f
+            visibility = View.GONE
+        }
+        panel.addView(fgLine)
         panel.addView(buttonRow())
+        panel.addView(probeButton())
 
         val width = dp(PANEL_WIDTH_DP)
         panelParams = WindowManager.LayoutParams(
@@ -308,6 +324,25 @@ class FloatingBallService : Service() {
         return row
     }
 
+    /** V3-4 R2：「探测直播间」按钮——前台为支持平台时显示，点击打开 App（onResume 剪贴板链路自动解析已复制链接）。 */
+    private fun probeButton(): TextView {
+        val btn = TextView(this).apply {
+            text = getString(R.string.ball_panel_probe)
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            gravity = Gravity.CENTER
+            setPadding(dp(12), dp(8), dp(12), dp(6))
+            background = GradientDrawable().apply {
+                cornerRadius = dp(8).toFloat()
+                setColor(0x26FFFFFF)
+            }
+            visibility = View.GONE
+        }
+        btn.setOnClickListener { openApp(tab = null) }
+        probeBtn = btn
+        return btn
+    }
+
     /** 打开 App 对应 Tab（悬浮球点击场景来自后台，必须 NEW_TASK）。 */
     private fun openApp(tab: String?) {
         removePanel()
@@ -331,6 +366,15 @@ class FloatingBallService : Service() {
 
     // ---------- 数据 ----------
 
+    /** V3-4 R2：当前前台平台键（空 = 非支持平台/未授权）。 */
+    private val fgPlatform = MutableStateFlow("")
+
+    /** cookie 配置与健康度快照（面板行刷新用）。 */
+    private var cookiesNow: Map<String, String> = emptyMap()
+    private var healthNow: Map<String, com.wochatchat.liverecorder.data.AccountHealthEntry> = emptyMap()
+
+    private var probeBtn: TextView? = null
+
     /** 收集录制/监控状态，刷新面板概要（录制中 N 条 · 监控 M 项）。 */
     private fun observeCounts() {
         val app = application as RecorderApp
@@ -344,6 +388,97 @@ class FloatingBallService : Service() {
                 updateSummaryText()
             }
         }
+    }
+
+    /**
+     * V3-4 R2：前台平台探测——每 2s 轮询 UsageStatsManager 最近前台事件，
+     * 命中支持平台 → 球体高亮平台色 + 面板显示平台/Cookie 状态 + 显示「探测直播间」。
+     */
+    private fun observeForegroundPlatform() {
+        val app = application as RecorderApp
+        scope.launch {
+            while (isActive) {
+                if (!usageAccessGranted()) {
+                    fgPlatform.value = ""
+                } else {
+                    val pkg = runCatching { queryForegroundPackage() }.getOrDefault("")
+                    fgPlatform.value = FgPlatform.platformForPackage(pkg)
+                }
+                delay(2000)
+            }
+        }
+        scope.launch { app.authStore.cookies.collect { cookiesNow = it; updateFgLine() } }
+        scope.launch { app.authStore.accountHealth.collect { healthNow = it; updateFgLine() } }
+        scope.launch {
+            fgPlatform.collect { key ->
+                tintBall(key)
+                updateFgLine()
+                probeBtn?.visibility = if (key.isEmpty()) View.GONE else View.VISIBLE
+            }
+        }
+    }
+
+    /** 查询最近 20s 内最后进入前台的应用包名。 */
+    private fun queryForegroundPackage(): String {
+        val usm = getSystemService(Context.USAGE_STATS_SERVICE) as android.app.usage.UsageStatsManager
+        val end = System.currentTimeMillis()
+        val events = usm.queryEvents(end - 20_000, end)
+        val event = android.app.usage.UsageEvents.Event()
+        val resumedType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q)
+            android.app.usage.UsageEvents.Event.ACTIVITY_RESUMED
+        else android.app.usage.UsageEvents.Event.MOVE_TO_FOREGROUND
+        var last = ""
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            if (event.eventType == resumedType) last = event.packageName ?: ""
+        }
+        return last
+    }
+
+    /** 「使用情况访问权限」是否已授（AppOps 判定）。 */
+    private fun usageAccessGranted(): Boolean = try {
+        val ops = getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
+        ops.checkOpNoThrow(
+            android.app.AppOpsManager.OPSTR_GET_USAGE_STATS,
+            android.os.Process.myUid(), packageName,
+        ) == android.app.AppOpsManager.MODE_ALLOWED
+    } catch (e: Exception) {
+        false
+    }
+
+    /** 球体高亮：命中支持平台 → 平台品牌色，否则回默认深色半透明。 */
+    private fun tintBall(platformKey: String) {
+        val ball = ballView ?: return
+        val color = if (platformKey.isEmpty()) 0xCC1B1B1F.toInt()
+        else com.wochatchat.liverecorder.ui.components.PLATFORM_COLORS[platformKey]?.toArgb()
+            ?: 0xCC1B1B1F.toInt()
+        ball.background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(color)
+        }
+        ball.alpha = if (platformKey.isEmpty()) 0.85f else 0.95f
+    }
+
+    /** 前台平台行：「前台：抖音 · Cookie 已配置」。 */
+    private fun updateFgLine() {
+        if (panelView == null) return
+        val line = panelView?.findViewById<TextView>(android.R.id.text2) ?: return
+        val key = fgPlatform.value
+        if (key.isEmpty()) {
+            line.visibility = View.GONE
+            return
+        }
+        val label = com.wochatchat.liverecorder.ui.components.PLATFORM_LABELS[key] ?: key
+        val cookieKey = com.wochatchat.liverecorder.data.Accounts.cookieKeyForPlatform(key)
+        val configured = cookiesNow[cookieKey]?.isNotBlank() == true
+        val health = com.wochatchat.liverecorder.data.AccountHealth.statusOf(healthNow, cookieKey)
+        val statusRes = when (FgPlatform.cookieStatus(configured, health)) {
+            "expired" -> R.string.ball_panel_cookie_expired
+            "ok" -> R.string.ball_panel_cookie_ok
+            else -> R.string.ball_panel_cookie_none
+        }
+        line.text = getString(R.string.ball_panel_fg_platform, label) + " · " + getString(statusRes)
+        line.visibility = View.VISIBLE
     }
 
     private fun updateSummaryText() {
