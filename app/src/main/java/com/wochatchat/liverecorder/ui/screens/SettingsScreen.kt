@@ -207,6 +207,8 @@ fun SettingsScreen(
     val diskLimitGb by viewModel.diskLimitGb.collectAsState()
 
     var showLogDialog by remember { mutableStateOf(false) }
+    // 分类导航状态（null = 分类列表页）
+    var selectedCategory by remember { mutableStateOf<SettingCategory?>(null) }
     // QW8：设置页搜索（非空时各分组按行标题/说明过滤）
     var searchQuery by remember { mutableStateOf("") }
     var showImportConfirm by remember { mutableStateOf(false) }
@@ -1940,7 +1942,7 @@ private fun SettingsSearchResults(
         Spacer(Modifier.height(12.dp))
         BackupGroup(
             viewModel = viewModel,
-            onExport = { onExport() },
+            onExport = { _ -> onExport() },
             onImport = { onImport() },
             query = searchQuery, isGroupExpanded = isGroupExpanded, toggleGroup = toggleGroup,
         )
@@ -2025,8 +2027,8 @@ private fun SettingCategoryPage(
             SettingCategory.Backup -> {
                 BackupGroup(
                     viewModel = viewModel,
-                    onExport = onExport,
-                    onImport = onImport,
+                    onExport = { _ -> onExport() },
+                    onImport = { onImport() },
                 )
             }
             SettingCategory.About -> {
