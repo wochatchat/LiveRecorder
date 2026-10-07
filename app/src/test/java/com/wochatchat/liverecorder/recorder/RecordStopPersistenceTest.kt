@@ -25,6 +25,7 @@ class RecordStopPersistenceTest {
     }
 
     private suspend fun verifyStop(segmented: Boolean) = kotlinx.coroutines.coroutineScope {
+        val testScope = this
         val directory = java.nio.file.Files.createTempDirectory("record-stop").toFile()
         val started = CompletableDeferred<Unit>()
         var time = 0L
@@ -41,7 +42,7 @@ class RecordStopPersistenceTest {
                 awaitCancellation()
             }
         }
-        val ffmpeg = object : FfmpegRecorder(File("/unused"), this) {
+        val ffmpeg = object : FfmpegRecorder(File("/unused"), testScope) {
             override suspend fun record(
                 sourceUrl: String, outputDir: File, headers: Map<String, String>,
                 anchorName: String, fileNameBase: String?, segmentSec: Int,
