@@ -4,6 +4,34 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Engineering
+import androidx.compose.material.icons.filled.Folder
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -43,6 +71,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -58,12 +87,100 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.RecorderApp
 import com.wochatchat.liverecorder.data.AppSettings
+import com.wochatchat.liverecorder.data.CloudSyncSettings
 import com.wochatchat.liverecorder.data.ProxySettings
 import com.wochatchat.liverecorder.data.UpdateChecker
 import com.wochatchat.liverecorder.push.PushConfig
 import com.wochatchat.liverecorder.storage.CustomRecordDir
 import com.wochatchat.liverecorder.storage.StorageUsage
 import com.wochatchat.liverecorder.ui.SettingsViewModel
+
+// =============================================================================
+// 设置页两层导航架构（v3 UI 优化）
+// =============================================================================
+private enum class ScreenState { CategoryList, SubPage }
+
+private enum class SettingCategory(
+    val titleRes: Int,
+    val icon: ImageVector,
+    val descRes: Int,
+    val accentColor: Long,
+) {
+    Recording(
+        R.string.settings_cat_recording,
+        Icons.Default.Videocam,
+        R.string.settings_cat_recording_desc,
+        0xFF4CAF50,
+    ),
+    Schedule(
+        R.string.settings_cat_schedule,
+        Icons.Default.Schedule,
+        R.string.settings_cat_schedule_desc,
+        0xFF2196F3,
+    ),
+    Notification(
+        R.string.settings_cat_notification,
+        Icons.Default.Notifications,
+        R.string.settings_cat_notification_desc,
+        0xFFFF9800,
+    ),
+    Appearance(
+        R.string.settings_cat_appearance,
+        Icons.Default.Palette,
+        R.string.settings_cat_appearance_desc,
+        0xFF9C27B0,
+    ),
+    Storage(
+        R.string.settings_cat_storage,
+        Icons.Default.Folder,
+        R.string.settings_cat_storage_desc,
+        0xFF607D8B,
+    ),
+    Accounts(
+        R.string.settings_cat_accounts,
+        Icons.Default.Key,
+        R.string.settings_cat_accounts_desc,
+        0xFF00BCD4,
+    ),
+    Cloud(
+        R.string.settings_cat_cloud,
+        Icons.Default.Cloud,
+        R.string.settings_cat_cloud_desc,
+        0xFF3F51B5,
+    ),
+    Proxy(
+        R.string.settings_cat_proxy,
+        Icons.Default.Language,
+        R.string.settings_cat_proxy_desc,
+        0xFF795548,
+    ),
+    System(
+        R.string.settings_cat_system,
+        Icons.Default.Security,
+        R.string.settings_cat_system_desc,
+        0xFFE91E63,
+    ),
+    Maintenance(
+        R.string.settings_cat_maintenance,
+        Icons.Default.Engineering,
+        R.string.settings_cat_maintenance_desc,
+        0xFF9E9E9E,
+    ),
+    Backup(
+        R.string.settings_cat_backup,
+        Icons.Default.Backup,
+        R.string.settings_cat_backup_desc,
+        0xFF009688,
+    ),
+    About(
+        R.string.settings_cat_about,
+        Icons.Default.Info,
+        R.string.settings_cat_about_desc,
+        0xFF3F51B5,
+    ),
+}
+
+
 
 /**
  * 全屏设置页（6d R15 / U3）：分组卡片（通用录制 / 推送 / 命名规则 / 代理 / 平台认证 / 维护）。
@@ -92,21 +209,12 @@ fun SettingsScreen(
     var showLogDialog by remember { mutableStateOf(false) }
     // QW8：设置页搜索（非空时各分组按行标题/说明过滤）
     var searchQuery by remember { mutableStateOf("") }
-    // QW7：折叠分组状态（组标题 → 是否展开；搜索时全部展开）
-    var collapsedGroups by remember { mutableStateOf(setOf<String>()) }
-    fun isGroupExpanded(title: String) = searchQuery.isBlank() || title !in collapsedGroups
-    fun toggleGroup(title: String) {
-        collapsedGroups = if (title in collapsedGroups) collapsedGroups - title else collapsedGroups + title
-    }
-
-    // Phase 4-4.3：配置导出/导入 SAF 状态
-    var exportIncludeAuth by remember { mutableStateOf(false) }
     var showImportConfirm by remember { mutableStateOf(false) }
     val pendingImportUri = remember { mutableStateOf<Uri?>(null) }
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json"),
     ) { uri ->
-        uri?.let { viewModel.exportConfig(context.contentResolver.openOutputStream(it)!!, exportIncludeAuth) }
+        uri?.let { viewModel.exportConfig(context.contentResolver.openOutputStream(it)!!, false) }
     }
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -178,75 +286,88 @@ fun SettingsScreen(
         )
     }
 
+    val collapsedGroups = remember { mutableStateMapOf<String, Boolean>() }
+    fun isGroupExpanded(title: String) = searchQuery.isBlank() || title !in collapsedGroups
+    fun toggleGroup(title: String) {
+        collapsedGroups[title] = collapsedGroups[title] != true
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = { TopAppBar(title = { Text(stringResource(R.string.screen_settings_title)) }) }
+        topBar = {
+            TopAppBar(
+                title = {
+                    if (selectedCategory != null) Text(stringResource(selectedCategory!!.titleRes))
+                    else Text(stringResource(R.string.screen_settings_title))
+                },
+                navigationIcon = {
+                    if (selectedCategory != null) {
+                        IconButton(onClick = { selectedCategory = null }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "\u8fd4\u56de")
+                        }
+                    }
+                },
+            )
+        },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 24.dp)
-        ) {
-            Spacer(Modifier.height(8.dp))
-            // QW8：搜索栏
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                placeholder = { Text(stringResource(R.string.settings_search_hint)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(Modifier.height(12.dp))
-            RecordingGroup(settings, convertMp4, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            ScheduleGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            PowerGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            StorageGroup(settings, storageUsage, diskLimitGb, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            PushGroup(
-                pushConfig, settings, viewModel,
-                onTestPush = { viewModel.sendTestPush() },
-                query = searchQuery, isGroupExpanded = ::isGroupExpanded, toggleGroup = ::toggleGroup,
-            )
-            Spacer(Modifier.height(12.dp))
-            NamingGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            ProxyGroup(proxy, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            AuthGroup(cookies.size + credentials.size, onOpenCookies, searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            PlatformHealthGroup(onOpenPlatformHealth, searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            // Phase 7-7.2：系统权限状态检查入口
-            SystemStatusGroup(searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            // V3-1：仪器化诊断开关
-            DiagGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            // V3-4 R1：悬浮球开关
-            FloatingBallGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            // Phase 9：主题定制（9.1 主题色 / 9.2 AMOLED 纯黑）
-            AppearanceGroup(settings, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            CloudSyncGroup(cloudSync, viewModel, searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            BackupGroup(
-                viewModel = viewModel,
-                onExport = { includeAuth -> exportLauncher.launch("liverecorder-config.json") },
-                onImport = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
-                query = searchQuery, isGroupExpanded = ::isGroupExpanded, toggleGroup = ::toggleGroup,
-            )
-            Spacer(Modifier.height(12.dp))
-            MaintenanceGroup({ showLogDialog = true }, searchQuery, ::isGroupExpanded, ::toggleGroup)
-            Spacer(Modifier.height(12.dp))
-            // V3-7：关于——手动检查更新
-            AboutGroup({ checkUpdate() }, checkingUpdate, searchQuery, ::isGroupExpanded, ::toggleGroup)
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            AnimatedContent(
+                targetState = selectedCategory,
+                transitionSpec = {
+                    if (targetState != null) {
+                        (slideInHorizontally { it / 3 } + fadeIn()) togetherWith
+                            (slideOutHorizontally { -it / 4 } + fadeOut())
+                    } else {
+                        (slideInHorizontally { -it / 3 } + fadeIn()) togetherWith
+                            (slideOutHorizontally { it / 4 } + fadeOut())
+                    }
+                },
+                label = "settings_nav",
+            ) { category ->
+                if (category == null) {
+                    SettingsCategoryList(
+                        settings = settings,
+                        pushConfig = pushConfig,
+                        cloudSync = cloudSync,
+                        storageUsage = storageUsage,
+                        diskLimitGb = diskLimitGb,
+                        cookieCount = cookies.size + credentials.size,
+                        convertMp4 = convertMp4,
+                        proxy = proxy,
+                        viewModel = viewModel,
+                        onCategorySelect = { selectedCategory = it },
+                        searchQuery = searchQuery,
+                        onSearchQueryChange = { searchQuery = it },
+                        onTestPush = { viewModel.sendTestPush() },
+                        onOpenCookies = onOpenCookies,
+                        onOpenPlatformHealth = onOpenPlatformHealth,
+                        onShowLog = { showLogDialog = true },
+                        onCheckUpdate = { checkUpdate() },
+                        checkingUpdate = checkingUpdate,
+                        onExport = { exportLauncher.launch("liverecorder-config.json") },
+                        onImport = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
+                        isGroupExpanded = ::isGroupExpanded,
+                        toggleGroup = ::toggleGroup,
+                    )
+                } else {
+                    SettingCategoryPage(
+                        category = category,
+                        onExport = { exportLauncher.launch("liverecorder-config.json") },
+                        onImport = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
+                        settings = settings, convertMp4 = convertMp4, pushConfig = pushConfig,
+                        proxy = proxy, cloudSync = cloudSync, storageUsage = storageUsage,
+                        diskLimitGb = diskLimitGb,
+                        cookieCount = cookies.size + credentials.size,
+                        viewModel = viewModel,
+                        onTestPush = { viewModel.sendTestPush() },
+                        onOpenCookies = onOpenCookies,
+                        onOpenPlatformHealth = onOpenPlatformHealth,
+                        onShowLog = { showLogDialog = true },
+                        onCheckUpdate = { checkUpdate() },
+                        checkingUpdate = checkingUpdate,
+                    )
+                }
+            }
         }
     }
 
@@ -1578,6 +1699,339 @@ private fun RecordDirRow(settings: AppSettings, viewModel: SettingsViewModel) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
             )
+        }
+    }
+}
+
+
+// =============================================================================
+// 新增组件：分类卡片 / 分类列表 / 搜索结果 / 分类子页
+// =============================================================================
+
+/** 分钟数 → "HH:MM" 格式化（定时监控摘要用）。 */
+private fun formatMinute(minute: Int): String =
+    "%02d:%02d".format(minute / 60, minute % 60)
+
+/** 分类列表页：12 个分类卡片 + 搜索栏 + 版本页脚。 */
+@Composable
+private fun SettingsCategoryList(
+    settings: AppSettings,
+    pushConfig: PushConfig,
+    cloudSync: CloudSyncSettings,
+    storageUsage: StorageUsage,
+    diskLimitGb: Double,
+    cookieCount: Int,
+    convertMp4: Boolean,
+    proxy: ProxySettings,
+    viewModel: SettingsViewModel,
+    onCategorySelect: (SettingCategory) -> Unit,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onTestPush: () -> Unit,
+    onOpenCookies: () -> Unit,
+    onOpenPlatformHealth: () -> Unit,
+    onShowLog: () -> Unit,
+    onCheckUpdate: () -> Unit,
+    checkingUpdate: Boolean,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+    isGroupExpanded: (String) -> Boolean,
+    toggleGroup: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 24.dp),
+    ) {
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange,
+            placeholder = { Text(stringResource(R.string.settings_search_hint)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Spacer(Modifier.height(16.dp))
+
+        if (searchQuery.isNotBlank()) {
+            SettingsSearchResults(
+                settings = settings, convertMp4 = convertMp4, pushConfig = pushConfig,
+                proxy = proxy, cloudSync = cloudSync, storageUsage = storageUsage,
+                diskLimitGb = diskLimitGb,
+                cookieCount = cookieCount,
+                viewModel = viewModel,
+                searchQuery = searchQuery,
+                onTestPush = onTestPush,
+                onOpenCookies = onOpenCookies,
+                onOpenPlatformHealth = onOpenPlatformHealth,
+                onShowLog = onShowLog,
+                onCheckUpdate = onCheckUpdate,
+                checkingUpdate = checkingUpdate,
+                onExport = onExport,
+                onImport = onImport,
+                isGroupExpanded = isGroupExpanded,
+                toggleGroup = toggleGroup,
+            )
+            return@Column
+        }
+
+        SettingCategory.entries.forEach { category ->
+            val summary = when (category) {
+                SettingCategory.Recording ->
+                    stringResource(R.string.settings_cat_summary_quality, settings.quality)
+                SettingCategory.Schedule ->
+                    if (settings.scheduleMonitorEnabled) {
+                        stringResource(
+                            R.string.settings_cat_summary_schedule_on,
+                            formatMinute(settings.scheduleStartMinute),
+                            formatMinute(settings.scheduleEndMinute),
+                        )
+                    } else stringResource(R.string.settings_cat_summary_schedule_off)
+                SettingCategory.Notification ->
+                    if (pushConfig.enabled) stringResource(R.string.settings_cat_summary_push_on, pushConfig.type)
+                    else stringResource(R.string.settings_cat_summary_push_off)
+                SettingCategory.Appearance ->
+                    stringResource(R.string.settings_cat_summary_appearance)
+                SettingCategory.Storage ->
+                    if (storageUsage.totalGb > 0) {
+                        stringResource(R.string.settings_cat_summary_storage, "%.1f".format(storageUsage.freeGb))
+                    } else stringResource(R.string.settings_cat_summary_storage_unknown)
+                SettingCategory.Accounts ->
+                    if (cookieCount > 0) stringResource(R.string.settings_cookies_configured, cookieCount)
+                    else stringResource(R.string.settings_cookies_none)
+                SettingCategory.Cloud ->
+                    stringResource(
+                        if (cloudSync.enabled) R.string.settings_cat_summary_cloud_on
+                        else R.string.settings_cat_summary_cloud_off
+                    )
+                else -> stringResource(R.string.settings_cat_summary_generic)
+            }
+            SettingsCategoryCard(category = category, summary = summary) { onCategorySelect(category) }
+            Spacer(Modifier.height(10.dp))
+        }
+
+        Spacer(Modifier.height(24.dp))
+        Text(
+            text = stringResource(R.string.settings_cat_version),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
+    }
+}
+
+/** 单个分类入口卡片：图标 + 标题 + 摘要 + 箭头。 */
+@Composable
+private fun SettingsCategoryCard(
+    category: SettingCategory,
+    summary: String,
+    onClick: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            // 圆形彩色图标背景
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = Color(category.accentColor).copy(alpha = 0.15f),
+                modifier = Modifier.size(42.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = category.icon,
+                        contentDescription = null,
+                        tint = Color(category.accentColor),
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    stringResource(category.titleRes),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    summary,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                "›",
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.outline,
+            )
+        }
+    }
+}
+
+/** 全局搜索结果：扁平展示所有匹配的设置分组（各组内部自行按 query 过滤行）。 */
+@Composable
+private fun SettingsSearchResults(
+    settings: AppSettings,
+    convertMp4: Boolean,
+    pushConfig: PushConfig,
+    proxy: ProxySettings,
+    cloudSync: CloudSyncSettings,
+    storageUsage: StorageUsage,
+    diskLimitGb: Double,
+    cookieCount: Int,
+    viewModel: SettingsViewModel,
+    searchQuery: String,
+    onTestPush: () -> Unit,
+    onOpenCookies: () -> Unit,
+    onOpenPlatformHealth: () -> Unit,
+    onShowLog: () -> Unit,
+    onCheckUpdate: () -> Unit,
+    checkingUpdate: Boolean,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+    isGroupExpanded: (String) -> Boolean,
+    toggleGroup: (String) -> Unit,
+) {
+    // 注意：本组件嵌在分类列表的滚动 Column 内，不能再套 fillMaxSize/verticalScroll
+    Column {
+        RecordingGroup(settings, convertMp4, viewModel, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        ScheduleGroup(settings, viewModel, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        PowerGroup(settings, viewModel, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        StorageGroup(settings, storageUsage, diskLimitGb, viewModel, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        PushGroup(pushConfig, settings, viewModel, onTestPush, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        NamingGroup(settings, viewModel, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        ProxyGroup(proxy, viewModel, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        AuthGroup(cookieCount, onOpenCookies, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        PlatformHealthGroup(onOpenPlatformHealth, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        SystemStatusGroup(searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        DiagGroup(settings, viewModel, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        FloatingBallGroup(settings, viewModel, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        AppearanceGroup(settings, viewModel, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        CloudSyncGroup(cloudSync, viewModel, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        BackupGroup(
+            viewModel = viewModel,
+            onExport = { onExport() },
+            onImport = { onImport() },
+            query = searchQuery, isGroupExpanded = isGroupExpanded, toggleGroup = toggleGroup,
+        )
+        Spacer(Modifier.height(12.dp))
+        MaintenanceGroup(onShowLog, searchQuery, isGroupExpanded, toggleGroup)
+        Spacer(Modifier.height(12.dp))
+        AboutGroup(onCheckUpdate, checkingUpdate, searchQuery, isGroupExpanded, toggleGroup)
+    }
+}
+
+/** 分类子页：按选中分类渲染对应设置组。 */
+@Composable
+private fun SettingCategoryPage(
+    category: SettingCategory,
+    onExport: () -> Unit,
+    onImport: () -> Unit,
+    settings: AppSettings,
+    convertMp4: Boolean,
+    pushConfig: PushConfig,
+    proxy: ProxySettings,
+    cloudSync: CloudSyncSettings,
+    storageUsage: StorageUsage,
+    diskLimitGb: Double,
+    cookieCount: Int,
+    viewModel: SettingsViewModel,
+    onTestPush: () -> Unit,
+    onOpenCookies: () -> Unit,
+    onOpenPlatformHealth: () -> Unit,
+    onShowLog: () -> Unit,
+    onCheckUpdate: () -> Unit,
+    checkingUpdate: Boolean,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 24.dp),
+    ) {
+        Spacer(Modifier.height(8.dp))
+        when (category) {
+            SettingCategory.Recording -> {
+                RecordingGroup(settings, convertMp4, viewModel)
+                Spacer(Modifier.height(12.dp))
+                NamingGroup(settings, viewModel)
+            }
+            SettingCategory.Schedule -> {
+                ScheduleGroup(settings, viewModel)
+                Spacer(Modifier.height(12.dp))
+                PowerGroup(settings, viewModel)
+            }
+            SettingCategory.Notification -> {
+                PushGroup(pushConfig, settings, viewModel, onTestPush)
+            }
+            SettingCategory.Appearance -> {
+                AppearanceGroup(settings, viewModel)
+            }
+            SettingCategory.Storage -> {
+                StorageGroup(settings, storageUsage, diskLimitGb, viewModel)
+            }
+            SettingCategory.Accounts -> {
+                AuthGroup(cookieCount, onOpenCookies)
+                Spacer(Modifier.height(12.dp))
+                PlatformHealthGroup(onOpenPlatformHealth)
+            }
+            SettingCategory.Cloud -> {
+                CloudSyncGroup(cloudSync, viewModel)
+            }
+            SettingCategory.Proxy -> {
+                ProxyGroup(proxy, viewModel)
+            }
+            SettingCategory.System -> {
+                SystemStatusGroup()
+                Spacer(Modifier.height(12.dp))
+                FloatingBallGroup(settings, viewModel)
+            }
+            SettingCategory.Maintenance -> {
+                DiagGroup(settings, viewModel)
+                Spacer(Modifier.height(12.dp))
+                MaintenanceGroup(onShowLog)
+            }
+            SettingCategory.Backup -> {
+                BackupGroup(
+                    viewModel = viewModel,
+                    onExport = onExport,
+                    onImport = onImport,
+                )
+            }
+            SettingCategory.About -> {
+                AboutGroup(onCheckUpdate, checkingUpdate)
+            }
         }
     }
 }

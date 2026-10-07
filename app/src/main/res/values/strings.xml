@@ -495,6 +495,45 @@
 
     <!-- V3-4 R1：跨 app 真悬浮球 -->
     <string name="settings_group_floating_ball">悬浮球</string>
+
+    <!-- v3 设置页分类 -->
+    <string name="settings_cat_recording">录制</string>
+    <string name="settings_cat_recording_desc">画质、格式与命名规则</string>
+    <string name="settings_cat_schedule">监控与定时</string>
+    <string name="settings_cat_schedule_desc">定时监控与省电策略</string>
+    <string name="settings_cat_notification">通知与推送</string>
+    <string name="settings_cat_notification_desc">推送渠道、开播提醒与日报</string>
+    <string name="settings_cat_appearance">外观与显示</string>
+    <string name="settings_cat_appearance_desc">主题、状态色与紧凑卡片</string>
+    <string name="settings_cat_storage">存储与目录</string>
+    <string name="settings_cat_storage_desc">录制目录与空间告警</string>
+    <string name="settings_cat_accounts">账号与平台</string>
+    <string name="settings_cat_accounts_desc">Cookie、多账号与平台健康度</string>
+    <string name="settings_cat_cloud">云同步</string>
+    <string name="settings_cat_cloud_desc">WebDAV 自动上传</string>
+    <string name="settings_cat_proxy">网络与代理</string>
+    <string name="settings_cat_proxy_desc">按平台配置 HTTP 代理</string>
+    <string name="settings_cat_system">系统权限</string>
+    <string name="settings_cat_system_desc">通知、电池与悬浮窗授权</string>
+    <string name="settings_cat_maintenance">诊断与维护</string>
+    <string name="settings_cat_maintenance_desc">诊断开关与运行日志</string>
+    <string name="settings_cat_backup">备份与恢复</string>
+    <string name="settings_cat_backup_desc">配置导出与导入</string>
+    <string name="settings_cat_about">关于</string>
+    <string name="settings_cat_about_desc">版本、更新与反馈</string>
+
+    <string name="settings_cat_summary_quality">当前画质：%1$s</string>
+    <string name="settings_cat_summary_schedule_on">定时监控 %1$s – %2$s</string>
+    <string name="settings_cat_summary_schedule_off">定时监控未开启</string>
+    <string name="settings_cat_summary_push_on">已启用（%1$s）</string>
+    <string name="settings_cat_summary_push_off">推送未启用</string>
+    <string name="settings_cat_summary_appearance">主题色、纯黑模式与状态色</string>
+    <string name="settings_cat_summary_storage">剩余空间 %1$s GB</string>
+    <string name="settings_cat_summary_storage_unknown">查看用量与录制目录</string>
+    <string name="settings_cat_summary_cloud_on">WebDAV 同步已开启</string>
+    <string name="settings_cat_summary_cloud_off">WebDAV 同步未开启</string>
+    <string name="settings_cat_summary_generic">点击进入</string>
+    <string name="settings_cat_version">LiveRecorder</string>
     <string name="settings_floating_ball_title">显示悬浮球</string>
     <string name="settings_floating_ball_sub">跨 app 常驻小浮标：点击展开快捷面板（录制概要 + 去记录/去监控）。需悬浮窗权限</string>
     <string name="settings_floating_ball_no_permission">悬浮窗权限未授予，已打开系统设置，授权后重新打开开关</string>
