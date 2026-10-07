@@ -48,7 +48,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
-import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
+import com.wochatchat.liverecorder.data.RecordFilters
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -104,6 +104,7 @@ fun RecordDetailScreen(
     onBack: () -> Unit,
     onMerge: (List<File>, String) -> Unit,
     onPlayAll: () -> Unit = {},
+    onPlayFile: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -226,7 +227,7 @@ fun RecordDetailScreen(
                     index = idx + 1,
                     file = file,
                     meta = fileMetas.getOrElse(idx) { FileMeta() },
-                    onPlay = { openFile(context, file) },
+                    onPlay = { onPlayFile(file.absolutePath) },
                     onShare = { shareFile(context, file) },
                     onDelete = { pendingDeleteFile = file },
                 )
@@ -314,7 +315,8 @@ private fun RecordInfoHeader(entry: RecordHistoryEntry, onPlay: () -> Unit) {
             modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PlatformBadge(platformKeyForUrl(entry.url))
+            val platformKey = RecordFilters.platformKeyOf(entry)
+            if (platformKey.isNotBlank()) PlatformBadge(platformKey)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(

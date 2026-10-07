@@ -4,6 +4,8 @@ import com.wochatchat.liverecorder.data.AppLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.runInterruptible
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
@@ -129,7 +131,7 @@ open class FfmpegRecorder(
         }
 
         try {
-            val exitCode = process.waitFor()
+            val exitCode = runInterruptible(Dispatchers.IO) { process.waitFor() }
             progressJob.cancel()
 
             if (exitCode != 0 && exitCode != -2) {
@@ -144,8 +146,12 @@ open class FfmpegRecorder(
             val totalBytes = segments.sumOf { it.length() }.coerceAtLeast(estimatedBytes)
             return RecordResult(segments, totalBytes)
         } finally {
+            finishProcess(process)
+            val written = outputDir.listFiles { file ->
+                file.name.startsWith(baseName) && file.name.endsWith(".$extension")
+            }?.sumOf { it.length() } ?: 0L
+            onProgress(written.coerceAtLeast(estimatedBytes))
             progressJob.cancel()
-            if (process.isAlive) process.destroyForcibly()
         }
     }
 
@@ -248,7 +254,7 @@ open class FfmpegRecorder(
         }
 
         try {
-            val exitCode = process.waitFor()
+            val exitCode = runInterruptible(Dispatchers.IO) { process.waitFor() }
             progressJob.cancel()
             if (exitCode != 0 && exitCode != -2) {
                 throw IllegalStateException("ffmpeg 直存录制失败，exitCode=$exitCode")
@@ -256,9 +262,21 @@ open class FfmpegRecorder(
             val segments = listOfNotNull(outputFile.takeIf { it.exists() && it.length() > 0 })
             return RecordResult(segments, segments.sumOf { it.length() }.coerceAtLeast(estimatedBytes))
         } finally {
+            finishProcess(process)
+            onProgress(outputFile.length().coerceAtLeast(estimatedBytes))
             progressJob.cancel()
-            if (process.isAlive) process.destroyForcibly()
         }
+    }
+
+    private fun finishProcess(process: Process) {
+        if (!process.isAlive) return
+        // q 让 ffmpeg 写完容器尾部；无响应再强制退出。
+        runCatching {
+            process.outputStream.write("q\n".toByteArray())
+            process.outputStream.flush()
+            process.waitFor(2, TimeUnit.SECONDS)
+        }.onFailure { AppLog.w(TAG, "录制进程收尾失败: ${it.message}") }
+        if (process.isAlive) process.destroyForcibly()
     }
 
     /** 公共输入参数（分段/直存共用）：UA/实时速率/重连/headers。 */

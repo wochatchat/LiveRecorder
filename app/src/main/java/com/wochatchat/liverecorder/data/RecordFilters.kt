@@ -11,11 +11,25 @@ object RecordFilters {
     /** 条目平台键：优先历史自带中文平台名反查 [PLATFORM_LABELS]（落库值带「直播」后缀，先剥除；
      *  幽灵回收条目无 URL），回落 URL 域名推断。 */
     fun platformKeyOf(entry: RecordHistoryEntry): String {
-        val p = entry.platform.trim().removeSuffix("直播")
-        if (p.isNotBlank()) {
-            PLATFORM_LABELS.entries.firstOrNull { it.value == p }?.let { return it.key }
+        keyForName(entry.platform)?.let { return it }
+        if (entry.url.isNotBlank()) return platformKeyForUrl(entry.url)
+        // 旧文件补录时 URL/平台为空，但录制路径保留了「平台/主播」目录。
+        var parent = java.io.File(entry.savePath).parentFile
+        while (parent != null) {
+            if (parent.name.endsWith("直播")) {
+                keyForName(parent.name)?.let { return it }
+            }
+            parent = parent.parentFile
         }
-        return if (entry.url.isBlank()) "" else platformKeyForUrl(entry.url)
+        return ""
+    }
+
+    private fun keyForName(name: String): String? {
+        val normalized = name.trim().removeSuffix("直播")
+        return PLATFORM_LABELS.entries.firstOrNull {
+            it.key.equals(normalized, ignoreCase = true) ||
+                it.value.equals(normalized, ignoreCase = true)
+        }?.key
     }
 
     /**
@@ -47,7 +61,8 @@ object RecordFilters {
                 val q = query.trim()
                 e.anchorName.contains(q, ignoreCase = true) ||
                     e.title.contains(q, ignoreCase = true) ||
-                    platformKeyOf(e).contains(q, ignoreCase = true)
+                    platformKeyOf(e).contains(q, ignoreCase = true) ||
+                    PLATFORM_LABELS[platformKeyOf(e)]?.contains(q, ignoreCase = true) == true
             })
     }
 }

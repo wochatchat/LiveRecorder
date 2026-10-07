@@ -345,7 +345,7 @@ class FloatingBallService : Service() {
             val key = fgPlatform.value
             if (key.isNotEmpty()) {
                 runCatching {
-                    Toast.makeText(this, probeHintRes(key), Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, probeHintRes(key), Toast.LENGTH_SHORT).show()
                 }
             }
             openApp(tab = null)

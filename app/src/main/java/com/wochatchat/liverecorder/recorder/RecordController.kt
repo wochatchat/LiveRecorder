@@ -1,12 +1,17 @@
 package com.wochatchat.liverecorder.recorder
 
 import com.wochatchat.liverecorder.data.AppLog
+import com.wochatchat.liverecorder.ui.components.PLATFORM_LABELS
+import com.wochatchat.liverecorder.ui.components.platformKeyForUrl
 import com.wochatchat.liverecorder.platform.douyin.DouyinSpider
 import com.wochatchat.liverecorder.platform.douyin.DouyinStreamInfo
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -194,6 +199,7 @@ class RecordController(
     }
 
     internal suspend fun runRecord(url: String) {
+        val recordingJob = currentCoroutineContext()[Job]
         var attempt = 0
         var totalBytes = 0L
         var lastPath = ""
@@ -345,6 +351,7 @@ class RecordController(
                         val res = effectiveFfmpeg.recordDirect(sourceUrl, saveFile, headers, audioOnly = audioOnly) { bytes ->
                             segBytes = bytes
                             scope.launch {
+                                if (recordingJob?.isActive == false) return@launch
                                 setState(
                                     url,
                                     RecordState.Recording(
@@ -363,6 +370,8 @@ class RecordController(
                     } else {
                         // ffmpeg 分段录制（3-3g）：m3u8 必须走 ffmpeg；FLV 也走 ffmpeg
                         segStartMs = nowMs()
+                        segActive = true
+                        segBytes = 0
                     // V3-1 R2：目录路径在开录前挂到 lastPath（异常/中断时 Failed 能带上落盘目录）
                     lastPath = dir.absolutePath
                     val res = effectiveFfmpeg.record(
@@ -378,6 +387,7 @@ class RecordController(
                         segBytes = bytes
                         // setState 已 suspend（R18 onFinished 钩子），ffmpeg 进度回调为非挂起 lambda，转协程派发
                         scope.launch {
+                            if (recordingJob?.isActive == false) return@launch
                             setState(
                                 url,
                                 RecordState.Recording(
@@ -431,6 +441,7 @@ class RecordController(
                         }
                     }
                     totalBytes += segBytes
+                    segBytes = 0
                     accMs += nowMs() - segStartMs
                     segActive = false
                     val segMs = nowMs() - segStartMs
@@ -443,14 +454,17 @@ class RecordController(
             val segDurMs = if (segActive) nowMs() - segStartMs else 0
             val finBytes = totalBytes + segBytes
             AppLog.i(TAG, "录制手动停止: $url (已录 $finBytes 字节)")
-            setState(
-                url,
-                RecordState.Finished(
-                    lastPath, finBytes, completed = false, durationMs = accMs + segDurMs,
-                    anchorName = curAnchor, title = curTitle, platform = curPlatform,
-                    diag = diagOf(finBytes, lastPath, finBytes > 0 && lastPath.isNotBlank()),
-                ),
-            )
+            // stop() 已取消当前 Job，DataStore.edit 必须在不可取消的收尾上下文完成。
+            withContext(NonCancellable) {
+                setState(
+                    url,
+                    RecordState.Finished(
+                        lastPath, finBytes, completed = false, durationMs = accMs + segDurMs,
+                        anchorName = curAnchor, title = curTitle, platform = curPlatform,
+                        diag = diagOf(finBytes, lastPath, finBytes > 0 && lastPath.isNotBlank()),
+                    ),
+                )
+            }
             throw e
         } catch (e: Exception) {
             // V3-1 R2：异常时并入进行中分段的字节/时长，确有落盘文件则随 Failed 落库
@@ -541,7 +555,7 @@ class RecordController(
         url.contains("bilibili.com/") -> "B站直播"
         url.contains("www.yy.com/") -> "YY直播"
         url.contains("www.bigo.tv/") || url.contains("slink.bigovideo.tv/") -> "Bigo直播"
-        else -> "抖音直播"
+        else -> PLATFORM_LABELS[platformKeyForUrl(url)]?.let { "${it}直播" } ?: "抖音直播"
     }
 
     private suspend fun setState(url: String, state: RecordState) {

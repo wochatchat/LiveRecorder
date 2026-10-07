@@ -43,6 +43,23 @@ class RecordFiltersTest {
         assertEquals("", RecordFilters.platformKeyOf(entry("", platform = "")))
     }
 
+    @Test
+    fun `旧补录记录从平台目录恢复 chip 且可以筛选`() {
+        val legacy = entry("").copy(savePath = "/data/app/downloads/抖音直播/象棋刺客")
+        assertEquals("douyin", RecordFilters.platformKeyOf(legacy))
+        assertEquals(listOf("douyin"), RecordFilters.platformKeys(listOf(legacy)))
+        assertEquals(listOf(legacy), RecordFilters.apply(listOf(legacy), 0, "douyin", ""))
+        assertEquals(listOf(legacy), RecordFilters.apply(listOf(legacy), 0, null, "抖音"))
+        assertEquals("huya", RecordFilters.platformKeyOf(
+            entry("").copy(savePath = "/storage/videos/虎牙直播/主播/video.ts"),
+        ))
+    }
+
+    @Test
+    fun `平台英文键兼容旧记录`() {
+        assertEquals("bilibili", RecordFilters.platformKeyOf(entry("", platform = "BILIBILI")))
+    }
+
     // ---- platformKeys ----
 
     @Test

@@ -28,7 +28,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +48,9 @@ import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.data.UpdateChecker.UpdateInfo
 import com.wochatchat.liverecorder.update.UpdateDownloader
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.isActive
 import java.io.File
 
 /**
@@ -67,19 +74,40 @@ fun UpdateDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var downloadState by remember(info) { mutableStateOf(DownloadState.IDLE) }
-    var errorMsg by remember { mutableStateOf<String?>(null) }
-    var downloadedFile by remember { mutableStateOf<File?>(null) }
-    var downloadId by remember { mutableStateOf(-1L) }
+    var errorMsg by remember(info) { mutableStateOf<String?>(null) }
+    var downloadedFile by remember(info) { mutableStateOf<File?>(null) }
+    var downloadJob by remember(info) { mutableStateOf<Job?>(null) }
+    var progress by remember(info) { mutableStateOf<Float?>(null) }
+    var attempt by remember(info) { mutableStateOf(0) }
 
-    // 触发下载
+    DisposableEffect(info) {
+        onDispose { downloadJob?.cancel() }
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult(),
+    ) {
+        downloadedFile?.let { apk ->
+            if (!UpdateDownloader.installApk(context, apk)) {
+                errorMsg = context.getString(R.string.update_install_permission_required)
+            }
+        }
+    }
+
     fun startDownload() {
         if (downloadState == DownloadState.DOWNLOADING) return
         downloadState = DownloadState.DOWNLOADING
         errorMsg = null
-        scope.launch {
-            val result = UpdateDownloader.downloadApk(context, info.apkUrl) { downloadId = it }
-            // 已被用户取消则忽略结果
-            if (downloadState != DownloadState.DOWNLOADING) return@launch
+        progress = null
+        val currentAttempt = ++attempt
+        downloadJob = scope.launch {
+            val result = UpdateDownloader.downloadApk(context, info.apkUrl) { received, total ->
+                scope.launch(Dispatchers.Main) {
+                    if (attempt == currentAttempt && downloadState == DownloadState.DOWNLOADING) {
+                        progress = if (total > 0) (received.toFloat() / total).coerceIn(0f, 1f) else null
+                    }
+                }
+            }
+            if (!isActive || attempt != currentAttempt) return@launch
             if (result.apkFile != null) {
                 downloadedFile = result.apkFile
                 downloadState = DownloadState.READY
@@ -90,12 +118,18 @@ fun UpdateDialog(
         }
     }
 
-    // 安装 APK，未授权时引导用户去设置
     fun install() {
         val apk = downloadedFile ?: return
-        val success = UpdateDownloader.installApk(context, apk)
-        if (!success) {
-            UpdateDownloader.openInstallPermissionSettings(context)
+        errorMsg = null
+        if (!context.packageManager.canRequestPackageInstalls()) {
+            runCatching {
+                permissionLauncher.launch(
+                    Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+                        .setData(Uri.parse("package:${context.packageName}")),
+                )
+            }.onFailure { errorMsg = it.message ?: context.getString(R.string.update_install_settings_failed) }
+        } else if (!UpdateDownloader.installApk(context, apk)) {
+            errorMsg = context.getString(R.string.update_install_failed)
         }
     }
 
@@ -155,10 +189,16 @@ fun UpdateDialog(
                 if (downloadState == DownloadState.DOWNLOADING) {
                     Spacer(Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        LinearProgressIndicator(modifier = Modifier.weight(1f))
+                        val fraction = progress
+                        if (fraction == null) {
+                            LinearProgressIndicator(modifier = Modifier.weight(1f))
+                        } else {
+                            LinearProgressIndicator(progress = { fraction }, modifier = Modifier.weight(1f))
+                        }
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            stringResource(R.string.update_downloading),
+                            if (fraction == null) stringResource(R.string.update_downloading)
+                            else "${(fraction * 100).toInt()}%",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -214,7 +254,10 @@ fun UpdateDialog(
             TextButton(
                 onClick = {
                     if (downloadState == DownloadState.DOWNLOADING) {
-                        UpdateDownloader.cancel(context, downloadId)
+                        attempt++
+                        downloadJob?.cancel()
+                        downloadJob = null
+                        progress = null
                         downloadState = DownloadState.IDLE
                     } else {
                         onIgnore()

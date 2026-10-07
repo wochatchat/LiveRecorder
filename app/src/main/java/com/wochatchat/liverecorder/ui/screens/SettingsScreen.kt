@@ -996,7 +996,7 @@ private fun FloatingBallGroup(
                             ).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
                         )
                         Toast.makeText(
-                            context, R.string.settings_floating_ball_no_permission, Toast.LENGTH_LONG
+                            context, R.string.settings_floating_ball_no_permission, Toast.LENGTH_SHORT
                         ).show()
                     }
                 } else {

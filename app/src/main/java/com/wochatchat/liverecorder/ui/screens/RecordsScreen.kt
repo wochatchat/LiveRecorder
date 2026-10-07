@@ -97,6 +97,7 @@ import java.util.Locale
 fun RecordsScreen(
     viewModel: RecordsViewModel = viewModel(),
     onNavigateToDetail: (String) -> Unit = {},
+    onNavigateToPlayer: (String) -> Unit = {},
 ) {
     val filtered by viewModel.filtered.collectAsState()
     val filter by viewModel.filter.collectAsState()
@@ -239,6 +240,7 @@ fun RecordsScreen(
                                     selected = selected + entry
                                 },
                                 onDelete = { if (selectionMode) toggleSelect(entry) else pendingDelete = entry },
+                                onPlayPath = onNavigateToPlayer,
                                 onOpenDetail = {
                                     if (!selectionMode) {
                                         onNavigateToDetail(
@@ -526,6 +528,7 @@ private fun RecordCard(
     onToggleSelect: () -> Unit = {},
     onLongPress: () -> Unit = {},
     onOpenDetail: () -> Unit = {},
+    onPlayPath: (String) -> Unit = {},
 ) {
     val context = LocalContext.current
     var showSegments by remember { mutableStateOf(false) }
@@ -535,10 +538,18 @@ private fun RecordCard(
     val formatBadge = remember(entry.savePath) { formatBadgeText(entry.savePath) }
 
     if (showSegments) {
-        RecordSegmentsSheet(savePath = entry.savePath, onDismiss = { showSegments = false })
+        RecordSegmentsSheet(
+            savePath = entry.savePath,
+            onDismiss = { showSegments = false },
+            onPlayFile = { path -> showSegments = false; onPlayPath(path) },
+        )
     }
     folderSheetPath?.let { path ->
-        RecordSegmentsSheet(savePath = path, onDismiss = { folderSheetPath = null })
+        RecordSegmentsSheet(
+            savePath = path,
+            onDismiss = { folderSheetPath = null },
+            onPlayFile = { filePath -> folderSheetPath = null; onPlayPath(filePath) },
+        )
     }
 
     Card(
@@ -560,7 +571,8 @@ private fun RecordCard(
                     Checkbox(checked = isSelected, onCheckedChange = { onToggleSelect() })
                     Spacer(Modifier.width(4.dp))
                 }
-                PlatformBadge(platformKeyForUrl(entry.url))
+                val platformKey = RecordFilters.platformKeyOf(entry)
+                if (platformKey.isNotBlank()) PlatformBadge(platformKey)
                 Spacer(Modifier.width(8.dp))
                 Text(
                     entry.anchorName.ifBlank { stringResource(R.string.records_unknown_anchor) },
@@ -682,7 +694,7 @@ private fun RecordCard(
             }
             Spacer(Modifier.height(4.dp))
             Row {
-                TextButton(onClick = { openRecording(context, entry) }) {
+                TextButton(onClick = { onPlayPath(entry.savePath) }) {
                     Icon(Icons.Default.PlayArrow, contentDescription = stringResource(R.string.action_play), modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
                     Text(stringResource(R.string.action_play))
@@ -720,7 +732,11 @@ private fun RecordCard(
 /** QW6：分段录制目录 BottomSheet——全文件列表（文件名/大小/时间），点击播放、可分享。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun RecordSegmentsSheet(savePath: String, onDismiss: () -> Unit) {
+private fun RecordSegmentsSheet(
+    savePath: String,
+    onDismiss: () -> Unit,
+    onPlayFile: (String) -> Unit,
+) {
     val context = LocalContext.current
     val files = remember(savePath) {
         File(savePath).listFiles()
@@ -748,7 +764,7 @@ private fun RecordSegmentsSheet(savePath: String, onDismiss: () -> Unit) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { openFile(context, file) }
+                            .clickable { onPlayFile(file.absolutePath) }
                             .padding(vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {

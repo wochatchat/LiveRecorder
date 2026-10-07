@@ -193,7 +193,12 @@ private fun MainScaffold() {
                 val onNavigateToDetail: (String) -> Unit = { encodedPath ->
                     navController.navigate("record_detail/$encodedPath")
                 }
-                RecordsScreen(onNavigateToDetail = onNavigateToDetail)
+                RecordsScreen(
+                    onNavigateToDetail = onNavigateToDetail,
+                    onNavigateToPlayer = { path ->
+                        navController.navigate("player/${encodeNavPath(path)}")
+                    },
+                )
             }
             composable(Destination.Settings.route) {
                 SettingsScreen(
@@ -215,6 +220,9 @@ private fun MainScaffold() {
                     onBack = { navController.popBackStack() },
                     onMerge = { _, _ -> navController.popBackStack() },
                     onPlayAll = { navController.navigate("player/$encodedPath") },
+                    onPlayFile = { path ->
+                        navController.navigate("player/${encodeNavPath(path)}")
+                    },
                 )
             }
             composable(ROUTE_PLAYER) { backStackEntry ->

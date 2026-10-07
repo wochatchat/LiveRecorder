@@ -93,7 +93,7 @@ fun WebLoginScreen(
                                     Toast.makeText(
                                         context,
                                         context.getString(R.string.web_login_toast_nologin),
-                                        Toast.LENGTH_LONG
+                                        Toast.LENGTH_SHORT
                                     ).show()
                                     grabbed = true
                                     onDone(cookie)
