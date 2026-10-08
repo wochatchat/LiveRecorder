@@ -482,12 +482,12 @@ private fun SwitchSettingRow(
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                if (query.isBlank()) title else buildHighlightedText(title, query),
+                buildHighlightedText(title, query),
                 style = MaterialTheme.typography.bodyLarge
             )
             if (subtitle != null) {
                 Text(
-                    if (query.isBlank()) subtitle else buildHighlightedText(subtitle, query),
+                    buildHighlightedText(subtitle, query),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -509,7 +509,7 @@ private fun ChipRow(
     if (!rowMatchesQuery(label, query)) return
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
         Text(
-            if (query.isBlank()) label else buildHighlightedText(label, query),
+            buildHighlightedText(label, query),
             style = MaterialTheme.typography.bodyLarge
         )
         Spacer(Modifier.height(6.dp))
