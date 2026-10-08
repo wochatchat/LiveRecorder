@@ -1,19 +1,17 @@
 {
-  "version": "0.1.14",
+  "version": "0.1.15",
   "zh": [
-    "悬浮球：跨 app 真悬浮球，拖动贴边、点击展开快捷面板（录制概要 + 去记录/去监控）",
-    "前台探测：抖音等平台前台时悬浮球高亮平台色，面板显示 Cookie 健康状态，一键探测直播间",
-    "自定义录制目录：可选任意文件夹（含 SD 卡），新录制直接落盘所选目录",
-    "记录页：平台筛选 + 排序/筛选记忆 + 动画；监控卡片紧凑模式；Cookie 网页登录获取",
-    "更新体验：设置页手动检查更新 + 应用内下载安装",
-    "修复：录制记录漏入库（失败/中断也留痕）、改名平台 Cookie 失效判定不生效"
+    "设置页重构：18 个堆叠分组改为 12 个分类卡片入口，带实时摘要（画质/定时/推送/剩余空间/云同步等）",
+    "设置二级子页：左右滑动过渡 + 动态标题返回导航",
+    "设置搜索原地过滤：搜索框固定列表顶部，一键查看全部分类结果",
+    "修复：停止的录制正确入库；恢复平台筛选 chips；改用应用内播放",
+    "补充录制取消回归测试"
   ],
   "en": [
-    "Floating ball: true cross-app overlay, draggable with edge snap and quick panel",
-    "Foreground detection: ball highlights platform color, shows cookie health, one-tap probe",
-    "Custom record directory: pick any folder (SAF/all-files access) for new recordings",
-    "Records page: platform filter + persistent filters + animations; compact monitor cards",
-    "Cookie web login helper for all major platforms; in-app update check & install",
-    "Fixes: missing record entries, stale cookie-expiry detection for renamed platforms"
+    "Settings rework: 18 stacked groups reorganized into 12 category cards with live summaries",
+    "Settings sub-pages with slide transitions and dynamic titles",
+    "In-place settings search pinned to the list top with full-category results",
+    "Fixes: persist stopped recordings, restore platform chips, use in-app playback",
+    "Add recording-cancellation regression tests"
   ]
 }
