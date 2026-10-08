@@ -10,6 +10,7 @@ class SearchHighlightTest {
 
     private fun spanRanges(text: String, query: String): List<IntRange> {
         val s = buildHighlightedText(text, query)
+        // AnnotatedString.spanStyles is List<SpanAnnotation<SpanStyle>> with .start/.end
         return s.spanStyles.map { it.start..it.end }
     }
 
