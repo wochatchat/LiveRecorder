@@ -30,10 +30,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CameraAlt
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Speed
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -289,9 +290,9 @@ fun InAppPlayerScreen(
             }
             IconButton(onClick = { isMuted = !isMuted }) {
                 Icon(
-                    Icons.Default.MusicNote,
+                    if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
                     contentDescription = stringResource(R.string.player_audio_mode),
-                    tint = if (isMuted) MaterialTheme.colorScheme.primary else Color.White,
+                    tint = Color.White,
                 )
             }
             IconButton(onClick = { showSpeedDialog = true }) {
@@ -302,7 +303,7 @@ fun InAppPlayerScreen(
                 )
             }
             IconButton(onClick = {
-                scope.launch { screenshotMsg = takeScreenshot(context, exoPlayer) }
+                scope.launch { screenshotMsg = takeScreenshot(context, exoPlayer, files) }
             }) {
                 Icon(
                     Icons.Default.CameraAlt,
@@ -518,7 +519,63 @@ private fun readMediaMetadata(context: android.content.Context, file: File?): Me
     }.getOrDefault(MediaMetadata(sizeBytes = file.length()))
 }
 
-/** 截图（Phase 3+）：ExoPlayer.currentBitmap(需 ExoPlayer 1.5.1+)；暂返回不可用提示。 */
-private suspend fun takeScreenshot(context: android.content.Context, @Suppress("UNUSED_PARAMETER") exoPlayer: ExoPlayer): String {
-    return context.getString(R.string.player_screenshot_unavailable)
+/** 截图：抓当前帧 → MediaStore (API29+) 或 File fallback。返回保存路径文案。 */
+private suspend fun takeScreenshot(
+    context: android.content.Context,
+    exoPlayer: ExoPlayer,
+    files: List<File>,
+): String = withContext(Dispatchers.IO) {
+    try {
+        val idx = exoPlayer.currentMediaItemIndex.coerceIn(0, files.lastIndex)
+        val currentFile = files[idx]
+        val positionInFileMs = exoPlayer.currentPosition
+
+        val retriever = android.media.MediaMetadataRetriever()
+        retriever.setDataSource(currentFile.absolutePath)
+        val bitmap = retriever.getFrameAtTime(
+            positionInFileMs * 1000,
+            android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC,
+        )
+        retriever.release()
+
+        if (bitmap == null) {
+            return@withContext context.getString(R.string.player_screenshot_failed)
+        }
+
+        val filename = "LR_${System.currentTimeMillis()}.jpg"
+        val saved = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, filename)
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/LiveRecorder")
+            }
+            val uri = context.contentResolver.insert(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues,
+            )
+            if (uri != null) {
+                context.contentResolver.openOutputStream(uri)?.use { out ->
+                    bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out)
+                }
+                uri
+            } else null
+        } else {
+            // API < 29 回落到应用缓存目录
+            val dir = File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), "LiveRecorder")
+            dir.mkdirs()
+            val file = File(dir, filename)
+            FileOutputStream(file).use { out -> bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out) }
+            android.net.Uri.fromFile(file)
+        }
+
+        bitmap.recycle()
+
+        if (saved != null) {
+            context.getString(R.string.player_screenshot_saved, filename)
+        } else {
+            context.getString(R.string.player_screenshot_failed)
+        }
+    } catch (e: Exception) {
+        com.wochatchat.liverecorder.data.AppLog.e("InAppPlayerScreen", "screenshot failed: ${e.javaClass.simpleName}: ${e.message}")
+        context.getString(R.string.player_screenshot_failed)
+    }
 }

@@ -437,6 +437,33 @@ private fun SettingsGroup(
 private fun rowMatchesQuery(text: String?, query: String): Boolean =
     !text.isNullOrBlank() && (query.isBlank() || text.contains(query.trim(), ignoreCase = true))
 
+/**
+ * 搜索关键词高亮（AnnotatedString）：query 非空时把命中区间标亮（大小写不敏感、全部命中）。
+ * 纯函数，可单测。
+ */
+internal fun buildHighlightedText(text: String, query: String): androidx.compose.ui.text.AnnotatedString {
+    val trimmed = query.trim()
+    if (trimmed.isEmpty() || !text.contains(trimmed, ignoreCase = true)) {
+        return androidx.compose.ui.text.AnnotatedString(text)
+    }
+    val builder = androidx.compose.ui.text.AnnotatedString.Builder(text)
+    val lower = text.lowercase()
+    val needle = trimmed.lowercase()
+    var from = 0
+    while (true) {
+        val idx = lower.indexOf(needle, from)
+        if (idx < 0) break
+        builder.addStyle(
+            androidx.compose.ui.text.SpanStyle(
+                background = androidx.compose.ui.graphics.Color(0x332196F3),
+            ),
+            idx, idx + needle.length,
+        )
+        from = idx + needle.length
+    }
+    return builder.toAnnotatedString()
+}
+
 /** 开关行：标题 + 说明 + Switch，即改即存（QW8：query 非空时按标题/说明过滤）。 */
 @Composable
 private fun SwitchSettingRow(
@@ -454,10 +481,13 @@ private fun SwitchSettingRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                if (query.isBlank()) title else buildHighlightedText(title, query),
+                style = MaterialTheme.typography.bodyLarge
+            )
             if (subtitle != null) {
                 Text(
-                    subtitle,
+                    if (query.isBlank()) subtitle else buildHighlightedText(subtitle, query),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -478,7 +508,10 @@ private fun ChipRow(
 ) {
     if (!rowMatchesQuery(label, query)) return
     Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Text(
+            if (query.isBlank()) label else buildHighlightedText(label, query),
+            style = MaterialTheme.typography.bodyLarge
+        )
         Spacer(Modifier.height(6.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             options.forEach { option ->

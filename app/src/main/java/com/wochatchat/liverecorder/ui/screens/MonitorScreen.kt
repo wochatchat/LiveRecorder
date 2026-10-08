@@ -57,6 +57,10 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -78,6 +82,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.launch
 import com.wochatchat.liverecorder.R
 import com.wochatchat.liverecorder.data.AppLog
+import com.wochatchat.liverecorder.recorder.RecordController
 import com.wochatchat.liverecorder.data.Account
 import com.wochatchat.liverecorder.data.Accounts
 import com.wochatchat.liverecorder.data.MonitorRow
@@ -160,6 +165,8 @@ fun MonitorScreen(
     }
 
     // Android 13+ 通知权限：前台服务可无权限运行，但常驻通知需要它（2a/2e 依赖）
+    // 防重复打扰：仅首次进入时自动请求；用户拒绝过（rationale=false 且未授权）则静默，
+    // 引导改走 设置页 → 系统权限 手动入口
     val notifPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { }
@@ -169,7 +176,25 @@ fun MonitorScreen(
                 context, android.Manifest.permission.POST_NOTIFICATIONS
             ) != PackageManager.PERMISSION_GRANTED
         ) {
-            notifPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            // 找到宿主 Activity（Context 可能是 ContextWrapper 包装）
+            var activity: android.app.Activity? = null
+            var ctx: android.content.Context? = context
+            while (ctx is android.content.ContextWrapper) {
+                if (ctx is android.app.Activity) { activity = ctx; break }
+                ctx = ctx.baseContext
+            }
+            val rationale = activity != null && androidx.core.app.ActivityCompat.shouldShowRequestPermissionRationale(
+                activity, android.Manifest.permission.POST_NOTIFICATIONS,
+            )
+            if (rationale) {
+                // 拒绝过一次但未永久拒绝：给一次说明后请求（首次进入 rationale=false 视为未问过）
+                notifPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            } else if (MonitorPrefs.notifEverAsked(context)) {
+                // 永久拒绝且已问过：静默，不再弹
+            } else {
+                MonitorPrefs.setNotifEverAsked(context)
+                notifPermission.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
     }
 
@@ -210,7 +235,22 @@ fun MonitorScreen(
             TopAppBar(
                 title = { Text(stringResource(R.string.screen_monitor_title)) },
                 actions = {
-                    // V3-3 R2：按平台分组切换（高亮 = 已开启）
+                    // V4-3：有任意录制中时显示「全部停止」
+                    val recordingUrls = recordStates.filterValues { it is RecordController.RecordState.Recording }.keys
+                    if (recordingUrls.isNotEmpty()) {
+                        TextButton(onClick = { recordingUrls.forEach(viewModel::stopRecord) }) {
+                            Text(
+                                stringResource(R.string.monitor_stop_all, recordingUrls.size),
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                    // V3-3 R2：按平台分组切换（高亮 = 已开启；长按 tooltip 说明用途）
+                TooltipBox(
+                    positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                    tooltip = { PlainTooltip { Text(stringResource(R.string.monitor_toggle_group)) } },
+                    state = rememberTooltipState(),
+                ) {
                     IconButton(onClick = { viewModel.toggleGroupByPlatform() }) {
                         Icon(
                             Icons.Default.Category,
@@ -219,6 +259,7 @@ fun MonitorScreen(
                             else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                }
                     IconButton(onClick = onOpenSettings) {
                         Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.desc_settings))
                     }
@@ -572,5 +613,20 @@ private fun SkeletonCard() {
                     .background(bg, RoundedCornerShape(4.dp))
             )
         }
+    }
+}
+
+/** 监控页本地一次性标记（通知权限是否已自动请求过），SharedPreferences 即可，不值得入 DataStore。 */
+private object MonitorPrefs {
+    private const val FILE = "monitor_prefs"
+    private const val KEY_NOTIF_EVER_ASKED = "notif_ever_asked"
+
+    fun notifEverAsked(context: android.content.Context): Boolean =
+        context.getSharedPreferences(FILE, android.content.Context.MODE_PRIVATE)
+            .getBoolean(KEY_NOTIF_EVER_ASKED, false)
+
+    fun setNotifEverAsked(context: android.content.Context) {
+        context.getSharedPreferences(FILE, android.content.Context.MODE_PRIVATE)
+            .edit().putBoolean(KEY_NOTIF_EVER_ASKED, true).apply()
     }
 }
