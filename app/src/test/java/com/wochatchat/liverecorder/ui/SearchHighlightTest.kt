@@ -27,22 +27,22 @@ class SearchHighlightTest {
 
     @Test fun `single match highlighted with correct range`() {
         val ranges = spanRanges("视频画质设置", "画质")
-        assertEquals(listOf(2..4), ranges)
+        assertEquals(listOf(2..3), ranges)
     }
 
     @Test fun `match is case insensitive`() {
         val ranges = spanRanges("Enable Proxy", "proxy")
-        assertEquals(listOf(7..12), ranges)
+        assertEquals(listOf(7..11), ranges)
     }
 
     @Test fun `multiple matches all highlighted`() {
         val ranges = spanRanges("画质优先，画质兜底", "画质")
-        assertEquals(listOf(0..2, 5..7), ranges)
+        assertEquals(listOf(0..1, 5..6), ranges)
     }
 
     @Test fun `query with surrounding spaces is trimmed`() {
         val ranges = spanRanges("视频画质", " 画质 ")
-        assertEquals(listOf(2..4), ranges)
+        assertEquals(listOf(2..3), ranges)
     }
 
     @Test fun `highlight preserves full text`() {
