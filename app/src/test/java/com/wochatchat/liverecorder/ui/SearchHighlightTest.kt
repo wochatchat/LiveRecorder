@@ -10,8 +10,8 @@ class SearchHighlightTest {
 
     private fun spanRanges(text: String, query: String): List<IntRange> {
         val s = buildHighlightedText(text, query)
-        // AnnotatedString.spanStyles is List<SpanAnnotation<SpanStyle>> with .start/.end
-        return s.spanStyles.map { it.start..it.end }
+        // AnnotatedString 区间 end 为排他（until 语义）
+        return s.spanStyles.map { it.start until it.end }
     }
 
     @Test fun `query blank returns plain string`() {
@@ -27,27 +27,22 @@ class SearchHighlightTest {
 
     @Test fun `single match highlighted with correct range`() {
         val ranges = spanRanges("视频画质设置", "画质")
-        assertEquals(1, ranges.size)
-        assertEquals(2..3, ranges[0])
+        assertEquals(listOf(2..4), ranges)
     }
 
     @Test fun `match is case insensitive`() {
         val ranges = spanRanges("Enable Proxy", "proxy")
-        assertEquals(1, ranges.size)
-        assertEquals(7..11, ranges[0])
+        assertEquals(listOf(7..12), ranges)
     }
 
     @Test fun `multiple matches all highlighted`() {
         val ranges = spanRanges("画质优先，画质兜底", "画质")
-        assertEquals(2, ranges.size)
-        assertEquals(0..1, ranges[0])
-        assertEquals(5..6, ranges[1])
+        assertEquals(listOf(0..2, 5..7), ranges)
     }
 
     @Test fun `query with surrounding spaces is trimmed`() {
         val ranges = spanRanges("视频画质", " 画质 ")
-        assertEquals(1, ranges.size)
-        assertEquals(2..3, ranges[0])
+        assertEquals(listOf(2..4), ranges)
     }
 
     @Test fun `highlight preserves full text`() {
